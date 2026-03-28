@@ -3889,11 +3889,11 @@ function generateLinkSuggestions() {
   // Render MUST FIX
   const mfHtml = mustFix.length ? `
     <div class="table-card" style="border-top:3px solid var(--red)">
-      <div class="table-card-header" style="cursor:pointer" onclick="var d=document.getElementById('mustFixBody');d.style.display=d.style.display==='none'?'block':'none'">
+      <div class="table-card-header" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="var d=document.getElementById('mustFixBody');var v=d.style.display==='none';d.style.display=v?'block':'none';this.querySelector('.mf-arrow').textContent=v?'▲':'▼'">
         <span class="table-card-title" style="color:var(--red)">⚠ MUST FIX (${mustFix.length})</span>
-        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">▼</span>
+        <span class="mf-arrow" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">▼</span>
       </div>
-      <div id="mustFixBody" style="padding:0.5rem 1rem;max-height:300px;overflow-y:auto">
+      <div id="mustFixBody" style="display:none;padding:0.5rem 1rem;max-height:300px;overflow-y:auto">
         ${mustFix.map(m => `<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
           <span style="color:var(--red);font-family:var(--font-mono);font-size:8px;min-width:100px">${m.type === 'no-backlinks' ? 'BEZ BACKLINKÓW' : m.type === 'no-cluster-link' ? 'IZOLOWANY' : 'BRAK PILLAR'}</span>
           <span style="color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.art.tytul)}</span>
