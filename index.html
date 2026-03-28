@@ -971,7 +971,8 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div style="margin-top:0.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 16px;font-size:10px;display:flex;gap:14px;flex-wrap:wrap">
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);vertical-align:middle;margin-right:4px"></span> Hub</span>
       <span style="color:var(--accent)">— link hub→artykuł</span>
-      <span style="color:#00bcd4">⤍ cross-link artykuł→artykuł</span>
+      <span style="color:#00bcd4">⤍ link w klastrze (lewa)</span>
+      <span style="color:#a78bfa">⤍ link między hubami (prawa→lewa)</span>
       <span><span style="display:inline-block;width:8px;height:8px;border:2px solid var(--green);border-radius:2px;vertical-align:middle;margin-right:4px"></span> linkuje w klastrze ✓</span>
       <span><span style="display:inline-block;width:8px;height:8px;border:2px solid var(--red);border-radius:2px;vertical-align:middle;margin-right:4px"></span> izolowany ✗</span>
     </div>
@@ -3544,7 +3545,7 @@ function renderSitemap() {
       const crossCount = links.filter(l => artUrlToId[l.url] && artUrlToId[l.url] !== a.id).length;
       const titleShort = a.tytul.length > 35 ? a.tytul.substring(0, 32) + '...' : a.tytul;
 
-      nodes['art_' + a.id] = { x: ax, y: ay + 22 };
+      nodes['art_' + a.id] = { x: ax, y: ay + 22, hubId: h.id };
       nodesHtml.push(`<div data-nodeid="art_${a.id}" data-artid="${a.id}" class="sitemap-art" style="position:absolute;left:${ax - artW/2}px;top:${ay}px;width:${artW}px;background:var(--bg-secondary);border:1px solid var(--border);border-left:3px solid ${borderColor};border-radius:4px;padding:6px 10px;cursor:pointer;transition:all 0.15s;font-size:11px" onclick="openSitemapPanel('${a.id}')">
         <div style="color:var(--text-primary);line-height:1.3;margin-bottom:3px">${esc(titleShort)}</div>
         <div style="display:flex;gap:6px;font-family:var(--font-mono);font-size:9px;color:var(--text-muted)">
@@ -3569,7 +3570,7 @@ function renderSitemap() {
     const svg = document.getElementById('sitemapSvg');
     svg.setAttribute('width', W);
     svg.setAttribute('height', Math.max(600, maxY));
-    svg.innerHTML = '<defs><marker id="ah" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,6 2.5,0 5" fill="#00d4aa" opacity="0.5"/></marker><marker id="ac" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,6 2.5,0 5" fill="#00bcd4" opacity="0.6"/></marker></defs>';
+    svg.innerHTML = '<defs><marker id="ah" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,6 2.5,0 5" fill="#00d4aa" opacity="0.5"/></marker><marker id="ac" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,6 2.5,0 5" fill="#00bcd4" opacity="0.6"/></marker><marker id="ap" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,6 2.5,0 5" fill="#a78bfa" opacity="0.6"/></marker></defs>';
 
     // Root → Hubs
     visHubs.forEach(h => {
@@ -3591,6 +3592,9 @@ function renderSitemap() {
     });
 
     // Cross-links between articles
+    // Same hub → linie po LEWEJ stronie artykułów
+    // Different hub → linia wychodzi PRAWĄ stroną źródła, wchodzi LEWĄ stroną celu
+    const artHalfW = 110; // half of artW (220/2)
     visArts.forEach(srcArt => {
       const from = nodes['art_' + srcArt.id];
       if (!from) return;
@@ -3599,13 +3603,33 @@ function renderSitemap() {
         if (!targetId || targetId === srcArt.id) return;
         const to = nodes['art_' + targetId];
         if (!to) return;
-        const dx = to.x - from.x;
-        const dy = to.y - from.y;
-        const offset = dx === 0 ? 80 : Math.min(60, Math.abs(dy) * 0.3 + 30);
-        const side = from.x <= to.x ? 1 : -1;
-        const cx1 = from.x + offset * side + 110;
-        const cx2 = to.x + offset * side + 110;
-        svg.innerHTML += `<path d="M ${from.x + 110} ${from.y} C ${cx1} ${from.y}, ${cx2} ${to.y}, ${to.x + 110} ${to.y}" fill="none" stroke="#00bcd4" stroke-width="1" opacity="0.3" stroke-dasharray="4 3" marker-end="url(#ac)" class="crosslink" data-from="${srcArt.id}" data-to="${targetId}"/>`;
+        const sameHub = from.hubId === to.hubId;
+
+        let sx, sy, tx, ty, cx1, cy1, cx2, cy2;
+        sy = from.y;
+        ty = to.y;
+
+        if (sameHub) {
+          // Same hub: both sides LEFT
+          sx = from.x - artHalfW;
+          tx = to.x - artHalfW;
+          const bulge = -Math.min(70, Math.abs(sy - ty) * 0.4 + 25);
+          cx1 = sx + bulge;
+          cy1 = sy;
+          cx2 = tx + bulge;
+          cy2 = ty;
+        } else {
+          // Cross-hub: exit RIGHT from source, enter LEFT of target
+          sx = from.x + artHalfW;
+          tx = to.x - artHalfW;
+          const midX = (sx + tx) / 2;
+          cx1 = midX;
+          cy1 = sy;
+          cx2 = midX;
+          cy2 = ty;
+        }
+
+        svg.innerHTML += `<path d="M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}" fill="none" stroke="${sameHub ? '#00bcd4' : '#a78bfa'}" stroke-width="1" opacity="0.25" stroke-dasharray="${sameHub ? '4 3' : '6 3'}" marker-end="url(#${sameHub ? 'ac' : 'ap'})" class="crosslink" data-from="${srcArt.id}" data-to="${targetId}"/>`;
       });
     });
 
