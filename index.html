@@ -1707,6 +1707,7 @@ function renderHubDetail(id) {
     </div>`).join('') : '<div class="empty-state">Brak artykułów satelitarnych</div>'}
     <div style="margin-top:1rem;display:flex;gap:0.6rem;flex-wrap:wrap">
       <button class="btn btn-accent" onclick="openModal('modalHubArticle');window._hubArticleTargetId='${h.id}'">DODAJ ARTYKUŁ DO HUBA</button>
+      <button class="btn" onclick="editHub('${h.id}')">EDYTUJ HUB</button>
       <button class="btn" onclick="alert('Wkrótce dostępne')">GENERUJ ARTYKUŁ Z AI ►</button>
       <button class="btn btn-red" onclick="deleteHub('${h.id}')">USUŃ HUB</button>
     </div>`;
@@ -1730,21 +1731,55 @@ function deleteHub(id) {
   selectedHubId = null; renderHuby();
 }
 
-document.getElementById('addHubBtn').addEventListener('click', () => openModal('modalHub'));
+window._editHubId = null;
+
+function editHub(id) {
+  const hubs = lsGet(KEY.hubs, []);
+  const h = hubs.find(x => x.id === id);
+  if (!h) return;
+  window._editHubId = id;
+  document.getElementById('hubNazwa').value = h.nazwa || '';
+  document.getElementById('hubDomena').value = h.domena || '';
+  document.getElementById('hubUrl').value = h.urlPillar || '';
+  document.getElementById('hubKeyword').value = h.keyword || '';
+  document.getElementById('hubOpis').value = h.opis || '';
+  document.querySelector('#modalHub .modal-title').textContent = 'EDYTUJ HUB';
+  openModal('modalHub');
+}
+
+document.getElementById('addHubBtn').addEventListener('click', () => {
+  window._editHubId = null;
+  ['hubNazwa','hubDomena','hubUrl','hubKeyword','hubOpis'].forEach(id => document.getElementById(id).value = '');
+  document.querySelector('#modalHub .modal-title').textContent = 'DODAJ HUB';
+  openModal('modalHub');
+});
+
 document.getElementById('confirmHub').addEventListener('click', () => {
   const nazwa = document.getElementById('hubNazwa').value.trim();
   const domena = document.getElementById('hubDomena').value.trim();
   if (!nazwa || !domena) { alert('Nazwa i domena są wymagane.'); return; }
   const hubs = lsGet(KEY.hubs, []);
-  hubs.push({
-    id: 'hub' + Date.now(), nazwa, domena,
-    urlPillar: document.getElementById('hubUrl').value.trim(),
-    keyword: document.getElementById('hubKeyword').value.trim(),
-    opis: document.getElementById('hubOpis').value.trim(),
-    artykuly: [], createdAt: new Date().toISOString()
-  });
+  if (window._editHubId) {
+    const h = hubs.find(x => x.id === window._editHubId);
+    if (h) {
+      h.nazwa = nazwa;
+      h.domena = domena;
+      h.urlPillar = document.getElementById('hubUrl').value.trim();
+      h.keyword = document.getElementById('hubKeyword').value.trim();
+      h.opis = document.getElementById('hubOpis').value.trim();
+    }
+  } else {
+    hubs.push({
+      id: 'hub' + Date.now(), nazwa, domena,
+      urlPillar: document.getElementById('hubUrl').value.trim(),
+      keyword: document.getElementById('hubKeyword').value.trim(),
+      opis: document.getElementById('hubOpis').value.trim(),
+      artykuly: [], createdAt: new Date().toISOString()
+    });
+  }
   lsSet(KEY.hubs, hubs); saveAllWithSync();
   closeModal('modalHub');
+  window._editHubId = null;
   ['hubNazwa','hubDomena','hubUrl','hubKeyword','hubOpis'].forEach(id => document.getElementById(id).value = '');
   renderHuby();
 });
