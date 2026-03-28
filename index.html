@@ -103,18 +103,15 @@ html, body {
   font-family: var(--font-mono); font-size: 0.65rem;
   color: var(--text-muted); margin-left: 0.5rem;
 }
-.welcome-progress-wrap {
-  width: 100%; max-width: 320px; margin: 0 auto;
-  background: var(--border); border-radius: 2px; height: 2px; overflow: hidden;
+.welcome-cta {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--accent); letter-spacing: 0.15em;
+  text-transform: uppercase; margin-top: 2rem;
+  animation: cta-pulse 2s ease-in-out infinite;
 }
-.welcome-progress-bar {
-  height: 100%; background: var(--accent);
-  width: 0%; border-radius: 2px;
-  transition: width 0.1s linear;
-}
-.welcome-hint {
-  font-family: var(--font-mono); font-size: 0.6rem;
-  color: var(--text-muted); letter-spacing: 0.15em; margin-top: 1rem;
+@keyframes cta-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 /* ── TOPBAR ── */
@@ -517,10 +514,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; }
         <span class="welcome-quote-years" id="quoteYears"></span>
       </div>
     </div>
-    <div class="welcome-progress-wrap">
-      <div class="welcome-progress-bar" id="welcomeBar"></div>
-    </div>
-    <div class="welcome-hint">KLIKNIJ LUB NACIŚNIJ KLAWISZ ABY POMINĄĆ</div>
+    <div class="welcome-cta">KLIKNIJ ABY KONTYNUOWAĆ</div>
   </div>
 </div>
 
@@ -926,18 +920,10 @@ const QUOTES = [
   document.getElementById('quoteAuthor').textContent = q.author;
   document.getElementById('quoteYears').textContent = q.years;
 
-  const bar = document.getElementById('welcomeBar');
-  const total = 5000;
-  const step = 50;
-  let elapsed = 0;
-  const timer = setInterval(() => {
-    elapsed += step;
-    bar.style.width = Math.min(100, (elapsed / total) * 100) + '%';
-    if (elapsed >= total) dismiss();
-  }, step);
-
+  let dismissed = false;
   function dismiss() {
-    clearInterval(timer);
+    if (dismissed) return;
+    dismissed = true;
     const w = document.getElementById('welcome');
     w.style.transition = 'opacity 0.4s';
     w.style.opacity = '0';
@@ -950,10 +936,7 @@ const QUOTES = [
   }
 
   document.getElementById('welcome').addEventListener('click', dismiss);
-  document.addEventListener('keydown', function onKey(e) {
-    document.removeEventListener('keydown', onKey);
-    dismiss();
-  }, { once: true });
+  document.addEventListener('keydown', dismiss, { once: true });
 })();
 
 // ═══════════════════════════════════════════════════════
