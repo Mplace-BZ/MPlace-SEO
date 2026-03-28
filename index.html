@@ -3282,11 +3282,11 @@ function renderLinki() {
     const statusHtml = hasIssue
       ? (backlinks.length === 0 ? '<span style="color:var(--red);font-size:10px">brak backlinków</span>' : '<span style="color:var(--yellow);font-size:10px">bez huba</span>')
       : '<span style="color:var(--green);font-size:10px">OK</span>';
-    return `<tr style="cursor:pointer" onclick="showLinkDetail('${a.id}')">
-      <td class="primary" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.tytul)}</td>
+    return `<tr>
+      <td class="primary" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" onclick="showLinkDetail('${a.id}')">${esc(a.tytul)}</td>
       <td style="font-size:11px">${hub ? esc(hub.nazwa) : '<span style="color:var(--red)">—</span>'}</td>
-      <td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">→ ${links.length}</td>
-      <td style="font-family:var(--font-mono);font-size:12px;color:${backlinks.length ? '#00c896' : 'var(--red)'}">← ${backlinks.length}</td>
+      <td style="font-family:var(--font-mono);font-size:12px"><a href="#" onclick="event.preventDefault();showLinkDetail('${a.id}','out')" style="color:var(--accent);text-decoration:none">→ ${links.length}</a></td>
+      <td style="font-family:var(--font-mono);font-size:12px"><a href="#" onclick="event.preventDefault();showLinkDetail('${a.id}','in')" style="color:${backlinks.length ? '#00c896' : 'var(--red)'};text-decoration:none">← ${backlinks.length}</a></td>
       <td style="font-family:var(--font-mono);font-size:11px;color:var(--green)">${inBaseCount}/${links.length}</td>
       <td>${statusHtml}</td>
     </tr>`;
@@ -3295,7 +3295,7 @@ function renderLinki() {
   document.getElementById('linkDetail').innerHTML = '';
 }
 
-function showLinkDetail(artId) {
+function showLinkDetail(artId, focus) {
   const articles = lsGet(KEY.articles, []);
   const hubs = lsGet(KEY.hubs, []);
   const a = articles.find(x => x.id === artId);
@@ -3325,7 +3325,7 @@ function showLinkDetail(artId) {
         <button class="btn" style="font-size:8px;padding:3px 8px" onclick="document.getElementById('linkDetail').innerHTML=''">ZAMKNIJ ✕</button>
       </div>
       <div style="padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-        <div>
+        <div id="linkDetailOut" style="padding:8px;border-radius:6px;${focus === 'out' ? 'background:var(--accent-dim);border:1px solid var(--accent-border)' : ''}">
           <div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">→ LINKUJE DO (${links.length}):</div>
           ${links.length ? links.map(l => {
             const inBase = allArticleUrls.has(l.url);
@@ -3336,7 +3336,7 @@ function showLinkDetail(artId) {
             </div>`;
           }).join('') : '<div style="color:var(--text-muted);font-size:11px">Brak</div>'}
         </div>
-        <div>
+        <div id="linkDetailIn" style="padding:8px;border-radius:6px;${focus === 'in' ? 'background:#00c89618;border:1px solid #00c89644' : ''}">
           <div style="font-family:var(--font-mono);font-size:9px;color:#00c896;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">← LINKOWANY PRZEZ (${backlinks.length}):</div>
           ${backlinks.length ? backlinks.map(b =>
             `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
@@ -3347,7 +3347,8 @@ function showLinkDetail(artId) {
         </div>
       </div>
     </div>`;
-  document.getElementById('linkDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const scrollTarget = focus === 'in' ? 'linkDetailIn' : focus === 'out' ? 'linkDetailOut' : 'linkDetail';
+  document.getElementById(scrollTarget).scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ═══════════════════════════════════════════════════════
