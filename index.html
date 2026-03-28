@@ -3602,7 +3602,7 @@ function renderSitemap() {
     // Cross-links between articles
     // Same hub → linie po LEWEJ stronie artykułów
     // Different hub → linia wychodzi PRAWĄ stroną źródła, wchodzi LEWĄ stroną celu
-    const artHalfW = 110; // half of artW (220/2)
+    const artHalfW = 110;
     visArts.forEach(srcArt => {
       const from = nodes['art_' + srcArt.id];
       if (!from) return;
@@ -3618,22 +3618,30 @@ function renderSitemap() {
         ty = to.y;
 
         if (sameHub) {
-          // Same hub: both sides LEFT
+          // Same hub: linie po LEWEJ
           sx = from.x - artHalfW;
           tx = to.x - artHalfW;
-          const bulge = -Math.min(70, Math.abs(sy - ty) * 0.4 + 25);
+          const dist = Math.abs(sy - ty);
+          const bulge = -Math.min(50, dist * 0.3 + 20);
           cx1 = sx + bulge;
           cy1 = sy;
           cx2 = tx + bulge;
           cy2 = ty;
         } else {
-          // Cross-hub: exit RIGHT from source, enter LEFT of target
-          sx = from.x + artHalfW;
-          tx = to.x - artHalfW;
-          const midX = (sx + tx) / 2;
-          cx1 = midX;
+          // Cross-hub: source PRAWA → target LEWA
+          const targetIsRight = to.x > from.x;
+          if (targetIsRight) {
+            sx = from.x + artHalfW;
+            tx = to.x - artHalfW;
+          } else {
+            sx = from.x - artHalfW;
+            tx = to.x + artHalfW;
+          }
+          const dist = Math.abs(sx - tx);
+          const bulge = Math.max(40, dist * 0.3);
+          cx1 = sx + (targetIsRight ? bulge : -bulge);
           cy1 = sy;
-          cx2 = midX;
+          cx2 = tx + (targetIsRight ? -bulge : bulge);
           cy2 = ty;
         }
 
