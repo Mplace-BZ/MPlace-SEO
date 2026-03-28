@@ -3932,7 +3932,7 @@ function generateLinkSuggestions() {
               <span style="color:${prioColor(sg.priority)};font-family:var(--font-mono);font-size:8px;min-width:55px;text-transform:uppercase">${sg.priority}</span>
               <span style="color:${sg.direction.includes('klastrze') ? '#00bcd4' : '#a78bfa'};font-family:var(--font-mono);font-size:9px;min-width:80px">${sg.direction}</span>
               <div style="flex:1">
-                <div style="color:var(--text-secondary)">→ <strong>${esc(sg.target.tytul)}</strong></div>
+                <div>→ ${sg.target.url ? `<a href="${esc(sg.target.url)}" target="_blank" rel="noopener" style="color:var(--text-secondary);text-decoration:none;font-weight:500" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'">${esc(sg.target.tytul)}</a>` : `<strong style="color:var(--text-secondary)">${esc(sg.target.tytul)}</strong>`}</div>
                 <div style="color:var(--text-muted);font-size:10px">${sg.reason}</div>
               </div>
             </div>`).join('')}
