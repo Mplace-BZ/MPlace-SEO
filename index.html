@@ -745,6 +745,8 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div class="section-title">Baza wiedzy <span class="star">✦</span></div>
     <div class="section-subtitle">Zasady i instrukcje używane przez Agenta przy generowaniu treści</div>
 
+    <div id="guidelinesClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem"></div>
+
     <div style="background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:8px;padding:12px 16px;margin-bottom:1.5rem;font-size:12px;color:var(--text-secondary)">
       ► Zaznaczone sekcje są automatycznie dołączane do promptu Agenta. Możesz edytować każdą sekcję osobno.
     </div>
@@ -1160,7 +1162,7 @@ function seedTestData() {
       { id: 'a2', title: 'Mysz', url: '', photos: 1, desc: 'Mysz do komputera.', notes: 'Do poprawy — za krótki opis' },
     ]);
   }
-  if (!lsGet(KEY.guidelines)) lsSet(KEY.guidelines, JSON.parse(JSON.stringify(DEFAULT_GUIDELINES_SECTIONS)));
+  if (!lsGet(KEY.guidelines)) lsSet(KEY.guidelines, { luxsen: JSON.parse(JSON.stringify(DEFAULT_GUIDELINES_SECTIONS)) });
 
   // Huby
   if (lsGet(KEY.hubs, []).length === 0) {
@@ -1731,14 +1733,51 @@ document.getElementById('exportCsvBtn').addEventListener('click', () => {
 function csvEsc(s) { return '"' + String(s || '').replace(/"/g, '""') + '"'; }
 
 // ═══════════════════════════════════════════════════════
-// 9. WYTYCZNE (4 sekcje)
+// 9. WYTYCZNE (4 sekcje per klient)
 // ═══════════════════════════════════════════════════════
-function getGuidelinesSections() {
-  return lsGet(KEY.guidelines) || JSON.parse(JSON.stringify(DEFAULT_GUIDELINES_SECTIONS));
+const GUIDELINES_CLIENTS = [
+  { id: 'luxsen', label: 'LUXSEN', defaults: DEFAULT_GUIDELINES_SECTIONS },
+  { id: 'domglamour', label: 'DOM GLAMOUR', defaults: {
+    sekcja1: { aktywna: true, tresc: '' },
+    sekcja2: { aktywna: true, tresc: '' },
+    sekcja3: { aktywna: true, tresc: '' },
+    sekcja4: { aktywna: false, tresc: '' }
+  }},
+];
+let selectedGuidelinesClient = GUIDELINES_CLIENTS[0].id;
+
+function getAllGuidelines() {
+  return lsGet(KEY.guidelines) || {};
+}
+
+function getClientGuidelines(clientId) {
+  const all = getAllGuidelines();
+  if (all[clientId]) return all[clientId];
+  const client = GUIDELINES_CLIENTS.find(c => c.id === clientId);
+  return client ? JSON.parse(JSON.stringify(client.defaults)) : {};
+}
+
+function renderGuidelinesClientFilter() {
+  const el = document.getElementById('guidelinesClientFilter');
+  el.innerHTML = GUIDELINES_CLIENTS.map(c =>
+    `<button class="btn ${selectedGuidelinesClient === c.id ? 'btn-accent' : ''}" onclick="switchGuidelinesClient('${c.id}')">${c.label}</button>`
+  ).join('');
+}
+
+function switchGuidelinesClient(clientId) {
+  saveGuidelinesSectionsQuiet();
+  selectedGuidelinesClient = clientId;
+  renderGuidelinesClientFilter();
+  renderGuidelinesSections();
 }
 
 function renderWytyczne() {
-  const sections = getGuidelinesSections();
+  renderGuidelinesClientFilter();
+  renderGuidelinesSections();
+}
+
+function renderGuidelinesSections() {
+  const sections = getClientGuidelines(selectedGuidelinesClient);
   const container = document.getElementById('guidelinesSections');
   container.innerHTML = GUIDELINES_SECTION_META.map(meta => {
     const s = sections[meta.key] || { aktywna: false, tresc: '' };
@@ -1757,7 +1796,6 @@ function renderWytyczne() {
     </div>`;
   }).join('');
 
-  // Update ON/OFF label color on toggle
   GUIDELINES_SECTION_META.forEach(meta => {
     document.getElementById('gCheck_' + meta.key).addEventListener('change', function() {
       const label = this.parentElement;
@@ -1767,20 +1805,30 @@ function renderWytyczne() {
   });
 }
 
-function saveGuidelinesSections() {
+function saveGuidelinesSectionsQuiet() {
+  const all = getAllGuidelines();
   const sections = {};
   GUIDELINES_SECTION_META.forEach(meta => {
-    sections[meta.key] = {
-      aktywna: document.getElementById('gCheck_' + meta.key).checked,
-      tresc: document.getElementById('gText_' + meta.key).value
-    };
+    const checkbox = document.getElementById('gCheck_' + meta.key);
+    const textarea = document.getElementById('gText_' + meta.key);
+    if (checkbox && textarea) {
+      sections[meta.key] = { aktywna: checkbox.checked, tresc: textarea.value };
+    }
   });
-  lsSet(KEY.guidelines, sections);
+  if (Object.keys(sections).length > 0) {
+    all[selectedGuidelinesClient] = sections;
+    lsSet(KEY.guidelines, all);
+  }
+}
+
+function saveGuidelinesSections() {
+  saveGuidelinesSectionsQuiet();
   saveAllWithSync();
 }
 
-function getActiveGuidelinesText() {
-  const sections = getGuidelinesSections();
+function getActiveGuidelinesText(clientId) {
+  const cid = clientId || selectedGuidelinesClient;
+  const sections = getClientGuidelines(cid);
   const parts = [];
   GUIDELINES_SECTION_META.forEach(meta => {
     const s = sections[meta.key];
@@ -1799,9 +1847,11 @@ document.getElementById('saveAllGuidelinesBtn').addEventListener('click', () => 
 });
 
 document.getElementById('resetAllGuidelinesBtn').addEventListener('click', () => {
-  if (!confirm('Przywrócić domyślne wytyczne we wszystkich sekcjach?')) return;
+  if (!confirm('Przywrócić domyślne wytyczne dla tego klienta?')) return;
+  const client = GUIDELINES_CLIENTS.find(c => c.id === selectedGuidelinesClient);
+  if (!client) return;
   GUIDELINES_SECTION_META.forEach(meta => {
-    const def = DEFAULT_GUIDELINES_SECTIONS[meta.key];
+    const def = client.defaults[meta.key] || { aktywna: false, tresc: '' };
     document.getElementById('gText_' + meta.key).value = def.tresc;
     document.getElementById('gCheck_' + meta.key).checked = def.aktywna;
   });
@@ -2353,12 +2403,17 @@ seedTestData();
   console.log('[MIGRACJA] Huby po:', hubs.map(function(h){return h.id;}));
 })();
 
-// Migracja: stare wytyczne (string) → nowa struktura (4 sekcje)
+// Migracja: stare wytyczne → nowa struktura per klient
 (function() {
   var g = lsGet(KEY.guidelines);
   if (typeof g === 'string' || g === null) {
-    lsSet(KEY.guidelines, JSON.parse(JSON.stringify(DEFAULT_GUIDELINES_SECTIONS)));
-    console.log('[MIGRACJA] Wytyczne: string → 4 sekcje');
+    // Old format (string) → new per-client
+    lsSet(KEY.guidelines, { luxsen: JSON.parse(JSON.stringify(DEFAULT_GUIDELINES_SECTIONS)) });
+    console.log('[MIGRACJA] Wytyczne: string → per klient');
+  } else if (g && g.sekcja1 !== undefined && !g.luxsen) {
+    // Previous 4-section format (flat) → wrap in luxsen
+    lsSet(KEY.guidelines, { luxsen: g });
+    console.log('[MIGRACJA] Wytyczne: flat → per klient');
   }
 })();
 
