@@ -3065,11 +3065,11 @@ document.getElementById('importSaveBtn').addEventListener('click', () => {
   }
 
   const articles = lsGet(KEY.articles, []);
-  articles.push({
-    id: 'art' + Date.now(),
+  const impUrl = document.getElementById('impUrl').value.trim();
+  const artData = {
     klient: selectedAgentClient,
     tytul,
-    url: document.getElementById('impUrl').value.trim(),
+    url: impUrl,
     hubId,
     domena,
     autor: document.getElementById('impAutor').value.trim(),
@@ -3085,9 +3085,18 @@ document.getElementById('importSaveBtn').addEventListener('click', () => {
     linksWewnetrzne: checkedLinks,
     linki: checkedLinks.length,
     zrodlo: _importedData ? _importedData.zrodlo : 'reczny',
-    notatki: '',
-    createdAt: new Date().toISOString()
-  });
+  };
+
+  // Upsert: jeśli artykuł o tym URL istnieje — aktualizuj, nie duplikuj
+  const existingIdx = impUrl ? articles.findIndex(a => a.url === impUrl) : -1;
+  if (existingIdx >= 0) {
+    Object.assign(articles[existingIdx], artData);
+  } else {
+    artData.id = 'art' + Date.now();
+    artData.notatki = '';
+    artData.createdAt = new Date().toISOString();
+    articles.push(artData);
+  }
   lsSet(KEY.articles, articles); saveAllWithSync();
 
   // Add keywords to Słowa kluczowe + fix orphaned keywords
