@@ -895,7 +895,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <div class="table-overflow">
         <table>
           <thead><tr>
-            <th>Tytuł</th><th>Hub</th><th>Domena</th><th>Status</th><th>H1</th><th>Słowo kluczowe</th><th>Linki wew.</th><th>Ocena SEO</th><th>Akcje</th>
+            <th>Tytuł</th><th>Hub</th><th>Domena</th><th>Status</th><th>H1</th><th>FAQ</th><th>CTA</th><th>Słowo kluczowe</th><th>Linki wew.</th><th>Ocena SEO</th><th>Akcje</th>
           </tr></thead>
           <tbody id="artBody"></tbody>
         </table>
@@ -2704,7 +2704,7 @@ function renderArtykuly() {
 
   const tbody = document.getElementById('artBody');
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">Brak artykułów</td></tr>'; return;
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">Brak artykułów</td></tr>'; return;
   }
   tbody.innerHTML = filtered.map(a => {
     const hub = hubs.find(h => h.id === a.hubId);
@@ -2717,7 +2717,9 @@ function renderArtykuly() {
       <td style="font-size:11px">${hub ? esc(hub.nazwa) : '—'}</td>
       <td class="mono" style="font-size:11px">${esc(a.domena||'—')}</td>
       <td>${statusBadge}</td>
-      <td style="text-align:center;font-size:11px">${a.maH1 ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>'}${a.maFAQ ? ' <span style="color:var(--accent)" title="FAQ">F</span>' : ''}${a.maCTA ? ' <span style="color:var(--yellow)" title="CTA">C</span>' : ''}</td>
+      <td style="text-align:center">${a.maH1 ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>'}</td>
+      <td style="text-align:center">${a.maFAQ ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
+      <td style="text-align:center">${a.maCTA ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
       <td class="mono" style="font-size:11px">${esc(a.keyword||'—')}</td>
       <td class="mono">${a.linksWewnetrzne ? a.linksWewnetrzne.length : (a.linki||0)}</td>
       <td>${scoreBadge(score)}</td>
