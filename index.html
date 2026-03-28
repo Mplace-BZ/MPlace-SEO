@@ -914,9 +914,14 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div class="stats-grid" id="linkAlerts" style="grid-template-columns:repeat(4,1fr)"></div>
 
     <div class="section-label" style="margin-top:2rem">► LINKI PER ARTYKUŁ</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:1rem">Każdy artykuł z bazy i jego linki wewnętrzne — dokąd linkuje i kto linkuje do niego</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:1rem">Kliknij artykuł aby rozwinąć szczegóły linków</div>
 
-    <div id="linkMap"></div>
+    <div class="table-card"><div class="table-overflow">
+      <table><thead><tr>
+        <th>Artykuł</th><th>Hub</th><th>→ Wychodzące</th><th>← Przychodzące</th><th>W bazie</th><th>Status</th>
+      </tr></thead><tbody id="linkMapBody"></tbody></table>
+    </div></div>
+    <div id="linkDetail" style="margin-top:1rem"></div>
   </div>
 
   <!-- ══ SŁOWA KLUCZOWE ══ -->
@@ -3261,41 +3266,78 @@ function renderLinki() {
 
   const linkTypeColor = t => t === 'artykuł' ? '#00bcd4' : t === 'produkt' ? '#00c896' : t === 'kolekcja' ? '#fbbf24' : t === 'strona' ? '#a78bfa' : '#888';
 
+  const tbody = document.getElementById('linkMapBody');
   if (clientArts.length === 0) {
-    document.getElementById('linkMap').innerHTML = '<div class="empty-state">Brak artykułów — zaimportuj pierwszy w zakładce Artykuły</div>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Brak artykułów</td></tr>';
+    document.getElementById('linkDetail').innerHTML = '';
     return;
   }
 
-  document.getElementById('linkMap').innerHTML = clientArts.map(a => {
+  tbody.innerHTML = clientArts.map(a => {
     const hub = hubs.find(h => h.id === a.hubId);
     const links = a.linksWewnetrzne || [];
     const backlinks = linksToMap[a.url] || [];
+    const inBaseCount = links.filter(l => allArticleUrls.has(l.url)).length;
+    const hasIssue = backlinks.length === 0 || !a.hubId;
+    const statusHtml = hasIssue
+      ? (backlinks.length === 0 ? '<span style="color:var(--red);font-size:10px">brak backlinków</span>' : '<span style="color:var(--yellow);font-size:10px">bez huba</span>')
+      : '<span style="color:var(--green);font-size:10px">OK</span>';
+    return `<tr style="cursor:pointer" onclick="showLinkDetail('${a.id}')">
+      <td class="primary" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.tytul)}</td>
+      <td style="font-size:11px">${hub ? esc(hub.nazwa) : '<span style="color:var(--red)">—</span>'}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">→ ${links.length}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:${backlinks.length ? '#00c896' : 'var(--red)'}">← ${backlinks.length}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--green)">${inBaseCount}/${links.length}</td>
+      <td>${statusHtml}</td>
+    </tr>`;
+  }).join('');
 
-    return `<div class="table-card" style="margin-bottom:1rem">
+  document.getElementById('linkDetail').innerHTML = '';
+}
+
+function showLinkDetail(artId) {
+  const articles = lsGet(KEY.articles, []);
+  const hubs = lsGet(KEY.hubs, []);
+  const a = articles.find(x => x.id === artId);
+  if (!a) return;
+
+  const allArticleUrls = new Set(articles.filter(x => x.url).map(x => x.url));
+  const linksToMap = {};
+  articles.forEach(art => {
+    (art.linksWewnetrzne || []).forEach(l => {
+      if (!linksToMap[l.url]) linksToMap[l.url] = [];
+      linksToMap[l.url].push({ from: art.tytul, anchor: l.anchor });
+    });
+  });
+
+  const hub = hubs.find(h => h.id === a.hubId);
+  const links = a.linksWewnetrzne || [];
+  const backlinks = linksToMap[a.url] || [];
+  const linkTypeColor = t => t === 'artykuł' ? '#00bcd4' : t === 'produkt' ? '#00c896' : t === 'kolekcja' ? '#fbbf24' : t === 'strona' ? '#a78bfa' : '#888';
+
+  document.getElementById('linkDetail').innerHTML = `
+    <div class="table-card">
       <div class="table-card-header" style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <span class="table-card-title">${esc(a.tytul)}</span>
-          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px">${hub ? esc(hub.nazwa) : '<span style="color:var(--red)">bez huba</span>'} · ${esc(a.domena || '')}</div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px">${hub ? esc(hub.nazwa) : 'bez huba'} · ${esc(a.domena || '')}</div>
         </div>
-        <div style="display:flex;gap:6px">
-          <span style="font-family:var(--font-mono);font-size:10px;color:var(--accent)">→ ${links.length} wychodzących</span>
-          <span style="font-family:var(--font-mono);font-size:10px;color:${backlinks.length ? '#00c896' : 'var(--red)'}">← ${backlinks.length} przychodzących</span>
-        </div>
+        <button class="btn" style="font-size:8px;padding:3px 8px" onclick="document.getElementById('linkDetail').innerHTML=''">ZAMKNIJ ✕</button>
       </div>
       <div style="padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem">
         <div>
-          <div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">→ LINKUJE DO:</div>
+          <div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">→ LINKUJE DO (${links.length}):</div>
           ${links.length ? links.map(l => {
             const inBase = allArticleUrls.has(l.url);
             return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
-              <span style="color:${linkTypeColor(l.typ)};font-family:var(--font-mono);font-size:9px;min-width:55px">${l.typ || 'link'}</span>
-              <span style="color:var(--text-secondary);flex:1">${esc(l.anchor || l.url)}</span>
+              <span style="color:${linkTypeColor(l.typ)};font-family:var(--font-mono);font-size:9px;min-width:50px">${l.typ || 'link'}</span>
+              <span style="color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.anchor || l.url)}</span>
               ${inBase ? '<span style="color:var(--green);font-size:9px">W BAZIE</span>' : '<span style="color:var(--text-muted);font-size:9px">zewn.</span>'}
             </div>`;
-          }).join('') : '<div style="color:var(--text-muted);font-size:11px">Brak linków wychodzących</div>'}
+          }).join('') : '<div style="color:var(--text-muted);font-size:11px">Brak</div>'}
         </div>
         <div>
-          <div style="font-family:var(--font-mono);font-size:9px;color:#00c896;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">← LINKOWANY PRZEZ:</div>
+          <div style="font-family:var(--font-mono);font-size:9px;color:#00c896;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">← LINKOWANY PRZEZ (${backlinks.length}):</div>
           ${backlinks.length ? backlinks.map(b =>
             `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
               <span style="color:var(--text-secondary);flex:1">${esc(b.from)}</span>
@@ -3305,7 +3347,7 @@ function renderLinki() {
         </div>
       </div>
     </div>`;
-  }).join('');
+  document.getElementById('linkDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ═══════════════════════════════════════════════════════
