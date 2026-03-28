@@ -907,14 +907,15 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
   <div class="tab-panel" id="tab-linki">
     <div class="section-label">► MONITOR LINKÓW</div>
     <div class="section-title">Struktura <span class="star">✦</span></div>
-    <div class="section-subtitle">Mapa linków wewnętrznych i alerty</div>
-    <div class="stats-grid" id="linkAlerts" style="grid-template-columns:repeat(3,1fr)"></div>
-    <div class="section-label" style="margin-top:2rem">► MAPA STRUKTURY</div>
-    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
-      <span class="score-badge score-green" style="font-size:9px">✓ link istnieje</span>
-      <span class="score-badge score-red" style="font-size:9px">✗ brak linku</span>
-      <span class="score-badge score-yellow" style="font-size:9px">⚠ do sprawdzenia</span>
-    </div>
+    <div class="section-subtitle">Mapa linków wewnętrznych między artykułami w bazie</div>
+
+    <div id="linksClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
+
+    <div class="stats-grid" id="linkAlerts" style="grid-template-columns:repeat(4,1fr)"></div>
+
+    <div class="section-label" style="margin-top:2rem">► LINKI PER ARTYKUŁ</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:1rem">Każdy artykuł z bazy i jego linki wewnętrzne — dokąd linkuje i kto linkuje do niego</div>
+
     <div id="linkMap"></div>
   </div>
 
@@ -3153,33 +3154,67 @@ document.getElementById('importSaveBtn').addEventListener('click', () => {
 // ═══════════════════════════════════════════════════════
 // 12. LINKI
 // ═══════════════════════════════════════════════════════
+let selectedLinksClient = GUIDELINES_CLIENTS[0].id;
+
+function renderLinksClientFilter() {
+  const el = document.getElementById('linksClientFilter');
+  el.innerHTML = GUIDELINES_CLIENTS.map(c =>
+    clientBtn(c, selectedLinksClient === c.id, `switchLinksClient('${c.id}')`)
+  ).join('');
+}
+
+function switchLinksClient(clientId) {
+  selectedLinksClient = clientId;
+  renderLinksClientFilter();
+  renderLinki();
+}
+
 function countLinkProblems() {
   const hubs = lsGet(KEY.hubs, []);
   const articles = lsGet(KEY.articles, []);
-  let noLink = 0, emptyHubs = 0, orphaned = 0, noHubLink = 0;
-  hubs.forEach(h => {
-    const arts = h.artykuly || [];
-    if (arts.length === 0) emptyHubs++;
-    arts.forEach(a => { if (a.linkStatus === 'brak') noLink++; });
-    // Check if any article links back to hub pillar
+  const domena = getClientDomena(selectedLinksClient);
+  const clientArts = domena ? articles.filter(a => a.domena === domena) : articles;
+  const clientHubs = domena ? hubs.filter(h => h.domena === domena) : hubs;
+
+  // All URLs that any article links TO
+  const allLinkedUrls = new Set();
+  clientArts.forEach(a => (a.linksWewnetrzne || []).forEach(l => allLinkedUrls.add(l.url)));
+
+  // All article URLs in our base
+  const allArticleUrls = new Set(clientArts.filter(a => a.url).map(a => a.url));
+
+  let noHubLink = 0, orphaned = 0, noBacklinks = 0, totalLinks = 0;
+
+  // Hubs without pillar backlink
+  clientHubs.forEach(h => {
     if (h.urlPillar) {
-      const hubArts = articles.filter(a => a.hubId === h.id);
+      const hubArts = clientArts.filter(a => a.hubId === h.id);
       const anyLinksToHub = hubArts.some(a => (a.linksWewnetrzne || []).some(l => l.url === h.urlPillar));
       if (hubArts.length > 0 && !anyLinksToHub) noHubLink++;
     }
   });
-  // Orphaned: articles not linked by any other article
-  const allLinkedUrls = new Set();
-  articles.forEach(a => (a.linksWewnetrzne || []).forEach(l => allLinkedUrls.add(l.url)));
-  articles.forEach(a => { if (a.url && !allLinkedUrls.has(a.url) && !a.hubId) orphaned++; });
-  articles.forEach(a => { if (!a.hubId) orphaned++; });
-  return { noLink, emptyHubs, orphaned, noHubLink };
+
+  // Orphaned articles (no hub assigned)
+  clientArts.forEach(a => { if (!a.hubId) orphaned++; });
+
+  // Articles that nobody links to
+  clientArts.forEach(a => {
+    if (a.url && !allLinkedUrls.has(a.url)) noBacklinks++;
+  });
+
+  // Total internal links
+  clientArts.forEach(a => totalLinks += (a.linksWewnetrzne || []).length);
+
+  return { noHubLink, orphaned, noBacklinks, totalLinks, emptyHubs: clientHubs.filter(h => {
+    const dbArts = clientArts.filter(a => a.hubId === h.id);
+    return dbArts.length === 0;
+  }).length };
 }
 
 function updateLinkiBadge() {
-  const { noLink, emptyHubs, orphaned, noHubLink } = countLinkProblems();
+  const { noHubLink, orphaned, noBacklinks, emptyHubs } = countLinkProblems();
   const btn = document.getElementById('tabBtnLinki');
-  const total = noLink + emptyHubs + orphaned + noHubLink;
+  const total = noHubLink + orphaned + noBacklinks + emptyHubs;
   if (total > 0) {
     btn.innerHTML = `Linki <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--red);margin-left:4px;vertical-align:middle"></span>`;
   } else {
@@ -3188,40 +3223,80 @@ function updateLinkiBadge() {
 }
 
 function renderLinki() {
-  const { noLink, emptyHubs, orphaned, noHubLink } = countLinkProblems();
-  document.getElementById('linkAlerts').innerHTML = `
-    <div class="stat-card c-red"><div class="stat-label">Brak linku do huba</div><div class="stat-value">${noLink}</div><div class="stat-sub">artykułów</div></div>
-    <div class="stat-card c-red"><div class="stat-label">Huby bez artykułów</div><div class="stat-value">${emptyHubs}</div><div class="stat-sub">hubów</div></div>
-    <div class="stat-card c-yellow"><div class="stat-label">Artykuły osierocone</div><div class="stat-value">${orphaned}</div><div class="stat-sub">bez przypisanego huba</div></div>
-  ` + (noHubLink ? `<div class="stat-card c-red"><div class="stat-label">Brak linku do pillar page</div><div class="stat-value">${noHubLink}</div><div class="stat-sub">hubów</div></div>` : '');
+  renderLinksClientFilter();
+  const { noHubLink, orphaned, noBacklinks, totalLinks, emptyHubs } = countLinkProblems();
 
+  document.getElementById('linkAlerts').innerHTML = `
+    <div class="stat-card c-accent"><div class="stat-label">Linki wewnętrzne</div><div class="stat-value">${totalLinks}</div><div class="stat-sub">łącznie w bazie</div></div>
+    <div class="stat-card ${noBacklinks ? 'c-yellow' : 'c-green'}"><div class="stat-label">Bez linków zwrotnych</div><div class="stat-value">${noBacklinks}</div><div class="stat-sub">nikt nie linkuje do nich</div></div>
+    <div class="stat-card ${noHubLink ? 'c-red' : 'c-green'}"><div class="stat-label">Brak linku do pillar</div><div class="stat-value">${noHubLink}</div><div class="stat-sub">hubów bez backlinku</div></div>
+    <div class="stat-card ${orphaned ? 'c-yellow' : 'c-green'}"><div class="stat-label">Bez huba</div><div class="stat-value">${orphaned}</div><div class="stat-sub">artykułów bez klastra</div></div>
+  `;
+
+  const articles = lsGet(KEY.articles, []);
   const hubs = lsGet(KEY.hubs, []);
-  const statusIcon = s => s === 'ok' ? '<span style="color:var(--green)">✓</span>'
-    : s === 'brak' ? '<span style="color:var(--red)">✗</span>'
-    : '<span style="color:var(--yellow)">⚠</span>';
-  document.getElementById('linkMap').innerHTML = hubs.map(h => {
-    const arts = h.artykuly || [];
-    const hp = hubHealth(h);
+  const domena = getClientDomena(selectedLinksClient);
+  const clientArts = domena ? articles.filter(a => a.domena === domena) : articles;
+
+  // All URLs linked TO (to check who links to whom)
+  const linksToMap = {}; // url → [{ from article title, anchor }]
+  clientArts.forEach(a => {
+    (a.linksWewnetrzne || []).forEach(l => {
+      if (!linksToMap[l.url]) linksToMap[l.url] = [];
+      linksToMap[l.url].push({ from: a.tytul, anchor: l.anchor });
+    });
+  });
+
+  // All article URLs for "exists in base" check
+  const allArticleUrls = new Set(clientArts.filter(a => a.url).map(a => a.url));
+
+  const linkTypeColor = t => t === 'artykuł' ? '#00bcd4' : t === 'produkt' ? '#00c896' : t === 'kolekcja' ? '#fbbf24' : t === 'strona' ? '#a78bfa' : '#888';
+
+  if (clientArts.length === 0) {
+    document.getElementById('linkMap').innerHTML = '<div class="empty-state">Brak artykułów — zaimportuj pierwszy w zakładce Artykuły</div>';
+    return;
+  }
+
+  document.getElementById('linkMap').innerHTML = clientArts.map(a => {
+    const hub = hubs.find(h => h.id === a.hubId);
+    const links = a.linksWewnetrzne || [];
+    const backlinks = linksToMap[a.url] || [];
+
     return `<div class="table-card" style="margin-bottom:1rem">
-      <div class="table-card-header">
-        <span class="table-card-title">${esc(h.nazwa)} <span style="color:var(--text-muted);font-weight:400">(${esc(h.domena)})</span></span>
-        <span class="score-badge ${healthClass(hp)}">${hp}%</span>
+      <div class="table-card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <span class="table-card-title">${esc(a.tytul)}</span>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px">${hub ? esc(hub.nazwa) : '<span style="color:var(--red)">bez huba</span>'} · ${esc(a.domena || '')}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--accent)">→ ${links.length} wychodzących</span>
+          <span style="font-family:var(--font-mono);font-size:10px;color:${backlinks.length ? '#00c896' : 'var(--red)'}">← ${backlinks.length} przychodzących</span>
+        </div>
       </div>
-      <div style="padding:1rem">
-        ${arts.length ? arts.map(a => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;color:var(--text-secondary)">
-          <span style="color:var(--text-muted);font-family:var(--font-mono);font-size:10px">→</span>
-          ${statusIcon(a.linkStatus)}
-          <span style="flex:1">${esc(a.tytul)}</span>
-          ${a.linkStatus !== 'ok' ? `<button class="btn" style="font-size:8px;padding:2px 6px" onclick="markLinkOkFromMap('${h.id}','${a.id}')">OZNACZ SPRAWDZONY</button>` : ''}
-        </div>`).join('') : '<div class="empty-state" style="padding:1rem">Brak artykułów satelitarnych</div>'}
+      <div style="padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div>
+          <div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">→ LINKUJE DO:</div>
+          ${links.length ? links.map(l => {
+            const inBase = allArticleUrls.has(l.url);
+            return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
+              <span style="color:${linkTypeColor(l.typ)};font-family:var(--font-mono);font-size:9px;min-width:55px">${l.typ || 'link'}</span>
+              <span style="color:var(--text-secondary);flex:1">${esc(l.anchor || l.url)}</span>
+              ${inBase ? '<span style="color:var(--green);font-size:9px">W BAZIE</span>' : '<span style="color:var(--text-muted);font-size:9px">zewn.</span>'}
+            </div>`;
+          }).join('') : '<div style="color:var(--text-muted);font-size:11px">Brak linków wychodzących</div>'}
+        </div>
+        <div>
+          <div style="font-family:var(--font-mono);font-size:9px;color:#00c896;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">← LINKOWANY PRZEZ:</div>
+          ${backlinks.length ? backlinks.map(b =>
+            `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
+              <span style="color:var(--text-secondary);flex:1">${esc(b.from)}</span>
+              <span style="color:var(--text-muted);font-family:var(--font-mono);font-size:9px">"${esc(b.anchor)}"</span>
+            </div>`
+          ).join('') : '<div style="color:var(--red);font-size:11px">Nikt nie linkuje do tego artykułu</div>'}
+        </div>
       </div>
     </div>`;
-  }).join('') || '<div class="empty-state">Brak hubów — dodaj pierwszy w zakładce HUBY</div>';
-}
-
-function markLinkOkFromMap(hubId, artId) {
-  markLinkOk(hubId, artId);
-  renderLinki();
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════════════
