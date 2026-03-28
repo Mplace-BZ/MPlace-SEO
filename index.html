@@ -728,46 +728,47 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div class="section-title">Konwerter HTML <span class="star">✦</span></div>
     <div class="section-subtitle">Wzorzec HTML per klient + konwersja tekstu artykułu na gotowy kod</div>
 
-    <div id="htmlgenClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem"></div>
+    <div id="htmlgenClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
 
-    <div style="background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:8px;padding:12px 16px;margin-bottom:1.5rem;font-size:12px;color:var(--text-secondary)">
-      ► Każdy klient ma swój wzorzec HTML (kolory, style boxów, CTA, linki). Edytuj wzorzec, zapisz, a potem wklej tekst artykułu — Agent skonwertuje go na HTML wg wzorca.
-    </div>
+    <!-- 3 KOLUMNY -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:start;height:calc(100vh - 220px);min-height:500px">
 
-    <!-- WZORZEC HTML -->
-    <div style="border-left:3px solid var(--accent);background:var(--bg-card);border-radius:0 8px 8px 0;padding:1.25rem 1.5rem;margin-bottom:1.5rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div>
-          <div style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--text-primary)">WZORZEC HTML</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Wklej przykładowy artykuł HTML jako szablon — kolory, boxy, CTA, style linków</div>
+      <!-- KOL 1: WZORZEC -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;display:flex;flex-direction:column;height:100%;overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+          <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.14em;color:var(--text-secondary)">▼ WZORZEC HTML</div>
+          <div style="display:flex;gap:6px">
+            <button class="btn" id="htmlgenEditTemplateBtn" style="font-size:8px;padding:3px 8px">EDYTUJ</button>
+            <button class="btn btn-accent" id="htmlgenSaveTemplateBtn" style="font-size:8px;padding:3px 8px;display:none">ZAPISZ ►</button>
+            <button class="btn" id="htmlgenPreviewTemplateBtn" style="font-size:8px;padding:3px 8px">PODGLĄD</button>
+          </div>
         </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-accent" id="htmlgenSaveTemplateBtn">ZAPISZ WZORZEC ►</button>
-          <button class="btn" id="htmlgenPreviewTemplateBtn">PODGLĄD</button>
-        </div>
-      </div>
-      <textarea class="form-textarea" id="htmlgenTemplate" style="min-height:400px;font-family:var(--font-mono);font-size:11px;line-height:1.4" placeholder="Wklej tutaj wzorcowy kod HTML artykułu (z boxami, CTA, spisem treści, FAQ itp.)..."></textarea>
-    </div>
-
-    <!-- KONWERTER -->
-    <div class="agent-layout">
-      <div class="agent-panel">
-        <div class="agent-panel-header">▼ TEKST ARTYKUŁU (z Generatora treści)</div>
-        <div class="form-group">
-          <textarea class="form-textarea" id="htmlgenInput" style="min-height:350px;font-family:var(--font-mono);font-size:12px" placeholder="Wklej tutaj tekst artykułu wygenerowany przez Agenta..."></textarea>
-        </div>
-        <button class="btn btn-lg" id="htmlgenRunBtn">KONWERTUJ NA HTML ►</button>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:8px">▸ Agent użyje wzorca HTML tego klienta do sformatowania tekstu</div>
+        <textarea class="form-textarea" id="htmlgenTemplate" readonly style="flex:1;border:none;border-radius:0;font-family:var(--font-mono);font-size:11px;line-height:1.4;color:var(--text-primary);background:var(--bg-secondary);resize:none;overflow-y:auto" placeholder="Wklej wzorcowy kod HTML..."></textarea>
       </div>
 
-      <div class="agent-panel">
-        <div class="agent-panel-header">▼ WYGENEROWANY KOD HTML</div>
-        <textarea class="form-textarea" id="htmlgenOutput" style="min-height:350px;font-family:var(--font-mono);font-size:11px;line-height:1.4" readonly placeholder="Tutaj pojawi się skonwertowany kod HTML..."></textarea>
-        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <!-- KOL 2: TEKST ARTYKUŁU -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;display:flex;flex-direction:column;height:100%;overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+          <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.14em;color:var(--text-secondary)">▼ TEKST ARTYKUŁU</div>
+        </div>
+        <textarea class="form-textarea" id="htmlgenInput" style="flex:1;border:none;border-radius:0;font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--text-primary);background:var(--bg-secondary);resize:none;overflow-y:auto" placeholder="Wklej tekst artykułu z Generatora treści..."></textarea>
+        <div style="padding:10px 16px;border-top:1px solid var(--border);flex-shrink:0">
+          <button class="btn btn-accent" id="htmlgenRunBtn" style="width:100%">KONWERTUJ NA HTML ►</button>
+        </div>
+      </div>
+
+      <!-- KOL 3: WYGENEROWANY HTML -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;display:flex;flex-direction:column;height:100%;overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+          <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.14em;color:var(--text-secondary)">▼ WYGENEROWANY KOD HTML</div>
+        </div>
+        <textarea class="form-textarea" id="htmlgenOutput" readonly style="flex:1;border:none;border-radius:0;font-family:var(--font-mono);font-size:11px;line-height:1.4;color:var(--text-primary);background:var(--bg-secondary);resize:none;overflow-y:auto" placeholder="Tutaj pojawi się skonwertowany kod HTML..."></textarea>
+        <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">
           <button class="btn btn-accent" id="htmlgenCopyBtn">KOPIUJ HTML</button>
           <button class="btn" id="htmlgenPreviewBtn">PODGLĄD ►</button>
         </div>
       </div>
+
     </div>
   </div>
 
@@ -2236,13 +2237,30 @@ function loadHtmlgenTab() {
   document.getElementById('htmlgenTemplate').value = getClientTemplate(selectedHtmlgenClient);
 }
 
-// Zapisz wzorzec
+// Edytuj wzorzec (odblokuj)
+document.getElementById('htmlgenEditTemplateBtn').addEventListener('click', () => {
+  const tpl = document.getElementById('htmlgenTemplate');
+  const saveBtn = document.getElementById('htmlgenSaveTemplateBtn');
+  const editBtn = document.getElementById('htmlgenEditTemplateBtn');
+  tpl.removeAttribute('readonly');
+  tpl.style.background = 'var(--bg-primary)';
+  tpl.focus();
+  saveBtn.style.display = 'inline-flex';
+  editBtn.style.display = 'none';
+});
+
+// Zapisz wzorzec (zablokuj)
 document.getElementById('htmlgenSaveTemplateBtn').addEventListener('click', () => {
-  const html = document.getElementById('htmlgenTemplate').value;
-  saveClientTemplate(selectedHtmlgenClient, html);
-  const btn = document.getElementById('htmlgenSaveTemplateBtn');
-  btn.textContent = 'ZAPISANO ✓';
-  setTimeout(() => btn.textContent = 'ZAPISZ WZORZEC ►', 2000);
+  const tpl = document.getElementById('htmlgenTemplate');
+  const saveBtn = document.getElementById('htmlgenSaveTemplateBtn');
+  const editBtn = document.getElementById('htmlgenEditTemplateBtn');
+  saveClientTemplate(selectedHtmlgenClient, tpl.value);
+  tpl.setAttribute('readonly', true);
+  tpl.style.background = 'var(--bg-secondary)';
+  saveBtn.style.display = 'none';
+  editBtn.style.display = 'inline-flex';
+  editBtn.textContent = 'ZAPISANO ✓';
+  setTimeout(() => editBtn.textContent = 'EDYTUJ', 2000);
 });
 
 // Podgląd wzorca
