@@ -3104,7 +3104,7 @@ function showImportPreview() {
   // Links table
   if (d.links.length > 0) {
     document.getElementById('impLinksTable').innerHTML = `<table style="width:100%;font-size:11px"><thead><tr style="color:var(--text-muted)"><th style="text-align:left;padding:4px">✓</th><th style="text-align:left;padding:4px">URL</th><th style="text-align:left;padding:4px">Anchor</th><th style="text-align:left;padding:4px">Typ</th></tr></thead><tbody>` +
-      d.links.map((l, i) => `<tr><td style="padding:4px"><input type="checkbox" checked data-imp-link="${i}"></td><td style="padding:4px;color:var(--text-secondary);word-break:break-all;max-width:300px">${esc(l.url)}</td><td style="padding:4px">${esc(l.anchor || '—')}</td><td style="padding:4px"><span style="color:${linkTypeColor(l.typ)};font-family:var(--font-mono);font-size:10px">${l.typ}</span></td></tr>`).join('') +
+      d.links.map((l, i) => `<tr><td style="padding:4px"><input type="checkbox" checked data-imp-link="${i}"></td><td style="padding:4px;max-width:300px"><a href="${esc(l.url)}" target="_blank" rel="noopener" style="color:var(--text-secondary);text-decoration:none;word-break:break-all;font-size:10px" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'">${esc(l.url)}</a></td><td style="padding:4px">${esc(l.anchor || '—')}</td><td style="padding:4px"><span style="color:${linkTypeColor(l.typ)};font-family:var(--font-mono);font-size:10px">${l.typ}</span></td></tr>`).join('') +
       '</tbody></table>';
   } else {
     document.getElementById('impLinksTable').innerHTML = '<div style="color:var(--text-muted);font-size:11px">Brak linków wewnętrznych</div>';
@@ -3389,19 +3389,21 @@ function showLinkDetail(artId, focus) {
             const inBase = allArticleUrls.has(l.url);
             return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
               <span style="color:${linkTypeColor(l.typ)};font-family:var(--font-mono);font-size:9px;min-width:50px">${l.typ || 'link'}</span>
-              <span style="color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.anchor || l.url)}</span>
+              <a href="${esc(l.url)}" target="_blank" rel="noopener" style="color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'">${esc(l.anchor || l.url)}</a>
               ${inBase ? '<span style="color:var(--green);font-size:9px">W BAZIE</span>' : '<span style="color:var(--text-muted);font-size:9px">zewn.</span>'}
             </div>`;
           }).join('') : '<div style="color:var(--text-muted);font-size:11px">Brak</div>'}
         </div>
         <div id="linkDetailIn" style="padding:8px;border-radius:6px;${focus === 'in' ? 'background:#00c89618;border:1px solid #00c89644' : ''}">
           <div style="font-family:var(--font-mono);font-size:9px;color:#00c896;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">← LINKOWANY PRZEZ (${backlinks.length}):</div>
-          ${backlinks.length ? backlinks.map(b =>
-            `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
-              <span style="color:var(--text-secondary);flex:1">${esc(b.from)}</span>
+          ${backlinks.length ? backlinks.map(b => {
+            const srcArt = articles.find(x => x.tytul === b.from);
+            const srcUrl = srcArt ? srcArt.url : '';
+            return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
+              ${srcUrl ? `<a href="${esc(srcUrl)}" target="_blank" rel="noopener" style="color:var(--text-secondary);flex:1;text-decoration:none" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'">${esc(b.from)}</a>` : `<span style="color:var(--text-secondary);flex:1">${esc(b.from)}</span>`}
               <span style="color:var(--text-muted);font-family:var(--font-mono);font-size:9px">"${esc(b.anchor)}"</span>
-            </div>`
-          ).join('') : '<div style="color:var(--red);font-size:11px">Nikt nie linkuje do tego artykułu</div>'}
+            </div>`;
+          }).join('') : '<div style="color:var(--red);font-size:11px">Nikt nie linkuje do tego artykułu</div>'}
         </div>
       </div>
     </div>`;
@@ -3588,14 +3590,18 @@ function openSitemapPanel(artId) {
     <div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);text-transform:uppercase;margin:16px 0 6px">→ LINKUJE DO (${links.length})</div>
     ${links.map(l => `<div style="display:flex;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
       <span style="color:${linkTypeColor(l.typ)};font-family:var(--font-mono);font-size:9px;min-width:45px">${l.typ || 'link'}</span>
-      <span style="color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.anchor || l.url)}</span>
+      <a href="${esc(l.url)}" target="_blank" rel="noopener" style="color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'">${esc(l.anchor || l.url)}</a>
     </div>`).join('') || '<div style="color:var(--text-muted);font-size:11px">Brak</div>'}
 
     <div style="font-family:var(--font-mono);font-size:9px;color:#00c896;text-transform:uppercase;margin:16px 0 6px">← LINKOWANY PRZEZ (${backlinks.length})</div>
-    ${backlinks.map(b => `<div style="display:flex;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
-      <span style="color:var(--text-secondary);flex:1">${esc(b.from)}</span>
+    ${backlinks.map(b => {
+      const srcArt = articles.find(x => x.tytul === b.from);
+      const srcUrl = srcArt ? srcArt.url : '';
+      return `<div style="display:flex;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
+      ${srcUrl ? `<a href="${esc(srcUrl)}" target="_blank" rel="noopener" style="color:var(--text-secondary);flex:1;text-decoration:none" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'">${esc(b.from)}</a>` : `<span style="color:var(--text-secondary);flex:1">${esc(b.from)}</span>`}
       <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted)">"${esc(b.anchor)}"</span>
-    </div>`).join('') || '<div style="color:var(--red);font-size:11px">Nikt nie linkuje</div>'}
+    </div>`;
+    }).join('') || '<div style="color:var(--red);font-size:11px">Nikt nie linkuje</div>'}
 
     <button class="btn btn-accent" style="margin-top:1.5rem;width:100%" onclick="articleToAgent('${a.id}');closeSitemapPanel()">GENERUJ ARTYKUŁ POWIĄZANY ►</button>
   `;
