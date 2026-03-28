@@ -2694,7 +2694,7 @@ function renderArtykuly() {
       <td>${scoreBadge(score)}</td>
       <td><div class="gap-row">
         <button class="btn" onclick="editArticle('${a.id}')">EDYTUJ</button>
-        <button class="btn btn-accent" onclick="articleToAgent('${a.id}')">PRZEPISZ</button>
+        <button class="btn btn-accent" onclick="articleToAgent('${a.id}')">DO AGENTA</button>
         <button class="btn btn-red" onclick="deleteArticle('${a.id}')">USUŃ</button>
       </div></td>
     </tr>`;
@@ -2706,7 +2706,12 @@ function articleToAgent(id) {
   const a = articles.find(x => x.id === id);
   if (!a) return;
   document.getElementById('agentTitle').value = a.tytul || '';
-  document.getElementById('agentKeywords').value = a.keyword || '';
+  document.getElementById('agentKeyword').value = a.keyword || '';
+  document.getElementById('agentDomena').value = a.domena || '';
+  if (a.hubId) document.getElementById('agentHub').value = a.hubId;
+  if (a.keywords && a.keywords.length > 0) {
+    document.getElementById('agentLSI').value = a.keywords.join(', ');
+  }
   switchTab('agent');
 }
 
