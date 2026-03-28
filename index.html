@@ -3896,10 +3896,11 @@ function generateLinkSuggestions() {
         <span id="mfArrow" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">▼</span>
       </div>
       <div id="mustFixBody" style="display:none;padding:0.5rem 1rem;max-height:300px;overflow-y:auto">
-        ${mustFix.map(m => `<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
+        ${mustFix.map(m => `<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center;cursor:pointer" onclick="openSitemapPanel('${m.art.id}')" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
           <span style="color:var(--red);font-family:var(--font-mono);font-size:8px;min-width:100px">${m.type === 'no-backlinks' ? 'BEZ BACKLINKÓW' : m.type === 'no-cluster-link' ? 'IZOLOWANY' : 'BRAK PILLAR'}</span>
           <span style="color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.art.tytul)}</span>
           <span style="color:var(--text-muted);font-size:10px;min-width:80px">${esc(m.hub ? m.hub.nazwa : '—')}</span>
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted)">→</span>
         </div>`).join('')}
       </div>
     </div>` : `<div class="table-card" style="border-top:3px solid var(--green)"><div style="padding:0.75rem 1rem;color:var(--green);font-size:12px">✓ Brak krytycznych problemów</div></div>`;
