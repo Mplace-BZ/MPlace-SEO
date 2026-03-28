@@ -1619,18 +1619,7 @@ function scoreBadge(s) {
 // ═══════════════════════════════════════════════════════
 let dashChartInst = null;
 
-let selectedDashClient = GUIDELINES_CLIENTS[0].id;
-
-function renderDashClientFilter() {
-  document.getElementById('dashClientFilter').innerHTML = GUIDELINES_CLIENTS.map(c =>
-    clientBtn(c, selectedDashClient === c.id, `switchDashClient('${c.id}')`)
-  ).join('');
-}
-
-function switchDashClient(clientId) {
-  selectedDashClient = clientId;
-  renderDashboard();
-}
+let selectedDashClient = 'luxsen';
 
 function renderDashboard() {
   renderDashClientFilter();
@@ -1811,7 +1800,6 @@ function sendToAgent(id) {
   const a = audyt.find(x => x.id === id);
   if (!a) return;
   document.getElementById('agentTitle').value = a.title || '';
-  document.getElementById('agentOldDesc').value = a.desc || '';
   switchTab('agent');
 }
 
@@ -1878,6 +1866,18 @@ function clientBtn(c, isActive, onclick) {
 
 // ═══════════════════════════════════════════════════════
 // 7. AGENT
+// Dashboard client filter (after GUIDELINES_CLIENTS is defined)
+selectedDashClient = GUIDELINES_CLIENTS[0].id;
+function renderDashClientFilter() {
+  document.getElementById('dashClientFilter').innerHTML = GUIDELINES_CLIENTS.map(c =>
+    clientBtn(c, selectedDashClient === c.id, `switchDashClient('${c.id}')`)
+  ).join('');
+}
+function switchDashClient(clientId) {
+  selectedDashClient = clientId;
+  renderDashboard();
+}
+
 // ═══════════════════════════════════════════════════════
 async function callAgent(prompt, systemPrompt, onChunk) {
   const response = await fetch('https://red-haze-5f37mplace-agent.contactmplace.workers.dev', {
@@ -3794,7 +3794,7 @@ function kwToAgent(id) {
   const keywords = lsGet(KEY.keywords, []);
   const kw = keywords.find(x => x.id === id);
   if (!kw) return;
-  document.getElementById('agentKeywords').value = kw.fraza;
+  document.getElementById('agentKeyword').value = kw.fraza;
   document.getElementById('agentTitle').value = '';
   switchTab('agent');
 }
