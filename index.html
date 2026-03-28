@@ -950,12 +950,6 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <button class="btn" id="linkSuggestionsBtn" style="color:#fbbf24;border-color:#fbbf2444">LINK SUGGESTIONS ►</button>
     </div>
 
-    <!-- MUST FIX + SUGGESTIONS panel -->
-    <div id="sitemapSuggestions" style="display:none;margin-bottom:1.5rem">
-      <div id="sugMustFix"></div>
-      <div id="sugPerArticle" style="margin-top:1rem"></div>
-    </div>
-
     <div id="sitemapEmpty" style="display:none" class="empty-state">
       <p>Zaimportuj artykuły w zakładce ARTYKUŁY aby zobaczyć mapę struktury</p>
       <button class="btn btn-accent" style="margin-top:12px" onclick="switchTab('artykuly')">PRZEJDŹ DO IMPORTU ►</button>
@@ -973,6 +967,12 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
         <button class="btn" style="font-size:9px;padding:3px 8px" onclick="closeSitemapPanel()">ZAMKNIJ ✕</button>
       </div>
       <div id="sitemapPanelContent"></div>
+    </div>
+
+    <!-- MUST FIX + SUGGESTIONS panel -->
+    <div id="sitemapSuggestions" style="display:none;margin-top:1.5rem">
+      <div id="sugMustFix"></div>
+      <div id="sugPerArticle" style="margin-top:1rem"></div>
     </div>
 
     <!-- Legenda interaktywna -->
