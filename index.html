@@ -201,6 +201,22 @@ html, body {
   color: var(--accent); border-color: var(--accent);
   background: var(--accent-dim);
 }
+.tab-color-green { color: #00c896 !important; border-color: #00c89644 !important; }
+.tab-color-green:hover, .tab-color-green.active { border-color: #00c896 !important; background: #00c89618 !important; color: #00c896 !important; }
+.tab-color-cyan { color: #00bcd4 !important; border-color: #00bcd444 !important; }
+.tab-color-cyan:hover, .tab-color-cyan.active { border-color: #00bcd4 !important; background: #00bcd418 !important; color: #00bcd4 !important; }
+.tab-color-orange { color: #f5a623 !important; border-color: #f5a62344 !important; }
+.tab-color-orange:hover, .tab-color-orange.active { border-color: #f5a623 !important; background: #f5a62318 !important; color: #f5a623 !important; }
+.tab-color-purple { color: #a78bfa !important; border-color: #a78bfa44 !important; }
+.tab-color-purple:hover, .tab-color-purple.active { border-color: #a78bfa !important; background: #a78bfa18 !important; color: #a78bfa !important; }
+.tab-color-blue { color: #60a5fa !important; border-color: #60a5fa44 !important; }
+.tab-color-blue:hover, .tab-color-blue.active { border-color: #60a5fa !important; background: #60a5fa18 !important; color: #60a5fa !important; }
+.tab-color-yellow { color: #fbbf24 !important; border-color: #fbbf2444 !important; }
+.tab-color-yellow:hover, .tab-color-yellow.active { border-color: #fbbf24 !important; background: #fbbf2418 !important; color: #fbbf24 !important; }
+.tab-color-red { color: #e8445a !important; border-color: #e8445a44 !important; }
+.tab-color-red:hover, .tab-color-red.active { border-color: #e8445a !important; background: #e8445a18 !important; color: #e8445a !important; }
+.tab-color-pink { color: #f472b6 !important; border-color: #f472b644 !important; }
+.tab-color-pink:hover, .tab-color-pink.active { border-color: #f472b6 !important; background: #f472b618 !important; color: #f472b6 !important; }
 
 /* ── MAIN CONTENT ── */
 #app { display: none; }
@@ -568,16 +584,17 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       </div>
     </div>
     <div class="topbar-row2">
+      <button class="tab-btn tab-color-green" data-tab="agent">Agent</button>
+      <button class="tab-btn tab-color-cyan" data-tab="htmlgen">Html Generator</button>
+      <button class="tab-btn tab-color-orange" data-tab="artykuly">Artykuły</button>
+      <button class="tab-btn tab-color-purple" data-tab="historia">Historia</button>
+      <button class="tab-btn tab-color-blue" data-tab="linki" id="tabBtnLinki">Linki</button>
+      <button class="tab-btn tab-color-yellow" data-tab="keywords">Słowa kluczowe</button>
+      <span style="color:var(--border);font-size:14px;display:flex;align-items:center;margin:0 4px">│</span>
+      <button class="tab-btn tab-color-red" data-tab="wytyczne">Wytyczne</button>
+      <button class="tab-btn tab-color-pink" data-tab="huby">Huby</button>
       <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
       <button class="tab-btn" data-tab="audyt">Audyt</button>
-      <button class="tab-btn" data-tab="agent">Agent</button>
-      <button class="tab-btn" data-tab="htmlgen">Html Generator</button>
-      <button class="tab-btn" data-tab="historia">Historia</button>
-      <button class="tab-btn" data-tab="wytyczne">Wytyczne</button>
-      <button class="tab-btn" data-tab="huby">Huby</button>
-      <button class="tab-btn" data-tab="artykuly">Artykuły</button>
-      <button class="tab-btn" data-tab="linki" id="tabBtnLinki">Linki</button>
-      <button class="tab-btn" data-tab="keywords">Słowa kluczowe</button>
     </div>
   </div>
 
