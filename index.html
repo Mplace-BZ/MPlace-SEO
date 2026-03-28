@@ -948,7 +948,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div class="table-card">
       <div class="table-overflow">
         <table>
-          <thead><tr><th>Fraza</th><th>Typ</th><th>Hub</th><th>Pokryta</th><th>Akcje</th></tr></thead>
+          <thead><tr><th>Fraza</th><th>Typ</th><th>Hub</th><th>Artykuł</th><th>Pokryta</th><th>Akcje</th></tr></thead>
           <tbody id="kwBody"></tbody>
         </table>
       </div>
@@ -3312,15 +3312,19 @@ function renderKeywords() {
 
   const tbody = document.getElementById('kwBody');
   if (keywords.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Brak fraz — dodaj pierwszą</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Brak fraz — dodaj pierwszą</td></tr>';
   } else {
+    const articles = lsGet(KEY.articles, []);
     const typColor = t => t === 'LSI' ? '#00bcd4' : t === 'długi ogon' ? '#fbbf24' : 'var(--green)';
     tbody.innerHTML = keywords.map(kw => {
       const hub = hubs.find(h => h.id === kw.hubId);
+      const kwLower = kw.fraza.toLowerCase();
+      const art = articles.find(a => (a.keywords || []).some(k => k.toLowerCase() === kwLower));
       return `<tr style="${!kw.pokryta ? 'background:var(--yellow-dim)' : ''}">
         <td class="primary">${esc(kw.fraza)}</td>
         <td><span style="font-family:var(--font-mono);font-size:9px;padding:2px 8px;border-radius:3px;background:${typColor(kw.typ)}18;color:${typColor(kw.typ)};border:1px solid ${typColor(kw.typ)}44">${esc(kw.typ || 'główna')}</span></td>
         <td style="font-size:11px">${hub ? esc(hub.nazwa) : '<span style="color:var(--red)">—</span>'}</td>
+        <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${art ? esc(art.tytul) : '<span style="color:var(--text-muted)">—</span>'}</td>
         <td style="text-align:center">${kw.pokryta ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>'}</td>
         <td><div class="gap-row">
           <button class="btn" style="font-size:8px;padding:2px 6px" onclick="editKeyword('${kw.id}')">EDYTUJ</button>
