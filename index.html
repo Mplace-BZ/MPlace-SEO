@@ -2481,10 +2481,14 @@ function filterClient(domena) {
 }
 
 function hubHealth(hub) {
-  const arts = hub.artykuly || [];
-  if (arts.length === 0) return 0;
-  const ok = arts.filter(a => a.linkStatus === 'ok').length;
-  return Math.round((ok / arts.length) * 100);
+  const satArts = hub.artykuly || [];
+  const dbArts = lsGet(KEY.articles, []).filter(a => a.hubId === hub.id);
+  const total = satArts.length + dbArts.length;
+  if (total === 0) return 0;
+  // Satellite: count 'ok' status. DB articles: count those with H1 and at least 1 internal link
+  const satOk = satArts.filter(a => a.linkStatus === 'ok').length;
+  const dbOk = dbArts.filter(a => a.maH1 && (a.linksWewnetrzne ? a.linksWewnetrzne.length > 0 : a.linki > 0)).length;
+  return Math.round(((satOk + dbOk) / total) * 100);
 }
 
 function healthClass(pct) {
