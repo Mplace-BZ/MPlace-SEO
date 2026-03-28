@@ -3881,17 +3881,18 @@ function generateLinkSuggestions() {
   // Render MUST FIX
   const mfHtml = mustFix.length ? `
     <div class="table-card" style="border-top:3px solid var(--red)">
-      <div class="table-card-header"><span class="table-card-title" style="color:var(--red)">⚠ MUST FIX (${mustFix.length})</span></div>
-      <div style="padding:1rem">
-        ${mustFix.map(m => `<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;align-items:flex-start">
-          <span style="color:var(--red);font-family:var(--font-mono);font-size:9px;min-width:110px;padding-top:2px">${m.type === 'no-backlinks' ? 'BEZ BACKLINKÓW' : m.type === 'no-cluster-link' ? 'IZOLOWANY' : 'BRAK PILLAR'}</span>
-          <div style="flex:1">
-            <div style="color:var(--text-primary);font-weight:500">${esc(m.art.tytul)}</div>
-            <div style="color:var(--text-muted);font-size:11px;margin-top:2px">${esc(m.hub ? m.hub.nazwa : '—')} · ${m.msg}</div>
-          </div>
+      <div class="table-card-header" style="cursor:pointer" onclick="var d=document.getElementById('mustFixBody');d.style.display=d.style.display==='none'?'block':'none'">
+        <span class="table-card-title" style="color:var(--red)">⚠ MUST FIX (${mustFix.length})</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">▼</span>
+      </div>
+      <div id="mustFixBody" style="padding:0.5rem 1rem;max-height:300px;overflow-y:auto">
+        ${mustFix.map(m => `<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
+          <span style="color:var(--red);font-family:var(--font-mono);font-size:8px;min-width:100px">${m.type === 'no-backlinks' ? 'BEZ BACKLINKÓW' : m.type === 'no-cluster-link' ? 'IZOLOWANY' : 'BRAK PILLAR'}</span>
+          <span style="color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.art.tytul)}</span>
+          <span style="color:var(--text-muted);font-size:10px;min-width:80px">${esc(m.hub ? m.hub.nazwa : '—')}</span>
         </div>`).join('')}
       </div>
-    </div>` : `<div class="table-card" style="border-top:3px solid var(--green)"><div style="padding:1rem;color:var(--green);font-size:13px">✓ Brak krytycznych problemów z linkami</div></div>`;
+    </div>` : `<div class="table-card" style="border-top:3px solid var(--green)"><div style="padding:0.75rem 1rem;color:var(--green);font-size:12px">✓ Brak krytycznych problemów</div></div>`;
 
   document.getElementById('sugMustFix').innerHTML = mfHtml;
 
@@ -3903,28 +3904,31 @@ function generateLinkSuggestions() {
 
   const prioColor = p => p === 'wysoki' ? 'var(--red)' : 'var(--yellow)';
   document.getElementById('sugPerArticle').innerHTML = `
-    <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:8px">► SUGESTIE LINKÓW PER ARTYKUŁ (${suggestions.length})</div>
-    ${suggestions.map(s => `
-      <div class="table-card" style="margin-bottom:8px">
-        <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-size:12px;font-weight:500;color:var(--text-primary)">${esc(s.art.tytul)}</div>
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${s.hub ? esc(s.hub.nazwa) : '—'} · ${s.sugs.length} sugestii</div>
+    <div class="table-card">
+      <div class="table-card-header"><span class="table-card-title">► SUGESTIE LINKÓW (${suggestions.reduce((s,x) => s + x.sugs.length, 0)} sugestii dla ${suggestions.length} artykułów)</span></div>
+      <div class="table-overflow"><table><thead><tr>
+        <th>Artykuł</th><th>Hub</th><th>Sugestii</th><th></th>
+      </tr></thead><tbody>
+        ${suggestions.map((s, si) => `<tr style="cursor:pointer" onclick="document.getElementById('sugDetail${si}').style.display=document.getElementById('sugDetail${si}').style.display==='none'?'table-row':'none'">
+          <td class="primary" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.art.tytul)}</td>
+          <td style="font-size:11px">${s.hub ? esc(s.hub.nazwa) : '—'}</td>
+          <td style="font-family:var(--font-mono);font-size:12px;color:var(--yellow)">${s.sugs.length}</td>
+          <td style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">▼</td>
+        </tr>
+        <tr id="sugDetail${si}" style="display:none"><td colspan="4" style="padding:0">
+          <div style="padding:8px 16px;background:var(--bg-secondary)">
+            ${s.sugs.map(sg => `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
+              <span style="color:${prioColor(sg.priority)};font-family:var(--font-mono);font-size:8px;min-width:55px;text-transform:uppercase">${sg.priority}</span>
+              <span style="color:${sg.direction.includes('klastrze') ? '#00bcd4' : '#a78bfa'};font-family:var(--font-mono);font-size:9px;min-width:80px">${sg.direction}</span>
+              <div style="flex:1">
+                <div style="color:var(--text-secondary)">→ <strong>${esc(sg.target.tytul)}</strong></div>
+                <div style="color:var(--text-muted);font-size:10px">${sg.reason}</div>
+              </div>
+            </div>`).join('')}
           </div>
-        </div>
-        <div style="padding:8px 16px">
-          ${s.sugs.map(sg => `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
-            <span style="color:${prioColor(sg.priority)};font-family:var(--font-mono);font-size:8px;min-width:55px;text-transform:uppercase">${sg.priority}</span>
-            <span style="color:${sg.direction.includes('klastrze') ? '#00bcd4' : '#a78bfa'};font-family:var(--font-mono);font-size:9px;min-width:80px">${sg.direction}</span>
-            <div style="flex:1">
-              <div style="color:var(--text-secondary)">→ <strong>${esc(sg.target.tytul)}</strong></div>
-              <div style="color:var(--text-muted);font-size:10px">${sg.reason}</div>
-              ${sg.target.url ? `<div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);margin-top:2px">${esc(sg.target.url)}</div>` : ''}
-            </div>
-          </div>`).join('')}
-        </div>
-      </div>
-    `).join('')}`;
+        </td></tr>`).join('')}
+      </tbody></table></div>
+    </div>`;
 }
 window.addEventListener('resize', () => { if (document.getElementById('tab-sitemap').style.display !== 'none') setTimeout(drawSitemapLines, 200); });
 
