@@ -889,6 +889,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <select class="form-input" id="artFilterHub" style="max-width:180px"><option value="">Wszystkie huby</option></select>
       <input class="form-input" id="artSearch" type="text" placeholder="Szukaj po tytule..." style="max-width:220px">
       <button class="btn btn-accent" id="addArticleBtn">DODAJ ARTYKUŁ ►</button>
+      <button class="btn btn-green" id="importArticleBtn">IMPORTUJ ARTYKUŁ ►</button>
     </div>
     <div class="table-card">
       <div class="table-overflow">
@@ -1095,6 +1096,75 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="haUrl" type="text"></div>
     <div class="form-group"><label class="form-label">Status linku do huba</label><select class="form-input" id="haLinkStatus"><option value="ok">✓ OK</option><option value="brak">✗ Brak linku</option><option value="sprawdz">⚠ Do sprawdzenia</option></select></div>
     <div class="modal-footer"><button class="btn" onclick="closeModal('modalHubArticle')">ANULUJ</button><button class="btn btn-accent" id="confirmHubArticle">ZAPISZ</button></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: IMPORTUJ ARTYKUŁ ══ -->
+<div class="modal-overlay" id="modalImport">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-header">
+      <span class="modal-title">IMPORTUJ ARTYKUŁ</span>
+      <button class="modal-close" onclick="closeModal('modalImport')">&#x2715;</button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:1rem">
+      <button class="btn btn-accent" id="importTabText" onclick="switchImportTab('text')">WKLEJ DANE TEKSTOWE</button>
+      <button class="btn" id="importTabHtml" onclick="switchImportTab('html')">WKLEJ KOD HTML</button>
+    </div>
+
+    <!-- Tab: tekst -->
+    <div id="importTextPane">
+      <textarea class="form-textarea" id="importTextInput" style="min-height:250px;font-family:var(--font-mono);font-size:11px" placeholder="Wklej dane artykułu w formacie:
+Tytuł: ...
+URL: ...
+Hub / kategoria: ...
+Autor: ...
+Data publikacji: ...
+Słowa kluczowe: ...
+Czy artykuł ma H1: tak/nie
+Czy ma spis treści: tak/nie
+Czy ma FAQ: tak/nie
+Czy ma CTA: tak/nie
+Linki wewnętrzne:
+https://luxsen.pl/blogs/news/... anchor: tekst linku"></textarea>
+      <button class="btn btn-accent" style="margin-top:8px" id="parseTextBtn">PARSUJ DANE ►</button>
+    </div>
+
+    <!-- Tab: HTML -->
+    <div id="importHtmlPane" style="display:none">
+      <textarea class="form-textarea" id="importHtmlInput" style="min-height:250px;font-family:var(--font-mono);font-size:11px" placeholder="Wklej kod HTML artykułu ze Shopify (<article>...</article>)"></textarea>
+      <button class="btn btn-accent" style="margin-top:8px" id="parseHtmlBtn">PARSUJ HTML ►</button>
+    </div>
+
+    <!-- Podgląd po parsowaniu -->
+    <div id="importPreview" style="display:none;margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
+      <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.14em;color:var(--accent);margin-bottom:12px">► PODGLĄD ZAIMPORTOWANYCH DANYCH</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group"><label class="form-label">Tytuł</label><input class="form-input" id="impTytul"></div>
+        <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="impUrl"></div>
+        <div class="form-group"><label class="form-label">Hub</label><select class="form-input" id="impHub"></select></div>
+        <div class="form-group"><label class="form-label">Domena</label><input class="form-input" id="impDomena"></div>
+        <div class="form-group"><label class="form-label">Autor</label><input class="form-input" id="impAutor"></div>
+        <div class="form-group"><label class="form-label">Data publikacji</label><input class="form-input" id="impData"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Słowa kluczowe (przecinkami)</label><textarea class="form-textarea" id="impKeywords" style="min-height:50px;font-family:var(--font-mono);font-size:11px"></textarea></div>
+
+      <div style="display:flex;gap:12px;margin:12px 0;flex-wrap:wrap" id="impFlags"></div>
+
+      <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;color:var(--text-muted);margin:12px 0 6px">► LINKI WEWNĘTRZNE</div>
+      <div style="max-height:200px;overflow-y:auto" id="impLinksTable"></div>
+
+      <div style="display:flex;gap:10px;margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">
+        <span id="impStatsKw"></span>
+        <span id="impStatsH2"></span>
+        <span id="impStatsLinks"></span>
+      </div>
+
+      <div class="modal-footer" style="margin-top:1rem">
+        <button class="btn" onclick="closeModal('modalImport')">ANULUJ</button>
+        <button class="btn btn-accent" id="importSaveBtn">ZAPISZ ARTYKUŁ DO BAZY ►</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1883,6 +1953,13 @@ ${plan || '(brak — zaproponuj sam)'}
 Linki do wplecenia w treści (użyj jako anchor texty):
 ${links || '(brak)'}
 
+${hubId ? (function() {
+    const hubArts = lsGet(KEY.articles, []).filter(a => a.hubId === hubId && a.url);
+    if (hubArts.length === 0) return '';
+    return 'ISTNIEJĄCE ARTYKUŁY W TYM HUBIE (linkuj do nich naturalnie w treści):\n' +
+      hubArts.map(a => '- ' + a.tytul + ' | ' + a.url + (a.keyword ? ' | ' + a.keyword : '')).join('\n');
+  })() : ''}
+
 WYMAGANIA OBOWIĄZKOWE:
 1. Zacznij od wciągającego wstępu (3-4 zdania) z pogrubionym słowem kluczowym
 2. Dodaj box 'W tym artykule:' z listą 5-7 punktów
@@ -2628,9 +2705,9 @@ function renderArtykuly() {
       <td style="font-size:11px">${hub ? esc(hub.nazwa) : '—'}</td>
       <td class="mono" style="font-size:11px">${esc(a.domena||'—')}</td>
       <td>${statusBadge}</td>
-      <td style="text-align:center">${a.maH1 ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>'}</td>
+      <td style="text-align:center;font-size:11px">${a.maH1 ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>'}${a.maFAQ ? ' <span style="color:var(--accent)" title="FAQ">F</span>' : ''}${a.maCTA ? ' <span style="color:var(--yellow)" title="CTA">C</span>' : ''}</td>
       <td class="mono" style="font-size:11px">${esc(a.keyword||'—')}</td>
-      <td class="mono">${a.linki||0}</td>
+      <td class="mono">${a.linksWewnetrzne ? a.linksWewnetrzne.length : (a.linki||0)}</td>
       <td>${scoreBadge(score)}</td>
       <td><div class="gap-row">
         <button class="btn" onclick="editArticle('${a.id}')">EDYTUJ</button>
@@ -2699,25 +2776,280 @@ document.getElementById('confirmArticle').addEventListener('click', () => {
 document.getElementById('artSearch').addEventListener('input', () => renderArtykuly());
 
 // ═══════════════════════════════════════════════════════
+// 11b. IMPORTUJ ARTYKUŁ
+// ═══════════════════════════════════════════════════════
+let _importedData = null;
+
+document.getElementById('importArticleBtn').addEventListener('click', () => {
+  _importedData = null;
+  document.getElementById('importPreview').style.display = 'none';
+  document.getElementById('importTextInput').value = '';
+  document.getElementById('importHtmlInput').value = '';
+  switchImportTab('text');
+  openModal('modalImport');
+});
+
+function switchImportTab(tab) {
+  document.getElementById('importTextPane').style.display = tab === 'text' ? 'block' : 'none';
+  document.getElementById('importHtmlPane').style.display = tab === 'html' ? 'block' : 'none';
+  document.getElementById('importTabText').className = 'btn' + (tab === 'text' ? ' btn-accent' : '');
+  document.getElementById('importTabHtml').className = 'btn' + (tab === 'html' ? ' btn-accent' : '');
+}
+
+function extractField(text, label) {
+  const re = new RegExp(label + '\\s*[:\\-]\\s*(.+)', 'i');
+  const m = text.match(re);
+  return m ? m[1].trim() : '';
+}
+
+function extractFlag(text, label) {
+  const re = new RegExp(label + '\\s*[:\\-]\\s*(tak|yes|true)', 'i');
+  return re.test(text);
+}
+
+function classifyLink(url) {
+  if (/\/products\//.test(url)) return 'produkt';
+  if (/\/collections\//.test(url)) return 'kolekcja';
+  if (/\/blogs\/|\/news\//.test(url)) return 'artykuł';
+  if (/\/pages\//.test(url)) return 'strona';
+  return 'inny';
+}
+
+function linkTypeColor(typ) {
+  return typ === 'artykuł' ? '#00bcd4' : typ === 'produkt' ? '#00c896' : typ === 'kolekcja' ? '#fbbf24' : '#888';
+}
+
+// Parse from text
+document.getElementById('parseTextBtn').addEventListener('click', () => {
+  const text = document.getElementById('importTextInput').value;
+  if (!text.trim()) { alert('Wklej dane artykułu.'); return; }
+
+  const tytul = extractField(text, 'Tytuł');
+  const url = extractField(text, 'URL');
+  const hub = extractField(text, 'Hub(?:\\s*/\\s*kategoria)?');
+  const autor = extractField(text, 'Autor');
+  const data = extractField(text, 'Data publikacji');
+  const kwRaw = extractField(text, 'Słowa kluczowe');
+  const keywords = kwRaw ? [...new Set(kwRaw.split(/[,;]+/).map(s => s.trim()).filter(Boolean))] : [];
+
+  const maH1 = extractFlag(text, 'Czy artykuł ma H1');
+  const maSpis = extractFlag(text, 'Czy ma spis treści');
+  const maFAQ = extractFlag(text, 'Czy ma FAQ');
+  const maCTA = extractFlag(text, 'Czy ma CTA');
+
+  // Extract links
+  const linkLines = text.split('\n').filter(l => /\/(blogs|news|pages|products|collections)\//.test(l));
+  const links = linkLines.map(l => {
+    const urlMatch = l.match(/(https?:\/\/[^\s,]+)/);
+    const anchorMatch = l.match(/anchor\s*:\s*(.+)/i);
+    const href = urlMatch ? urlMatch[1] : l.trim();
+    return { url: href, anchor: anchorMatch ? anchorMatch[1].trim() : '', typ: classifyLink(href) };
+  });
+
+  // Extract domain from URL
+  let domena = '';
+  try { domena = new URL(url).hostname; } catch(e) {}
+
+  _importedData = { tytul, url, domena, hub, autor, data, keywords, maH1, maSpis, maFAQ, maCTA, links, h2Sections: [], zrodlo: 'import_tekst' };
+  showImportPreview();
+});
+
+// Parse from HTML
+document.getElementById('parseHtmlBtn').addEventListener('click', () => {
+  const html = document.getElementById('importHtmlInput').value;
+  if (!html.trim()) { alert('Wklej kod HTML.'); return; }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  const h1 = doc.querySelector('h1');
+  const tytul = h1 ? h1.textContent.trim() : (doc.querySelector('h2') ? doc.querySelector('h2').textContent.trim() : '');
+
+  const h2s = [...doc.querySelectorAll('h2')].map(el => el.textContent.trim());
+
+  const allLinks = [...doc.querySelectorAll('a[href]')];
+  const links = allLinks
+    .filter(a => /luxsen\.pl|domglamour\.pl|^\/(blogs|products|pages|collections)/.test(a.getAttribute('href')))
+    .map(a => {
+      const href = a.getAttribute('href');
+      const fullUrl = href.startsWith('/') ? 'https://luxsen.pl' + href : href;
+      return { url: fullUrl, anchor: a.textContent.trim(), typ: classifyLink(fullUrl) };
+    });
+
+  const maH1 = h1 !== null;
+  const maSpis = html.includes('Spis treści') || html.includes('spis-tresci');
+  const maFAQ = html.toLowerCase().includes('faq');
+  const maCTA = html.includes('background-color: #bd9a6c') || html.includes('background-color: #c0392b') || /ZOBACZ|SPRAWDŹ/i.test(html);
+
+  // Extract keywords from H2/H3
+  const headings = [...doc.querySelectorAll('h2, h3')].map(el => el.textContent.trim().toLowerCase());
+  const keywords = [...new Set(headings.flatMap(h => h.split(/[\s–—:]+/).filter(w => w.length > 3)))].slice(0, 15);
+
+  let domena = '';
+  const firstLink = allLinks.find(a => /luxsen\.pl|domglamour\.pl/.test(a.getAttribute('href')));
+  if (firstLink) { try { domena = new URL(firstLink.getAttribute('href')).hostname; } catch(e) {} }
+
+  _importedData = { tytul, url: '', domena, hub: '', autor: '', data: '', keywords, maH1, maSpis, maFAQ, maCTA, links, h2Sections: h2s, zrodlo: 'import_html' };
+  showImportPreview();
+});
+
+function showImportPreview() {
+  const d = _importedData;
+  if (!d) return;
+  document.getElementById('importPreview').style.display = 'block';
+  document.getElementById('impTytul').value = d.tytul;
+  document.getElementById('impUrl').value = d.url;
+  document.getElementById('impDomena').value = d.domena;
+  document.getElementById('impAutor').value = d.autor;
+  document.getElementById('impData').value = d.data;
+  document.getElementById('impKeywords').value = d.keywords.join(', ');
+
+  // Hub dropdown
+  const hubs = lsGet(KEY.hubs, []);
+  const sel = document.getElementById('impHub');
+  sel.innerHTML = '<option value="">— wybierz hub —</option>' + hubs.map(h => `<option value="${h.id}">${esc(h.nazwa)} (${esc(h.domena)})</option>`).join('');
+
+  // Flags
+  const flag = (name, val) => `<span style="font-family:var(--font-mono);font-size:11px;padding:4px 10px;border-radius:4px;background:${val ? 'var(--green-dim)' : 'var(--red-dim)'};color:${val ? 'var(--green)' : 'var(--red)'};border:1px solid ${val ? 'var(--green)' : 'var(--red)'}30">${name} ${val ? '✓' : '✗'}</span>`;
+  document.getElementById('impFlags').innerHTML = flag('H1', d.maH1) + flag('Spis treści', d.maSpis) + flag('FAQ', d.maFAQ) + flag('CTA', d.maCTA);
+
+  // Links table
+  if (d.links.length > 0) {
+    document.getElementById('impLinksTable').innerHTML = `<table style="width:100%;font-size:11px"><thead><tr style="color:var(--text-muted)"><th style="text-align:left;padding:4px">✓</th><th style="text-align:left;padding:4px">URL</th><th style="text-align:left;padding:4px">Anchor</th><th style="text-align:left;padding:4px">Typ</th></tr></thead><tbody>` +
+      d.links.map((l, i) => `<tr><td style="padding:4px"><input type="checkbox" checked data-imp-link="${i}"></td><td style="padding:4px;color:var(--text-secondary);word-break:break-all;max-width:300px">${esc(l.url)}</td><td style="padding:4px">${esc(l.anchor || '—')}</td><td style="padding:4px"><span style="color:${linkTypeColor(l.typ)};font-family:var(--font-mono);font-size:10px">${l.typ}</span></td></tr>`).join('') +
+      '</tbody></table>';
+  } else {
+    document.getElementById('impLinksTable').innerHTML = '<div style="color:var(--text-muted);font-size:11px">Brak linków wewnętrznych</div>';
+  }
+
+  // Stats
+  document.getElementById('impStatsKw').textContent = `► ${d.keywords.length} słów kluczowych`;
+  document.getElementById('impStatsH2').textContent = `► ${d.h2Sections.length} sekcji H2`;
+  document.getElementById('impStatsLinks').textContent = `► ${d.links.length} linków`;
+}
+
+// Save imported article
+document.getElementById('importSaveBtn').addEventListener('click', () => {
+  const tytul = document.getElementById('impTytul').value.trim();
+  if (!tytul) { alert('Tytuł jest wymagany.'); return; }
+
+  const hubId = document.getElementById('impHub').value;
+  const hubs = lsGet(KEY.hubs, []);
+  const hub = hubs.find(h => h.id === hubId);
+  const domena = document.getElementById('impDomena').value.trim() || (hub ? hub.domena : '');
+  const keywordsRaw = document.getElementById('impKeywords').value.trim();
+  const keywords = keywordsRaw ? keywordsRaw.split(/[,;]+/).map(s => s.trim()).filter(Boolean) : [];
+
+  // Filter checked links
+  const checkedLinks = [];
+  if (_importedData && _importedData.links) {
+    _importedData.links.forEach((l, i) => {
+      const cb = document.querySelector(`[data-imp-link="${i}"]`);
+      if (cb && cb.checked) checkedLinks.push(l);
+    });
+  }
+
+  const articles = lsGet(KEY.articles, []);
+  articles.push({
+    id: 'art' + Date.now(),
+    klient: selectedAgentClient,
+    tytul,
+    url: document.getElementById('impUrl').value.trim(),
+    hubId,
+    domena,
+    autor: document.getElementById('impAutor').value.trim(),
+    dataPublikacji: document.getElementById('impData').value.trim(),
+    status: 'opublikowany',
+    keyword: keywords[0] || '',
+    keywords,
+    maH1: _importedData ? _importedData.maH1 : false,
+    maSpis: _importedData ? _importedData.maSpis : false,
+    maFAQ: _importedData ? _importedData.maFAQ : false,
+    maCTA: _importedData ? _importedData.maCTA : false,
+    h2Sections: _importedData ? _importedData.h2Sections : [],
+    linksWewnetrzne: checkedLinks,
+    linki: checkedLinks.length,
+    zrodlo: _importedData ? _importedData.zrodlo : 'reczny',
+    notatki: '',
+    createdAt: new Date().toISOString()
+  });
+  lsSet(KEY.articles, articles); saveAllWithSync();
+
+  // Add keywords to Słowa kluczowe
+  if (keywords.length > 0) {
+    const kws = lsGet(KEY.keywords, []);
+    const existing = new Set(kws.map(k => k.fraza.toLowerCase()));
+    keywords.forEach(kw => {
+      if (!existing.has(kw.toLowerCase())) {
+        kws.push({ id: 'kw' + Date.now() + Math.random().toString(36).slice(2, 6), fraza: kw, typ: 'główna', hubId, pokryta: true });
+        existing.add(kw.toLowerCase());
+      }
+    });
+    lsSet(KEY.keywords, kws);
+  }
+
+  // Add links to links tab (update hub satellite articles if hub selected)
+  if (hubId && checkedLinks.length > 0) {
+    const hubsData = lsGet(KEY.hubs, []);
+    const targetHub = hubsData.find(h => h.id === hubId);
+    if (targetHub) {
+      const existingUrls = new Set((targetHub.artykuly || []).map(a => a.url));
+      if (!existingUrls.has(document.getElementById('impUrl').value.trim())) {
+        targetHub.artykuly = targetHub.artykuly || [];
+        targetHub.artykuly.push({
+          id: 'sa' + Date.now(),
+          tytul,
+          url: document.getElementById('impUrl').value.trim(),
+          linkStatus: 'ok'
+        });
+        lsSet(KEY.hubs, hubsData);
+      }
+    }
+  }
+
+  closeModal('modalImport');
+  _importedData = null;
+  renderArtykuly();
+  updateLinkiBadge();
+
+  // Toast
+  const toast = document.createElement('div');
+  toast.textContent = 'Artykuł zapisany do bazy ✓';
+  toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 24px;border-radius:8px;font-family:var(--font-mono);font-size:13px;z-index:99999;animation:fadeIn 0.3s';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+});
+
+// ═══════════════════════════════════════════════════════
 // 12. LINKI
 // ═══════════════════════════════════════════════════════
 function countLinkProblems() {
   const hubs = lsGet(KEY.hubs, []);
-  let noLink = 0, emptyHubs = 0, orphaned = 0;
+  const articles = lsGet(KEY.articles, []);
+  let noLink = 0, emptyHubs = 0, orphaned = 0, noHubLink = 0;
   hubs.forEach(h => {
     const arts = h.artykuly || [];
     if (arts.length === 0) emptyHubs++;
     arts.forEach(a => { if (a.linkStatus === 'brak') noLink++; });
+    // Check if any article links back to hub pillar
+    if (h.urlPillar) {
+      const hubArts = articles.filter(a => a.hubId === h.id);
+      const anyLinksToHub = hubArts.some(a => (a.linksWewnetrzne || []).some(l => l.url === h.urlPillar));
+      if (hubArts.length > 0 && !anyLinksToHub) noHubLink++;
+    }
   });
-  const articles = lsGet(KEY.articles, []);
+  // Orphaned: articles not linked by any other article
+  const allLinkedUrls = new Set();
+  articles.forEach(a => (a.linksWewnetrzne || []).forEach(l => allLinkedUrls.add(l.url)));
+  articles.forEach(a => { if (a.url && !allLinkedUrls.has(a.url) && !a.hubId) orphaned++; });
   articles.forEach(a => { if (!a.hubId) orphaned++; });
-  return { noLink, emptyHubs, orphaned };
+  return { noLink, emptyHubs, orphaned, noHubLink };
 }
 
 function updateLinkiBadge() {
-  const { noLink, emptyHubs, orphaned } = countLinkProblems();
+  const { noLink, emptyHubs, orphaned, noHubLink } = countLinkProblems();
   const btn = document.getElementById('tabBtnLinki');
-  const total = noLink + emptyHubs + orphaned;
+  const total = noLink + emptyHubs + orphaned + noHubLink;
   if (total > 0) {
     btn.innerHTML = `Linki <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--red);margin-left:4px;vertical-align:middle"></span>`;
   } else {
@@ -2726,12 +3058,12 @@ function updateLinkiBadge() {
 }
 
 function renderLinki() {
-  const { noLink, emptyHubs, orphaned } = countLinkProblems();
+  const { noLink, emptyHubs, orphaned, noHubLink } = countLinkProblems();
   document.getElementById('linkAlerts').innerHTML = `
     <div class="stat-card c-red"><div class="stat-label">Brak linku do huba</div><div class="stat-value">${noLink}</div><div class="stat-sub">artykułów</div></div>
     <div class="stat-card c-red"><div class="stat-label">Huby bez artykułów</div><div class="stat-value">${emptyHubs}</div><div class="stat-sub">hubów</div></div>
     <div class="stat-card c-yellow"><div class="stat-label">Artykuły osierocone</div><div class="stat-value">${orphaned}</div><div class="stat-sub">bez przypisanego huba</div></div>
-  `;
+  ` + (noHubLink ? `<div class="stat-card c-red"><div class="stat-label">Brak linku do pillar page</div><div class="stat-value">${noHubLink}</div><div class="stat-sub">hubów</div></div>` : '');
 
   const hubs = lsGet(KEY.hubs, []);
   const statusIcon = s => s === 'ok' ? '<span style="color:var(--green)">✓</span>'
