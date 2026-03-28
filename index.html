@@ -502,6 +502,9 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
 }
 .preview-modal { max-width: 860px; }
 
+/* ── LINK MAP ── */
+#linkAlerts { grid-template-columns: repeat(3, 1fr); }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -512,6 +515,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
   .topbar-row1 { padding: 0 0.75rem; }
   .topbar-row2 { padding: 0 0.75rem; }
   .topbar-status { display: none; }
+  #linkAlerts { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -569,6 +573,10 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <button class="tab-btn" data-tab="agent">Agent</button>
       <button class="tab-btn" data-tab="historia">Historia</button>
       <button class="tab-btn" data-tab="wytyczne">Wytyczne</button>
+      <button class="tab-btn" data-tab="huby">Huby</button>
+      <button class="tab-btn" data-tab="artykuly">Artykuły</button>
+      <button class="tab-btn" data-tab="linki" id="tabBtnLinki">Linki</button>
+      <button class="tab-btn" data-tab="keywords">Słowa kluczowe</button>
     </div>
   </div>
 
@@ -595,6 +603,18 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
             <th>Tytuł</th><th>Data</th><th>Ocena przed</th><th>Ocena po</th><th>Delta</th>
           </tr></thead>
           <tbody id="dashRecentBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-card" id="dashHubsCard">
+      <div class="table-card-header">
+        <span class="table-card-title">► Stan hubów</span>
+      </div>
+      <div class="table-overflow">
+        <table>
+          <thead><tr><th>Hub</th><th>Domena</th><th>Artykuły</th><th>Health</th></tr></thead>
+          <tbody id="dashHubsBody"></tbody>
         </table>
       </div>
     </div>
@@ -741,6 +761,104 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     </div>
   </div>
 
+  <!-- ══ HUBY ══ -->
+  <div class="tab-panel" id="tab-huby">
+    <div class="section-label">► HUBY TEMATYCZNE</div>
+    <div class="section-title">Klastry <span class="star">✦</span></div>
+    <div class="section-subtitle">Zarządzanie hubami i artykułami satelitarnymi</div>
+    <div class="agent-layout">
+      <div class="agent-panel">
+        <div class="agent-panel-header">▼ TWOJE HUBY</div>
+        <div style="margin-bottom:1rem"><button class="btn btn-accent" id="addHubBtn">DODAJ HUB ►</button></div>
+        <div id="hubsList"></div>
+      </div>
+      <div class="agent-panel" id="hubDetailPanel">
+        <div class="agent-panel-header">▼ SZCZEGÓŁY HUBA</div>
+        <div id="hubDetail" class="empty-state">Wybierz hub z listy po lewej</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ARTYKUŁY ══ -->
+  <div class="tab-panel" id="tab-artykuly">
+    <div class="section-label">► ARTYKUŁY</div>
+    <div class="section-title">Baza treści <span class="star">✦</span></div>
+    <div class="section-subtitle">Wszystkie artykuły i ich status SEO</div>
+    <div class="historia-toolbar">
+      <select class="form-input" id="artFilterDomena" style="max-width:180px"><option value="">Wszystkie domeny</option></select>
+      <select class="form-input" id="artFilterHub" style="max-width:180px"><option value="">Wszystkie huby</option></select>
+      <input class="form-input" id="artSearch" type="text" placeholder="Szukaj po tytule..." style="max-width:220px">
+      <button class="btn btn-accent" id="addArticleBtn">DODAJ ARTYKUŁ ►</button>
+    </div>
+    <div class="table-card">
+      <div class="table-overflow">
+        <table>
+          <thead><tr>
+            <th>Tytuł</th><th>Hub</th><th>Domena</th><th>Status</th><th>H1</th><th>Słowo kluczowe</th><th>Linki wew.</th><th>Ocena SEO</th><th>Akcje</th>
+          </tr></thead>
+          <tbody id="artBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ LINKI ══ -->
+  <div class="tab-panel" id="tab-linki">
+    <div class="section-label">► MONITOR LINKÓW</div>
+    <div class="section-title">Struktura <span class="star">✦</span></div>
+    <div class="section-subtitle">Mapa linków wewnętrznych i alerty</div>
+    <div class="stats-grid" id="linkAlerts" style="grid-template-columns:repeat(3,1fr)"></div>
+    <div class="section-label" style="margin-top:2rem">► MAPA STRUKTURY</div>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+      <span class="score-badge score-green" style="font-size:9px">✓ link istnieje</span>
+      <span class="score-badge score-red" style="font-size:9px">✗ brak linku</span>
+      <span class="score-badge score-yellow" style="font-size:9px">⚠ do sprawdzenia</span>
+    </div>
+    <div id="linkMap"></div>
+  </div>
+
+  <!-- ══ SŁOWA KLUCZOWE ══ -->
+  <div class="tab-panel" id="tab-keywords">
+    <div class="section-label">► SŁOWA KLUCZOWE</div>
+    <div class="section-title">Frazy <span class="star">✦</span></div>
+    <div class="section-subtitle">Zarządzanie frazami i content gap</div>
+    <div class="agent-panel" style="margin-bottom:1.5rem">
+      <div class="agent-panel-header">▼ DODAJ FRAZĘ</div>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="flex:1;min-width:180px;margin-bottom:0">
+          <label class="form-label">Fraza</label>
+          <input class="form-input" id="kwInput" type="text" placeholder="np. materac kieszeniowy 160x200">
+        </div>
+        <div class="form-group" style="width:160px;margin-bottom:0">
+          <label class="form-label">Typ</label>
+          <select class="form-input" id="kwType"><option>główna</option><option>LSI</option><option>długi ogon</option></select>
+        </div>
+        <div class="form-group" style="width:180px;margin-bottom:0">
+          <label class="form-label">Hub</label>
+          <select class="form-input" id="kwHub"></select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-checkbox"><input type="checkbox" id="kwCovered"><span>Pokryta</span></label>
+        </div>
+        <button class="btn btn-accent" id="kwAddBtn">DODAJ ►</button>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-overflow">
+        <table>
+          <thead><tr><th>Fraza</th><th>Typ</th><th>Hub</th><th>Pokryta</th><th>Akcje</th></tr></thead>
+          <tbody id="kwBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="stat-card c-yellow" style="margin-top:1.5rem" id="contentGapCard">
+      <div class="stat-label">Content gap</div>
+      <div class="stat-value" id="contentGapCount">0</div>
+      <div class="stat-sub">fraz bez pokrycia — warto stworzyć artykuły</div>
+      <div id="contentGapList" style="margin-top:1rem"></div>
+    </div>
+  </div>
+
 </div><!-- /#app -->
 
 <!-- ══ MODAL: DODAJ AUKCJĘ ══ -->
@@ -800,6 +918,56 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
   </div>
 </div>
 
+<!-- ══ MODAL: DODAJ HUB ══ -->
+<div class="modal-overlay" id="modalHub">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">DODAJ HUB</span>
+      <button class="modal-close" onclick="closeModal('modalHub')">&#x2715;</button>
+    </div>
+    <div class="form-group"><label class="form-label">Nazwa huba *</label><input class="form-input" id="hubNazwa" type="text" placeholder="np. Jak wybrać materac"></div>
+    <div class="form-group"><label class="form-label">Domena *</label><input class="form-input" id="hubDomena" type="text" placeholder="np. luxsen.pl"></div>
+    <div class="form-group"><label class="form-label">URL Pillar Page</label><input class="form-input" id="hubUrl" type="text" placeholder="https://..."></div>
+    <div class="form-group"><label class="form-label">Główne słowo kluczowe</label><input class="form-input" id="hubKeyword" type="text" placeholder="np. materac"></div>
+    <div class="form-group"><label class="form-label">Opis tematyczny</label><textarea class="form-textarea" id="hubOpis" style="min-height:80px" placeholder="Opis tematyki huba..."></textarea></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modalHub')">ANULUJ</button><button class="btn btn-accent" id="confirmHub">ZAPISZ</button></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: DODAJ ARTYKUŁ ══ -->
+<div class="modal-overlay" id="modalArticle">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">DODAJ ARTYKUŁ</span>
+      <button class="modal-close" onclick="closeModal('modalArticle')">&#x2715;</button>
+    </div>
+    <div class="form-group"><label class="form-label">Tytuł *</label><input class="form-input" id="artTytul" type="text"></div>
+    <div class="form-group"><label class="form-label">URL artykułu</label><input class="form-input" id="artUrl" type="text"></div>
+    <div class="form-group"><label class="form-label">Hub</label><select class="form-input" id="artHub"></select></div>
+    <div class="form-group"><label class="form-label">Domena</label><input class="form-input" id="artDomena" type="text"></div>
+    <div class="form-group"><label class="form-label">Status</label><select class="form-input" id="artStatus"><option>szkic</option><option>opublikowany</option><option>do aktualizacji</option></select></div>
+    <div class="form-group"><label class="form-label">Główne słowo kluczowe</label><input class="form-input" id="artKeyword" type="text"></div>
+    <div class="form-group"><label class="form-label">Liczba linków wewnętrznych</label><input class="form-input" id="artLinki" type="number" min="0" value="0"></div>
+    <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="artH1"><span>Ma H1 z słowem kluczowym</span></label></div>
+    <div class="form-group"><label class="form-label">Notatki</label><textarea class="form-textarea" id="artNotatki" style="min-height:60px"></textarea></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modalArticle')">ANULUJ</button><button class="btn btn-accent" id="confirmArticle">ZAPISZ</button></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: DODAJ ARTYKUŁ DO HUBA ══ -->
+<div class="modal-overlay" id="modalHubArticle">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">DODAJ ARTYKUŁ DO HUBA</span>
+      <button class="modal-close" onclick="closeModal('modalHubArticle')">&#x2715;</button>
+    </div>
+    <div class="form-group"><label class="form-label">Tytuł artykułu *</label><input class="form-input" id="haTitle" type="text"></div>
+    <div class="form-group"><label class="form-label">URL</label><input class="form-input" id="haUrl" type="text"></div>
+    <div class="form-group"><label class="form-label">Status linku do huba</label><select class="form-input" id="haLinkStatus"><option value="ok">✓ OK</option><option value="brak">✗ Brak linku</option><option value="sprawdz">⚠ Do sprawdzenia</option></select></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modalHubArticle')">ANULUJ</button><button class="btn btn-accent" id="confirmHubArticle">ZAPISZ</button></div>
+  </div>
+</div>
+
 <!-- ══════════════════════════════════ JAVASCRIPT ══════════════════════════════════ -->
 <script>
 
@@ -812,6 +980,10 @@ const KEY = {
   audyt:    PFX + 'audyt',
   guidelines: PFX + 'guidelines',
   lastTab:  PFX + 'lastTab',
+  hubs:     PFX + 'hubs',
+  articles: PFX + 'articles',
+  links:    PFX + 'links',
+  keywords: PFX + 'keywords',
 };
 
 const DEFAULT_GUIDELINES = `1. Tytuł: 60-75 znaków, główne słowo kluczowe na początku
@@ -848,23 +1020,61 @@ function seedTestData() {
   const audyt = lsGet(KEY.audyt, []);
   if (audyt.length === 0) {
     lsSet(KEY.audyt, [
-      {
-        id: 'a1', title: 'Klawiatura Mechaniczna Logitech G Pro X',
-        url: '', photos: 5,
-        desc: 'Profesjonalna klawiatura mechaniczna Logitech G Pro X dla graczy. Wymienne przełączniki GX. Podświetlenie RGB LIGHTSYNC. Aluminiowa obudowa. Odłączany kabel micro-USB. Rozmiar TKL (tenkeyless).',
-        notes: '',
-      },
-      {
-        id: 'a2', title: 'Mysz',
-        url: '', photos: 1,
-        desc: 'Mysz do komputera.',
-        notes: 'Do poprawy — za krótki opis',
-      },
+      { id: 'a1', title: 'Klawiatura Mechaniczna Logitech G Pro X', url: '', photos: 5,
+        desc: 'Profesjonalna klawiatura mechaniczna Logitech G Pro X dla graczy. Wymienne przełączniki GX. Podświetlenie RGB LIGHTSYNC. Aluminiowa obudowa. Odłączany kabel micro-USB. Rozmiar TKL (tenkeyless).', notes: '' },
+      { id: 'a2', title: 'Mysz', url: '', photos: 1, desc: 'Mysz do komputera.', notes: 'Do poprawy — za krótki opis' },
+    ]);
+  }
+  if (!lsGet(KEY.guidelines)) lsSet(KEY.guidelines, DEFAULT_GUIDELINES);
+
+  // Huby
+  if (lsGet(KEY.hubs, []).length === 0) {
+    lsSet(KEY.hubs, [
+      { id: 'hub1', nazwa: 'Jak wybrać materac', domena: 'luxsen.pl', urlPillar: 'https://luxsen.pl/jak-wybrac-materac',
+        keyword: 'materac', opis: 'Kompletny hub o doborze materacy — twardość, pozycje snu, technologie.',
+        artykuly: [
+          { id: 'sa1', tytul: 'Materac kieszeniowy — przewodnik', url: '/blogs/materac-kieszeniowy', linkStatus: 'ok' },
+          { id: 'sa2', tytul: 'Materac hybrydowy — czy warto?', url: '/blogs/materac-hybrydowy', linkStatus: 'ok' },
+          { id: 'sa3', tytul: 'Ból pleców po nocy — przyczyny', url: '/blogs/bol-plecow', linkStatus: 'brak' },
+          { id: 'sa4', tytul: 'Czyszczenie materaca — domowe sposoby', url: '/blogs/czyszczenie-materaca', linkStatus: 'ok' },
+          { id: 'sa5', tytul: 'Melatonina a sen — poradnik', url: '/blogs/melatonina', linkStatus: 'sprawdz' },
+        ], createdAt: new Date().toISOString() },
+      { id: 'hub2', nazwa: 'Narożniki do salonu', domena: 'domglamour.pl', urlPillar: 'https://domglamour.pl/narozniki-do-salonu',
+        keyword: 'narożnik do salonu', opis: 'Hub o narożnikach — style, rozmiary, tkaniny, aranżacje.',
+        artykuly: [
+          { id: 'sa6', tytul: 'Narożnik rozkładany — jak wybrać', url: '/blog/naroznik-rozkladany', linkStatus: 'ok' },
+          { id: 'sa7', tytul: 'Tkaniny tapicerskie — porównanie', url: '/blog/tkaniny', linkStatus: 'ok' },
+          { id: 'sa8', tytul: 'Narożnik do małego salonu', url: '/blog/maly-salon', linkStatus: 'brak' },
+          { id: 'sa9', tytul: 'Narożnik skórzany vs tkaninowy', url: '/blog/skora-vs-tkanina', linkStatus: 'ok' },
+          { id: 'sa10', tytul: 'Aranżacja salonu z narożnikiem', url: '/blog/aranzacja', linkStatus: 'sprawdz' },
+          { id: 'sa11', tytul: 'Czyszczenie tapicerki — poradnik', url: '/blog/czyszczenie', linkStatus: 'ok' },
+          { id: 'sa12', tytul: 'Kolory narożników — trendy 2026', url: '/blog/kolory-2026', linkStatus: 'ok' },
+          { id: 'sa13', tytul: 'Narożnik z funkcją spania', url: '/blog/funkcja-spania', linkStatus: 'brak' },
+        ], createdAt: new Date().toISOString() },
     ]);
   }
 
-  if (!lsGet(KEY.guidelines)) {
-    lsSet(KEY.guidelines, DEFAULT_GUIDELINES);
+  // Artykuły
+  if (lsGet(KEY.articles, []).length === 0) {
+    lsSet(KEY.articles, [
+      { id: 'art1', tytul: 'Jak wybrać materac krok po kroku', url: 'https://luxsen.pl/jak-wybrac-materac', hubId: 'hub1', domena: 'luxsen.pl',
+        status: 'opublikowany', keyword: 'jak wybrać materac', linki: 5, maH1: true, notatki: '', createdAt: new Date().toISOString() },
+      { id: 'art2', tytul: 'Narożnik rozkładany — kompletny poradnik', url: 'https://domglamour.pl/blog/naroznik-rozkladany', hubId: 'hub2', domena: 'domglamour.pl',
+        status: 'opublikowany', keyword: 'narożnik rozkładany', linki: 3, maH1: true, notatki: '', createdAt: new Date().toISOString() },
+      { id: 'art3', tytul: 'Materac hybrydowy opinie i recenzje', url: '', hubId: 'hub1', domena: 'luxsen.pl',
+        status: 'szkic', keyword: 'materac hybrydowy opinie', linki: 0, maH1: false, notatki: 'Do napisania', createdAt: new Date().toISOString() },
+    ]);
+  }
+
+  // Słowa kluczowe
+  if (lsGet(KEY.keywords, []).length === 0) {
+    lsSet(KEY.keywords, [
+      { id: 'kw1', fraza: 'jak wybrać materac', typ: 'główna', hubId: 'hub1', pokryta: true, createdAt: new Date().toISOString() },
+      { id: 'kw2', fraza: 'materac kieszeniowy 160x200', typ: 'długi ogon', hubId: 'hub1', pokryta: true, createdAt: new Date().toISOString() },
+      { id: 'kw3', fraza: 'materac dla par z różną wagą', typ: 'długi ogon', hubId: 'hub1', pokryta: false, createdAt: new Date().toISOString() },
+      { id: 'kw4', fraza: 'narożnik do salonu', typ: 'główna', hubId: 'hub2', pokryta: true, createdAt: new Date().toISOString() },
+      { id: 'kw5', fraza: 'narożnik skandynawski mały', typ: 'LSI', hubId: 'hub2', pokryta: false, createdAt: new Date().toISOString() },
+    ]);
   }
 }
 
@@ -953,6 +1163,11 @@ function switchTab(name) {
   if (name === 'audyt') renderAudyt();
   if (name === 'historia') renderHistoria();
   if (name === 'wytyczne') renderWytyczne();
+  if (name === 'huby') renderHuby();
+  if (name === 'artykuly') renderArtykuly();
+  if (name === 'linki') renderLinki();
+  if (name === 'keywords') renderKeywords();
+  updateLinkiBadge();
 }
 
 document.querySelectorAll('.tab-btn').forEach(b => {
@@ -1089,6 +1304,8 @@ function renderDashboard() {
       <td class="${dc}">${ds}</td>
     </tr>`;
   }).join('');
+
+  renderDashHubs();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1389,7 +1606,413 @@ document.getElementById('resetGuidelinesBtn').addEventListener('click', () => {
 });
 
 // ═══════════════════════════════════════════════════════
-// 10. FIREBASE AUTH (placeholder)
+// 10. HUBY
+// ═══════════════════════════════════════════════════════
+let selectedHubId = null;
+
+function hubHealth(hub) {
+  const arts = hub.artykuly || [];
+  if (arts.length === 0) return 0;
+  const ok = arts.filter(a => a.linkStatus === 'ok').length;
+  return Math.round((ok / arts.length) * 100);
+}
+
+function healthClass(pct) {
+  if (pct >= 80) return 'score-green';
+  if (pct >= 50) return 'score-yellow';
+  return 'score-red';
+}
+
+function renderHuby() {
+  const hubs = lsGet(KEY.hubs, []);
+  const list = document.getElementById('hubsList');
+  if (hubs.length === 0) {
+    list.innerHTML = '<div class="empty-state">Brak hubów — kliknij DODAJ HUB ►</div>';
+    return;
+  }
+  list.innerHTML = hubs.map(h => {
+    const hp = hubHealth(h);
+    const hasProblems = (h.artykuly || []).some(a => a.linkStatus === 'brak');
+    return `<div class="stat-card c-accent" style="cursor:pointer;margin-bottom:0.75rem;${selectedHubId === h.id ? 'border-color:var(--accent)' : ''}" onclick="selectHub('${h.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--text-primary)">${esc(h.nazwa)}${hasProblems ? ' <span class="pulse-dot" style="display:inline-block;width:6px;height:6px;background:var(--red);vertical-align:middle;margin-left:4px"></span>' : ''}</div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px">${esc(h.domena)} · ${(h.artykuly||[]).length} artykułów</div>
+        </div>
+        <span class="score-badge ${healthClass(hp)}">${hp}%</span>
+      </div>
+    </div>`;
+  }).join('');
+  if (selectedHubId) renderHubDetail(selectedHubId);
+}
+
+function selectHub(id) {
+  selectedHubId = id;
+  renderHuby();
+}
+
+function renderHubDetail(id) {
+  const hubs = lsGet(KEY.hubs, []);
+  const h = hubs.find(x => x.id === id);
+  const el = document.getElementById('hubDetail');
+  if (!h) { el.innerHTML = '<div class="empty-state">Hub nie znaleziony</div>'; return; }
+  const arts = h.artykuly || [];
+  const statusIcon = s => s === 'ok' ? '<span style="color:var(--green)">✓</span>'
+    : s === 'brak' ? '<span style="color:var(--red)">✗</span>'
+    : '<span style="color:var(--yellow)">⚠</span>';
+  el.innerHTML = `
+    <div style="font-size:15px;font-weight:500;color:var(--text-primary);margin-bottom:4px">${esc(h.nazwa)}</div>
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:1rem">${esc(h.urlPillar || '—')}</div>
+    <div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:0.75rem">► Artykuły satelitarne (${arts.length})</div>
+    ${arts.length ? arts.map(a => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+      ${statusIcon(a.linkStatus)}
+      <span style="color:var(--text-secondary);flex:1">${esc(a.tytul)}</span>
+      <button class="btn" style="font-size:8px;padding:2px 6px" onclick="markLinkOk('${h.id}','${a.id}')">OZNACZ OK</button>
+    </div>`).join('') : '<div class="empty-state">Brak artykułów satelitarnych</div>'}
+    <div style="margin-top:1rem;display:flex;gap:0.6rem;flex-wrap:wrap">
+      <button class="btn btn-accent" onclick="openModal('modalHubArticle');window._hubArticleTargetId='${h.id}'">DODAJ ARTYKUŁ DO HUBA</button>
+      <button class="btn" onclick="alert('Wkrótce dostępne')">GENERUJ ARTYKUŁ Z AI ►</button>
+      <button class="btn btn-red" onclick="deleteHub('${h.id}')">USUŃ HUB</button>
+    </div>`;
+}
+
+function markLinkOk(hubId, artId) {
+  const hubs = lsGet(KEY.hubs, []);
+  const h = hubs.find(x => x.id === hubId);
+  if (!h) return;
+  const a = (h.artykuly || []).find(x => x.id === artId);
+  if (a) a.linkStatus = 'ok';
+  lsSet(KEY.hubs, hubs); saveAllWithSync();
+  renderHuby();
+}
+
+function deleteHub(id) {
+  if (!confirm('Usunąć ten hub?')) return;
+  let hubs = lsGet(KEY.hubs, []);
+  hubs = hubs.filter(x => x.id !== id);
+  lsSet(KEY.hubs, hubs); saveAllWithSync();
+  selectedHubId = null; renderHuby();
+}
+
+document.getElementById('addHubBtn').addEventListener('click', () => openModal('modalHub'));
+document.getElementById('confirmHub').addEventListener('click', () => {
+  const nazwa = document.getElementById('hubNazwa').value.trim();
+  const domena = document.getElementById('hubDomena').value.trim();
+  if (!nazwa || !domena) { alert('Nazwa i domena są wymagane.'); return; }
+  const hubs = lsGet(KEY.hubs, []);
+  hubs.push({
+    id: 'hub' + Date.now(), nazwa, domena,
+    urlPillar: document.getElementById('hubUrl').value.trim(),
+    keyword: document.getElementById('hubKeyword').value.trim(),
+    opis: document.getElementById('hubOpis').value.trim(),
+    artykuly: [], createdAt: new Date().toISOString()
+  });
+  lsSet(KEY.hubs, hubs); saveAllWithSync();
+  closeModal('modalHub');
+  ['hubNazwa','hubDomena','hubUrl','hubKeyword','hubOpis'].forEach(id => document.getElementById(id).value = '');
+  renderHuby();
+});
+
+document.getElementById('confirmHubArticle').addEventListener('click', () => {
+  const tytul = document.getElementById('haTitle').value.trim();
+  if (!tytul) { alert('Tytuł jest wymagany.'); return; }
+  const hubs = lsGet(KEY.hubs, []);
+  const h = hubs.find(x => x.id === window._hubArticleTargetId);
+  if (!h) return;
+  if (!h.artykuly) h.artykuly = [];
+  h.artykuly.push({
+    id: 'sa' + Date.now(), tytul,
+    url: document.getElementById('haUrl').value.trim(),
+    linkStatus: document.getElementById('haLinkStatus').value
+  });
+  lsSet(KEY.hubs, hubs); saveAllWithSync();
+  closeModal('modalHubArticle');
+  ['haTitle','haUrl'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('haLinkStatus').value = 'ok';
+  renderHuby();
+});
+
+// ═══════════════════════════════════════════════════════
+// 11. ARTYKUŁY
+// ═══════════════════════════════════════════════════════
+function calcArticleScore(art) {
+  let s = 10;
+  if (!art.maH1) s -= 3;
+  if (!art.keyword) s -= 2;
+  const l = parseInt(art.linki) || 0;
+  if (l === 0) s -= 3;
+  else if (l < 3) s -= 1;
+  return Math.max(1, s);
+}
+
+function renderArtykuly() {
+  const articles = lsGet(KEY.articles, []);
+  const hubs = lsGet(KEY.hubs, []);
+  // populate filters
+  const domeny = [...new Set(articles.map(a => a.domena).filter(Boolean))];
+  const fDom = document.getElementById('artFilterDomena');
+  const curDom = fDom.value;
+  fDom.innerHTML = '<option value="">Wszystkie domeny</option>' + domeny.map(d => `<option${d===curDom?' selected':''}>${esc(d)}</option>`).join('');
+  const fHub = document.getElementById('artFilterHub');
+  const curHub = fHub.value;
+  fHub.innerHTML = '<option value="">Wszystkie huby</option>' + hubs.map(h => `<option value="${h.id}"${h.id===curHub?' selected':''}>${esc(h.nazwa)}</option>`).join('');
+
+  let filtered = [...articles];
+  const domFilter = document.getElementById('artFilterDomena').value;
+  const hubFilter = document.getElementById('artFilterHub').value;
+  const searchFilter = document.getElementById('artSearch').value.toLowerCase();
+  if (domFilter) filtered = filtered.filter(a => a.domena === domFilter);
+  if (hubFilter) filtered = filtered.filter(a => a.hubId === hubFilter);
+  if (searchFilter) filtered = filtered.filter(a => a.tytul.toLowerCase().includes(searchFilter));
+
+  const tbody = document.getElementById('artBody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">Brak artykułów</td></tr>'; return;
+  }
+  tbody.innerHTML = filtered.map(a => {
+    const hub = hubs.find(h => h.id === a.hubId);
+    const score = calcArticleScore(a);
+    const statusBadge = a.status === 'opublikowany' ? '<span class="score-badge score-green">opublikowany</span>'
+      : a.status === 'do aktualizacji' ? '<span class="score-badge score-yellow">do aktualizacji</span>'
+      : '<span class="score-badge score-red">szkic</span>';
+    return `<tr>
+      <td class="primary">${esc(a.tytul)}</td>
+      <td style="font-size:11px">${hub ? esc(hub.nazwa) : '—'}</td>
+      <td class="mono" style="font-size:11px">${esc(a.domena||'—')}</td>
+      <td>${statusBadge}</td>
+      <td style="text-align:center">${a.maH1 ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>'}</td>
+      <td class="mono" style="font-size:11px">${esc(a.keyword||'—')}</td>
+      <td class="mono">${a.linki||0}</td>
+      <td>${scoreBadge(score)}</td>
+      <td><div class="gap-row">
+        <button class="btn" onclick="editArticle('${a.id}')">EDYTUJ</button>
+        <button class="btn btn-accent" onclick="articleToAgent('${a.id}')">PRZEPISZ</button>
+        <button class="btn btn-red" onclick="deleteArticle('${a.id}')">USUŃ</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function articleToAgent(id) {
+  const articles = lsGet(KEY.articles, []);
+  const a = articles.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('agentTitle').value = a.tytul || '';
+  document.getElementById('agentKeywords').value = a.keyword || '';
+  switchTab('agent');
+}
+
+function editArticle(id) {
+  alert('Edycja artykułu — wkrótce dostępne. Usuń i dodaj ponownie.');
+}
+
+function deleteArticle(id) {
+  if (!confirm('Usunąć artykuł?')) return;
+  let articles = lsGet(KEY.articles, []);
+  articles = articles.filter(x => x.id !== id);
+  lsSet(KEY.articles, articles); saveAllWithSync();
+  renderArtykuly();
+}
+
+document.getElementById('addArticleBtn').addEventListener('click', () => {
+  const hubs = lsGet(KEY.hubs, []);
+  const sel = document.getElementById('artHub');
+  sel.innerHTML = '<option value="">— brak —</option>' + hubs.map(h => `<option value="${h.id}">${esc(h.nazwa)} (${esc(h.domena)})</option>`).join('');
+  openModal('modalArticle');
+});
+
+document.getElementById('confirmArticle').addEventListener('click', () => {
+  const tytul = document.getElementById('artTytul').value.trim();
+  if (!tytul) { alert('Tytuł jest wymagany.'); return; }
+  const articles = lsGet(KEY.articles, []);
+  const hubId = document.getElementById('artHub').value;
+  const hubs = lsGet(KEY.hubs, []);
+  const hub = hubs.find(h => h.id === hubId);
+  articles.push({
+    id: 'art' + Date.now(), tytul,
+    url: document.getElementById('artUrl').value.trim(),
+    hubId, domena: document.getElementById('artDomena').value.trim() || (hub ? hub.domena : ''),
+    status: document.getElementById('artStatus').value,
+    keyword: document.getElementById('artKeyword').value.trim(),
+    linki: parseInt(document.getElementById('artLinki').value) || 0,
+    maH1: document.getElementById('artH1').checked,
+    notatki: document.getElementById('artNotatki').value.trim(),
+    createdAt: new Date().toISOString()
+  });
+  lsSet(KEY.articles, articles); saveAllWithSync();
+  closeModal('modalArticle');
+  ['artTytul','artUrl','artDomena','artKeyword','artNotatki'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('artLinki').value = '0';
+  document.getElementById('artH1').checked = false;
+  renderArtykuly();
+});
+
+['artFilterDomena','artFilterHub'].forEach(id => document.getElementById(id).addEventListener('change', () => renderArtykuly()));
+document.getElementById('artSearch').addEventListener('input', () => renderArtykuly());
+
+// ═══════════════════════════════════════════════════════
+// 12. LINKI
+// ═══════════════════════════════════════════════════════
+function countLinkProblems() {
+  const hubs = lsGet(KEY.hubs, []);
+  let noLink = 0, emptyHubs = 0, orphaned = 0;
+  hubs.forEach(h => {
+    const arts = h.artykuly || [];
+    if (arts.length === 0) emptyHubs++;
+    arts.forEach(a => { if (a.linkStatus === 'brak') noLink++; });
+  });
+  const articles = lsGet(KEY.articles, []);
+  articles.forEach(a => { if (!a.hubId) orphaned++; });
+  return { noLink, emptyHubs, orphaned };
+}
+
+function updateLinkiBadge() {
+  const { noLink, emptyHubs, orphaned } = countLinkProblems();
+  const btn = document.getElementById('tabBtnLinki');
+  const total = noLink + emptyHubs + orphaned;
+  if (total > 0) {
+    btn.innerHTML = `Linki <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--red);margin-left:4px;vertical-align:middle"></span>`;
+  } else {
+    btn.textContent = 'Linki';
+  }
+}
+
+function renderLinki() {
+  const { noLink, emptyHubs, orphaned } = countLinkProblems();
+  document.getElementById('linkAlerts').innerHTML = `
+    <div class="stat-card c-red"><div class="stat-label">Brak linku do huba</div><div class="stat-value">${noLink}</div><div class="stat-sub">artykułów</div></div>
+    <div class="stat-card c-red"><div class="stat-label">Huby bez artykułów</div><div class="stat-value">${emptyHubs}</div><div class="stat-sub">hubów</div></div>
+    <div class="stat-card c-yellow"><div class="stat-label">Artykuły osierocone</div><div class="stat-value">${orphaned}</div><div class="stat-sub">bez przypisanego huba</div></div>
+  `;
+
+  const hubs = lsGet(KEY.hubs, []);
+  const statusIcon = s => s === 'ok' ? '<span style="color:var(--green)">✓</span>'
+    : s === 'brak' ? '<span style="color:var(--red)">✗</span>'
+    : '<span style="color:var(--yellow)">⚠</span>';
+  document.getElementById('linkMap').innerHTML = hubs.map(h => {
+    const arts = h.artykuly || [];
+    const hp = hubHealth(h);
+    return `<div class="table-card" style="margin-bottom:1rem">
+      <div class="table-card-header">
+        <span class="table-card-title">${esc(h.nazwa)} <span style="color:var(--text-muted);font-weight:400">(${esc(h.domena)})</span></span>
+        <span class="score-badge ${healthClass(hp)}">${hp}%</span>
+      </div>
+      <div style="padding:1rem">
+        ${arts.length ? arts.map(a => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;color:var(--text-secondary)">
+          <span style="color:var(--text-muted);font-family:var(--font-mono);font-size:10px">→</span>
+          ${statusIcon(a.linkStatus)}
+          <span style="flex:1">${esc(a.tytul)}</span>
+          ${a.linkStatus !== 'ok' ? `<button class="btn" style="font-size:8px;padding:2px 6px" onclick="markLinkOkFromMap('${h.id}','${a.id}')">OZNACZ SPRAWDZONY</button>` : ''}
+        </div>`).join('') : '<div class="empty-state" style="padding:1rem">Brak artykułów satelitarnych</div>'}
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty-state">Brak hubów — dodaj pierwszy w zakładce HUBY</div>';
+}
+
+function markLinkOkFromMap(hubId, artId) {
+  markLinkOk(hubId, artId);
+  renderLinki();
+}
+
+// ═══════════════════════════════════════════════════════
+// 13. SŁOWA KLUCZOWE
+// ═══════════════════════════════════════════════════════
+function renderKeywords() {
+  const keywords = lsGet(KEY.keywords, []);
+  const hubs = lsGet(KEY.hubs, []);
+
+  // populate hub dropdown
+  const kwHubSel = document.getElementById('kwHub');
+  kwHubSel.innerHTML = '<option value="">— brak —</option>' + hubs.map(h => `<option value="${h.id}">${esc(h.nazwa)}</option>`).join('');
+
+  const tbody = document.getElementById('kwBody');
+  if (keywords.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Brak fraz — dodaj pierwszą</td></tr>';
+  } else {
+    tbody.innerHTML = keywords.map(kw => {
+      const hub = hubs.find(h => h.id === kw.hubId);
+      return `<tr style="${!kw.pokryta ? 'background:var(--yellow-dim)' : ''}">
+        <td class="primary">${esc(kw.fraza)}</td>
+        <td><span class="score-badge" style="font-size:9px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-secondary)">${esc(kw.typ)}</span></td>
+        <td style="font-size:11px">${hub ? esc(hub.nazwa) : '—'}</td>
+        <td style="text-align:center">${kw.pokryta ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗ BRAK TREŚCI</span>'}</td>
+        <td><div class="gap-row">
+          ${!kw.pokryta ? `<button class="btn btn-accent" onclick="kwToAgent('${kw.id}')">GENERUJ ARTYKUŁ</button>` : ''}
+          <button class="btn btn-red" onclick="deleteKeyword('${kw.id}')">USUŃ</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Content gap
+  const uncovered = keywords.filter(k => !k.pokryta);
+  document.getElementById('contentGapCount').textContent = uncovered.length;
+  const top5 = uncovered.slice(0, 5);
+  document.getElementById('contentGapList').innerHTML = top5.map(kw =>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="color:var(--text-secondary)">${esc(kw.fraza)}</span>
+      <button class="btn btn-accent" style="font-size:8px;padding:2px 8px" onclick="kwToAgent('${kw.id}')">UTWÓRZ ARTYKUŁ ►</button>
+    </div>`
+  ).join('') || '<div style="font-size:11px;color:var(--text-muted);margin-top:0.5rem">Wszystkie frazy pokryte</div>';
+}
+
+function kwToAgent(id) {
+  const keywords = lsGet(KEY.keywords, []);
+  const kw = keywords.find(x => x.id === id);
+  if (!kw) return;
+  document.getElementById('agentKeywords').value = kw.fraza;
+  document.getElementById('agentTitle').value = '';
+  switchTab('agent');
+}
+
+function deleteKeyword(id) {
+  if (!confirm('Usunąć tę frazę?')) return;
+  let kws = lsGet(KEY.keywords, []);
+  kws = kws.filter(x => x.id !== id);
+  lsSet(KEY.keywords, kws); saveAllWithSync();
+  renderKeywords();
+}
+
+document.getElementById('kwAddBtn').addEventListener('click', () => {
+  const fraza = document.getElementById('kwInput').value.trim();
+  if (!fraza) { alert('Wpisz frazę.'); return; }
+  const kws = lsGet(KEY.keywords, []);
+  kws.push({
+    id: 'kw' + Date.now(), fraza,
+    typ: document.getElementById('kwType').value,
+    hubId: document.getElementById('kwHub').value,
+    pokryta: document.getElementById('kwCovered').checked,
+    createdAt: new Date().toISOString()
+  });
+  lsSet(KEY.keywords, kws); saveAllWithSync();
+  document.getElementById('kwInput').value = '';
+  document.getElementById('kwCovered').checked = false;
+  renderKeywords();
+});
+
+// ═══════════════════════════════════════════════════════
+// 14. DASHBOARD — hub health extension
+// ═══════════════════════════════════════════════════════
+function renderDashHubs() {
+  const hubs = lsGet(KEY.hubs, []);
+  const tbody = document.getElementById('dashHubsBody');
+  if (hubs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Brak hubów — dodaj w zakładce HUBY</td></tr>';
+    return;
+  }
+  tbody.innerHTML = hubs.map(h => {
+    const hp = hubHealth(h);
+    return `<tr>
+      <td class="primary">${esc(h.nazwa)}</td>
+      <td class="mono" style="font-size:11px">${esc(h.domena)}</td>
+      <td class="mono">${(h.artykuly||[]).length}</td>
+      <td><span class="score-badge ${healthClass(hp)}">${hp}%</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// 15. FIREBASE AUTH (placeholder)
 // ═══════════════════════════════════════════════════════
 // TODO: Dodaj Firebase config (firebaseConfig object) i odkomentuj poniższy kod
 
@@ -1433,13 +2056,11 @@ function openModal(id) {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
-document.querySelectorAll('.modal-overlay').forEach(m => {
-  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('open')) closeModal(e.target.id);
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
-  }
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
 });
 
 // ═══════════════════════════════════════════════════════
@@ -1454,6 +2075,7 @@ function esc(s) {
 // ═══════════════════════════════════════════════════════
 seedTestData();
 document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+updateLinkiBadge();
 
 </script>
 
