@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MPlace SEO — Content Intelligence Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<style>
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #111118;
+  --bg-card: #16161f;
+  --bg-hover: #1e1e2a;
+  --border: #2a2a3a;
+  --border-hover: #3a3a4e;
+  --text-primary: #e8e8f0;
+  --text-secondary: #8888a8;
+  --text-muted: #555570;
+  --accent: #00d4aa;
+  --accent-dim: #00d4aa22;
+  --accent-border: #00d4aa44;
+  --green: #00c896;
+  --yellow: #f5a623;
+  --red: #e8445a;
+  --green-dim: #00c89620;
+  --yellow-dim: #f5a62320;
+  --red-dim: #e8445a20;
+  --font-mono: 'DM Mono', monospace;
+  --font-sans: 'DM Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
+
+/* ── WELCOME SCREEN ── */
+#welcome {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg-primary);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 2rem;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  cursor: pointer;
+}
+#welcome::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, transparent 0%, var(--bg-primary) 80%);
+  pointer-events: none;
+}
+.welcome-inner { position: relative; z-index: 1; text-align: center; max-width: 640px; padding: 0 2rem; }
+.welcome-logo {
+  font-family: var(--font-mono); font-size: clamp(2.5rem, 8vw, 5rem);
+  font-weight: 500; color: var(--accent);
+  letter-spacing: 0.15em; line-height: 1;
+  text-shadow: 0 0 40px var(--accent-border);
+  margin-bottom: 0.5rem;
+}
+.welcome-subtitle {
+  font-family: var(--font-mono); font-size: 0.75rem;
+  color: var(--text-muted); letter-spacing: 0.3em; text-transform: uppercase;
+  margin-bottom: 2.5rem;
+}
+.welcome-quote-block {
+  margin: 0 auto 2.5rem;
+  border-top: 1px solid var(--accent-border);
+  padding-top: 1.5rem;
+}
+.welcome-quote-text {
+  font-style: italic; color: rgba(232,232,240,0.85);
+  font-size: 1rem; line-height: 1.7; margin-bottom: 1rem;
+}
+.welcome-quote-author {
+  font-family: var(--font-mono); font-size: 0.7rem;
+  color: var(--accent); text-transform: uppercase; letter-spacing: 0.2em; font-weight: 500;
+}
+.welcome-quote-years {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  color: var(--text-muted); margin-left: 0.5rem;
+}
+.welcome-progress-wrap {
+  width: 100%; max-width: 320px; margin: 0 auto;
+  background: var(--border); border-radius: 2px; height: 2px; overflow: hidden;
+}
+.welcome-progress-bar {
+  height: 100%; background: var(--accent);
+  width: 0%; border-radius: 2px;
+  transition: width 0.1s linear;
+}
+.welcome-hint {
+  font-family: var(--font-mono); font-size: 0.6rem;
+  color: var(--text-muted); letter-spacing: 0.15em; margin-top: 1rem;
+}
+
+/* ── TOPBAR ── */
+#topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: stretch;
+  height: 52px; padding: 0 1.5rem;
+  gap: 1rem;
+}
+.topbar-brand {
+  font-family: var(--font-mono); font-size: 0.85rem;
+  font-weight: 500; color: var(--accent);
+  letter-spacing: 0.15em; white-space: nowrap;
+  display: flex; align-items: center; gap: 0.5rem;
+  flex-shrink: 0;
+}
+.topbar-brand span { color: var(--text-muted); font-size: 0.7rem; }
+.topbar-nav {
+  display: flex; align-items: stretch;
+  overflow-x: auto; flex: 1;
+  gap: 0;
+  scrollbar-width: none;
+}
+.topbar-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+  font-family: var(--font-mono); font-size: 0.7rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-muted); background: none; border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0 1.2rem; cursor: pointer;
+  white-space: nowrap; transition: color 0.15s, border-color 0.15s;
+  display: flex; align-items: center;
+}
+.tab-btn:hover { color: var(--text-primary); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.topbar-right {
+  display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0;
+}
+.btn-auth {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: none; border: 1px solid var(--border);
+  color: var(--text-secondary); padding: 0.4rem 0.9rem;
+  border-radius: 3px; cursor: pointer; transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-auth:hover { border-color: var(--accent); color: var(--accent); }
+.user-info {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-secondary);
+}
+.user-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--accent-border);
+  background: var(--bg-card);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.6rem; color: var(--accent); font-family: var(--font-mono);
+  overflow: hidden;
+}
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── MAIN CONTENT ── */
+#app { display: none; }
+.tab-panel { display: none; padding: 2rem 1.5rem; max-width: 1400px; margin: 0 auto; }
+.tab-panel.active { display: block; }
+
+/* ── SECTION HEADER ── */
+.section-label {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  color: var(--accent); text-transform: uppercase;
+  letter-spacing: 0.2em; margin-bottom: 0.4rem;
+}
+.section-title {
+  font-family: var(--font-sans); font-size: 1.6rem;
+  font-weight: 700; color: var(--text-primary);
+  margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;
+}
+.section-title .star { color: var(--accent); font-size: 0.9rem; }
+.section-subtitle {
+  color: var(--text-muted); font-size: 0.8rem; margin-bottom: 2rem;
+}
+
+/* ── CARDS ── */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1rem; margin-bottom: 2rem;
+}
+.stat-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 6px; padding: 1.25rem 1.25rem 1.25rem 1.5rem;
+  position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+}
+.stat-card.c-accent::before { background: var(--accent); }
+.stat-card.c-green::before { background: var(--green); }
+.stat-card.c-yellow::before { background: var(--yellow); }
+.stat-card.c-red::before { background: var(--red); }
+.stat-label {
+  font-family: var(--font-mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.15em;
+  color: var(--text-muted); margin-bottom: 0.5rem;
+}
+.stat-value {
+  font-family: var(--font-mono); font-size: 2rem;
+  font-weight: 500; color: var(--text-primary); line-height: 1;
+}
+.stat-card.c-accent .stat-value { color: var(--accent); }
+.stat-card.c-green .stat-value { color: var(--green); }
+.stat-card.c-yellow .stat-value { color: var(--yellow); }
+.stat-sub { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.3rem; }
+
+/* ── CHART ── */
+.chart-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 6px; padding: 1.5rem; margin-bottom: 2rem;
+}
+.chart-title {
+  font-family: var(--font-mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.15em;
+  color: var(--text-secondary); margin-bottom: 1.25rem;
+}
+.chart-wrap { position: relative; height: 200px; }
+
+/* ── TABLES ── */
+.table-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden; margin-bottom: 1.5rem;
+}
+.table-card-header {
+  padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.table-card-title {
+  font-family: var(--font-mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-secondary);
+}
+.table-overflow { overflow-x: auto; }
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: 0.82rem;
+}
+thead th {
+  font-family: var(--font-mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-muted); padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left; white-space: nowrap;
+  background: var(--bg-secondary);
+}
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:nth-child(even) { background: rgba(255,255,255,0.015); }
+tbody tr:hover { background: var(--bg-hover); }
+tbody td { padding: 0.7rem 1rem; color: var(--text-secondary); vertical-align: middle; }
+tbody td.mono { font-family: var(--font-mono); font-size: 0.78rem; }
+tbody td.primary { color: var(--text-primary); font-weight: 500; }
+.delta-pos { color: var(--green); font-family: var(--font-mono); font-size: 0.78rem; }
+.delta-neg { color: var(--red); font-family: var(--font-mono); font-size: 0.78rem; }
+.delta-neu { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.78rem; }
+
+/* ── SCORE BADGE ── */
+.score-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500;
+  padding: 0.2rem 0.55rem; border-radius: 3px; line-height: 1;
+}
+.score-green { background: var(--green-dim); color: var(--green); border: 1px solid #00c89640; }
+.score-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid #f5a62340; }
+.score-red { background: var(--red-dim); color: var(--red); border: 1px solid #e8445a40; }
+
+/* ── BUTTONS ── */
+.btn {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 0.5rem 1rem; border-radius: 3px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-hover);
+  color: var(--text-secondary); transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+.btn-accent {
+  background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent);
+}
+.btn-accent:hover { background: var(--accent); color: var(--bg-primary); }
+.btn-green { background: var(--green-dim); border-color: #00c89640; color: var(--green); }
+.btn-green:hover { background: var(--green); color: var(--bg-primary); }
+.btn-red { background: var(--red-dim); border-color: #e8445a40; color: var(--red); }
+.btn-red:hover { background: var(--red); color: #fff; }
+.btn-lg {
+  font-size: 0.75rem; padding: 0.75rem 1.75rem;
+  background: var(--accent-dim); border-color: var(--accent);
+  color: var(--accent); letter-spacing: 0.12em;
+}
+.btn-lg:hover { background: var(--accent); color: var(--bg-primary); }
+
+/* ── FORMS ── */
+.form-group { margin-bottom: 1rem; }
+.form-label {
+  display: block; font-family: var(--font-mono); font-size: 0.62rem;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-muted); margin-bottom: 0.4rem;
+}
+.form-input, .form-textarea, .form-select {
+  width: 100%; background: var(--bg-secondary);
+  border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text-primary); padding: 0.6rem 0.85rem;
+  font-family: var(--font-sans); font-size: 0.85rem;
+  transition: border-color 0.15s; outline: none;
+}
+.form-input:focus, .form-textarea:focus { border-color: var(--accent-border); }
+.form-textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+.form-checkbox { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; }
+.form-checkbox input[type=checkbox] {
+  width: 14px; height: 14px; accent-color: var(--accent);
+  cursor: pointer; flex-shrink: 0;
+}
+.form-checkbox span {
+  font-family: var(--font-mono); font-size: 0.7rem;
+  color: var(--text-secondary); letter-spacing: 0.05em;
+}
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.7); align-items: center; justify-content: center;
+  padding: 1.5rem;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto; padding: 1.75rem;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.modal-title {
+  font-family: var(--font-mono); font-size: 0.8rem;
+  text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent);
+}
+.modal-close {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 1.2rem; cursor: pointer; line-height: 1;
+  transition: color 0.15s;
+}
+.modal-close:hover { color: var(--text-primary); }
+.modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; }
+
+/* ── AGENT TAB ── */
+.agent-layout {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1.5rem; align-items: start;
+}
+.agent-panel {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 6px; padding: 1.5rem;
+}
+.agent-panel-header {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  text-transform: uppercase; letter-spacing: 0.15em;
+  color: var(--text-secondary); margin-bottom: 1.25rem;
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.pulse-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+  animation: pulse-anim 1.5s ease-in-out infinite;
+}
+.pulse-dot.inactive { opacity: 0; animation: none; }
+@keyframes pulse-anim {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.7); }
+}
+.agent-output {
+  min-height: 300px; background: var(--bg-secondary);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 1rem; font-size: 0.85rem; color: var(--text-secondary);
+  line-height: 1.7; white-space: pre-wrap; word-break: break-word;
+  font-family: var(--font-sans); overflow-y: auto; max-height: 500px;
+  position: relative;
+}
+.agent-loading {
+  display: none; flex-direction: column; align-items: center;
+  justify-content: center; gap: 1rem; padding: 3rem;
+}
+.agent-loading.visible { display: flex; }
+.loading-label {
+  font-family: var(--font-mono); font-size: 0.7rem;
+  color: var(--text-muted); letter-spacing: 0.1em;
+}
+.loading-dots { display: flex; gap: 4px; }
+.loading-dots span {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-8px); opacity: 1; }
+}
+.agent-result-actions {
+  display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem;
+}
+.score-cards {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;
+}
+.score-mini-card {
+  background: var(--bg-secondary); border-radius: 4px; padding: 0.75rem;
+  border: 1px solid var(--border); text-align: center;
+}
+.score-mini-label {
+  font-family: var(--font-mono); font-size: 0.58rem;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-muted); margin-bottom: 0.3rem;
+}
+.score-mini-val {
+  font-family: var(--font-mono); font-size: 1.4rem; font-weight: 500;
+}
+
+/* ── HISTORIA ── */
+.historia-toolbar {
+  display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+}
+.historia-toolbar .form-input { max-width: 280px; }
+
+/* ── WYTYCZNE ── */
+.wytyczne-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 6px; padding: 1.5rem; margin-bottom: 1rem;
+}
+.wytyczne-info {
+  background: var(--accent-dim); border: 1px solid var(--accent-border);
+  border-radius: 4px; padding: 0.85rem 1rem; margin-top: 1rem;
+  font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent);
+  letter-spacing: 0.04em; line-height: 1.5;
+}
+
+/* ── PREVIEW MODAL ── */
+.preview-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1rem; margin-top: 1rem;
+}
+.preview-col-label {
+  font-family: var(--font-mono); font-size: 0.62rem;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--text-muted); margin-bottom: 0.5rem;
+}
+.preview-text {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1rem; font-size: 0.82rem;
+  color: var(--text-secondary); white-space: pre-wrap;
+  max-height: 360px; overflow-y: auto; line-height: 1.6;
+}
+.preview-modal { max-width: 860px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .agent-layout { grid-template-columns: 1fr; }
+  .score-cards { grid-template-columns: 1fr 1fr; }
+  .preview-grid { grid-template-columns: 1fr; }
+  .tab-panel { padding: 1.25rem 1rem; }
+  #topbar { padding: 0 0.75rem; }
+  .topbar-brand span { display: none; }
+}
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .section-title { font-size: 1.2rem; }
+}
+
+/* ── MISC ── */
+.text-accent { color: var(--accent); }
+.text-muted { color: var(--text-muted); font-size: 0.78rem; }
+.gap-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.empty-state {
+  text-align: center; padding: 3rem 1rem;
+  color: var(--text-muted); font-family: var(--font-mono); font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════ WELCOME -->
+<div id="welcome">
+  <div class="welcome-inner">
+    <div class="welcome-logo">MPLACE SEO</div>
+    <div class="welcome-subtitle">Content Intelligence Platform</div>
+    <div class="welcome-quote-block">
+      <div class="welcome-quote-text" id="quoteText"></div>
+      <div>
+        <span class="welcome-quote-author" id="quoteAuthor"></span>
+        <span class="welcome-quote-years" id="quoteYears"></span>
+      </div>
+    </div>
+    <div class="welcome-progress-wrap">
+      <div class="welcome-progress-bar" id="welcomeBar"></div>
+    </div>
+    <div class="welcome-hint">KLIKNIJ LUB NACIŚNIJ KLAWISZ ABY POMINĄĆ</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ APP -->
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="topbar-brand">MPLACE SEO <span>v1.0</span></div>
+    <nav class="topbar-nav">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="audyt">Audyt</button>
+      <button class="tab-btn" data-tab="agent">Agent</button>
+      <button class="tab-btn" data-tab="historia">Historia</button>
+      <button class="tab-btn" data-tab="wytyczne">Wytyczne</button>
+    </nav>
+    <div class="topbar-right">
+      <div id="userInfo" style="display:none" class="user-info">
+        <div class="user-avatar" id="userAvatar"></div>
+        <span id="userEmail"></span>
+        <button class="btn-auth" id="logoutBtn">Wyloguj</button>
+      </div>
+      <button class="btn-auth" id="loginBtn">Zaloguj</button>
+    </div>
+  </div>
+
+  <!-- ══ DASHBOARD ══ -->
+  <div class="tab-panel active" id="tab-dashboard">
+    <div class="section-label">► DASHBOARD</div>
+    <div class="section-title">Przegląd <span class="star">✦</span></div>
+    <div class="section-subtitle">Statystyki użycia agenta i ostatnia aktywność</div>
+
+    <div class="stats-grid" id="dashStats"></div>
+
+    <div class="chart-card">
+      <div class="chart-title">► Przepisane aukcje — ostatnie 30 dni</div>
+      <div class="chart-wrap"><canvas id="dashChart"></canvas></div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header">
+        <span class="table-card-title">► Ostatnie 5 aukcji</span>
+      </div>
+      <div class="table-overflow">
+        <table>
+          <thead><tr>
+            <th>Tytuł</th><th>Data</th><th>Ocena przed</th><th>Ocena po</th><th>Delta</th>
+          </tr></thead>
+          <tbody id="dashRecentBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ AUDYT ══ -->
+  <div class="tab-panel" id="tab-audyt">
+    <div class="section-label">► AUDYT</div>
+    <div class="section-title">Audyt aukcji <span class="star">✦</span></div>
+    <div class="section-subtitle">Ocena SEO aukcji Allegro według lokalnej heurystyki</div>
+
+    <div style="margin-bottom:1.25rem">
+      <button class="btn btn-accent" id="addAukcjaBtn">+ DODAJ AUKCJĘ</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-overflow">
+        <table>
+          <thead><tr>
+            <th>Tytuł</th><th>Zdjęcia</th><th>Długość opisu</th><th>Ocena SEO</th><th>Status</th><th>Akcje</th>
+          </tr></thead>
+          <tbody id="audytBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ AGENT ══ -->
+  <div class="tab-panel" id="tab-agent">
+    <div class="section-label">► AGENT</div>
+    <div class="section-title">Przepisz opis <span class="star">✦</span></div>
+    <div class="section-subtitle">AI przepisuje opis aukcji pod SEO Allegro</div>
+
+    <div class="agent-layout">
+      <!-- LEWA: INPUT -->
+      <div class="agent-panel">
+        <div class="agent-panel-header">▼ DANE WEJŚCIOWE</div>
+        <div class="form-group">
+          <label class="form-label">Tytuł aukcji</label>
+          <input class="form-input" type="text" id="agentTitle" placeholder="np. Laptop Gaming ASUS ROG 15.6″ RTX 4060">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kategoria Allegro (opcjonalne)</label>
+          <input class="form-input" type="text" id="agentCategory" placeholder="np. Komputery > Laptopy">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stary opis aukcji</label>
+          <textarea class="form-textarea" id="agentOldDesc" style="min-height:200px" placeholder="Wklej obecny opis aukcji..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Słowa kluczowe (opcjonalne)</label>
+          <textarea class="form-textarea" id="agentKeywords" style="min-height:70px" placeholder="np. laptop gaming, rtx 4060, 16gb ram"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-checkbox">
+            <input type="checkbox" id="agentUseGuidelines" checked>
+            <span>Użyj wytycznych z zakładki WYTYCZNE</span>
+          </label>
+        </div>
+        <button class="btn btn-lg" id="agentRunBtn">PRZEPISZ OPIS ►</button>
+      </div>
+
+      <!-- PRAWA: OUTPUT -->
+      <div class="agent-panel">
+        <div class="agent-panel-header">
+          ▼ WYNIK AGENTA
+          <div class="pulse-dot inactive" id="agentPulseDot"></div>
+        </div>
+
+        <div class="agent-loading" id="agentLoading">
+          <div class="loading-dots"><span></span><span></span><span></span></div>
+          <div class="loading-label">Agent pracuje...</div>
+        </div>
+
+        <div class="agent-output" id="agentOutput">
+          <span style="color:var(--text-muted);font-family:var(--font-mono);font-size:0.72rem">
+            Wynik pojawi się tutaj po wciśnięciu PRZEPISZ OPIS ►
+          </span>
+        </div>
+
+        <div class="score-cards">
+          <div class="score-mini-card">
+            <div class="score-mini-label">Ocena przed</div>
+            <div class="score-mini-val" id="scoreBefore" style="color:var(--text-muted)">—</div>
+          </div>
+          <div class="score-mini-card">
+            <div class="score-mini-label">Ocena po</div>
+            <div class="score-mini-val" id="scoreAfter" style="color:var(--text-muted)">—</div>
+          </div>
+        </div>
+
+        <div class="agent-result-actions" id="agentActions" style="display:none">
+          <button class="btn btn-accent" id="copyResultBtn">KOPIUJ</button>
+          <button class="btn btn-green" id="saveHistoryBtn">ZAPISZ DO HISTORII</button>
+          <button class="btn" id="reScoreBtn">OCEŃ PONOWNIE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ HISTORIA ══ -->
+  <div class="tab-panel" id="tab-historia">
+    <div class="section-label">► HISTORIA</div>
+    <div class="section-title">Historia przepisań <span class="star">✦</span></div>
+    <div class="section-subtitle">Archiwum wszystkich przepisanych aukcji</div>
+
+    <div class="historia-toolbar">
+      <input class="form-input" type="text" id="historiaSearch" placeholder="Szukaj po tytule...">
+      <button class="btn btn-accent" id="exportCsvBtn">EKSPORTUJ CSV</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-overflow">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Tytuł</th><th>Data</th><th>Czas</th>
+            <th>Ocena przed</th><th>Ocena po</th><th>Delta</th><th>Akcje</th>
+          </tr></thead>
+          <tbody id="historiaBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ WYTYCZNE ══ -->
+  <div class="tab-panel" id="tab-wytyczne">
+    <div class="section-label">► WYTYCZNE</div>
+    <div class="section-title">Wytyczne SEO Allegro <span class="star">✦</span></div>
+    <div class="section-subtitle">Baza wytycznych używanych przez Agenta</div>
+
+    <div class="wytyczne-card">
+      <div class="form-group" style="margin-bottom:1.25rem">
+        <label class="form-label">Wytyczne SEO (edytowalne)</label>
+        <textarea class="form-textarea" id="guidelinesText" style="min-height:320px;font-family:var(--font-mono);font-size:0.8rem"></textarea>
+      </div>
+      <div class="gap-row">
+        <button class="btn btn-accent" id="saveGuidelinesBtn">ZAPISZ WYTYCZNE</button>
+        <button class="btn" id="resetGuidelinesBtn">PRZYWRÓĆ DOMYŚLNE</button>
+      </div>
+    </div>
+
+    <div class="wytyczne-info">
+      ► Wytyczne są używane przez Agenta gdy zaznaczysz opcję "Użyj wytycznych z zakładki WYTYCZNE" w zakładce AGENT.
+    </div>
+  </div>
+
+</div><!-- /#app -->
+
+<!-- ══ MODAL: DODAJ AUKCJĘ ══ -->
+<div class="modal-overlay" id="modalAukcja">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">DODAJ AUKCJĘ DO AUDYTU</span>
+      <button class="modal-close" id="closeModalAukcja">&#x2715;</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tytuł aukcji *</label>
+      <input class="form-input" type="text" id="aukcjaTitle" placeholder="Tytuł aukcji na Allegro">
+    </div>
+    <div class="form-group">
+      <label class="form-label">URL aukcji (opcjonalne)</label>
+      <input class="form-input" type="text" id="aukcjaUrl" placeholder="https://allegro.pl/oferta/...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Liczba zdjęć</label>
+      <input class="form-input" type="number" id="aukcjaPhotos" min="0" value="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Opis aukcji *</label>
+      <textarea class="form-textarea" id="aukcjaDesc" style="min-height:160px" placeholder="Wklej opis aukcji..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notatki (opcjonalne)</label>
+      <input class="form-input" type="text" id="aukcjaNotes" placeholder="Własne notatki...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="cancelModalAukcja">ANULUJ</button>
+      <button class="btn btn-accent" id="confirmModalAukcja">ZAPISZ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: PODGLĄD HISTORII ══ -->
+<div class="modal-overlay" id="modalPreview">
+  <div class="modal preview-modal" style="max-width:860px">
+    <div class="modal-header">
+      <span class="modal-title" id="previewTitle">PODGLĄD</span>
+      <button class="modal-close" id="closeModalPreview">&#x2715;</button>
+    </div>
+    <div class="preview-grid">
+      <div>
+        <div class="preview-col-label">STARY OPIS</div>
+        <div class="preview-text" id="previewOld"></div>
+      </div>
+      <div>
+        <div class="preview-col-label">NOWY OPIS</div>
+        <div class="preview-text" id="previewNew"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-accent" id="closeModalPreviewBtn">ZAMKNIJ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ JAVASCRIPT ══════════════════════════════════ -->
+<script>
+
+// ═══════════════════════════════════════════════════════
+// 0. CONSTANTS & STORAGE HELPERS
+// ═══════════════════════════════════════════════════════
+const PFX = 'mplace_seo_';
+const KEY = {
+  historia: PFX + 'historia',
+  audyt:    PFX + 'audyt',
+  guidelines: PFX + 'guidelines',
+  lastTab:  PFX + 'lastTab',
+};
+
+const DEFAULT_GUIDELINES = `1. Tytuł: 60-75 znaków, główne słowo kluczowe na początku
+2. Opis: minimum 1000 znaków, strukturyzowany nagłówkami
+3. Pierwsze 200 znaków: najważniejsze cechy produktu
+4. Używaj list punktowanych dla specyfikacji
+5. Unikaj caps lock i nadmiernych wykrzykników
+6. Dodaj sekcję: Co otrzymujesz w zestawie
+7. Dodaj sekcję: Dlaczego warto kupić
+8. Zakończ wezwaniem do działania`;
+
+function lsGet(key, fallback = null) {
+  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+
+let _fsLoaded = false;
+// TODO: Dodaj Firebase config (firebaseConfig object)
+// const firebaseConfig = { apiKey: "", authDomain: "", projectId: "", ... };
+// firebase.initializeApp(firebaseConfig);
+
+function saveAllWithSync() {
+  // Saves to localStorage — Firebase sync would be added here when config is provided
+  // TODO: If Firebase is configured and user is logged in, sync to Firestore
+}
+
+// ═══════════════════════════════════════════════════════
+// 1. TEST DATA — seed on first run
+// ═══════════════════════════════════════════════════════
+function seedTestData() {
+  const historia = lsGet(KEY.historia, []);
+  if (historia.length === 0) {
+    const now = Date.now();
+    const day = 86400000;
+    lsSet(KEY.historia, [
+      {
+        id: 'h1', title: 'Laptop Gaming ASUS ROG 15.6″ RTX 4060',
+        date: new Date(now - 6 * day).toISOString(),
+        oldDesc: 'Laptop gaming ASUS z procesorem Intel i7 i kartą graficzną RTX 4060. Pamięć RAM 16GB, dysk SSD 512GB. Ekran 15.6 cali Full HD 144Hz. System Windows 11.',
+        newDesc: 'Laptop ASUS ROG — najlepszy wybór dla graczy!\n\nGłówne cechy:\n• Procesor Intel Core i7 12. generacji\n• Karta graficzna NVIDIA RTX 4060 8GB\n• 16GB RAM DDR5\n• Dysk SSD NVMe 512GB\n• Ekran 15.6" Full HD 144Hz IPS\n• System Windows 11 Home\n\nDlaczego warto kupić:\nASUS ROG to marka ceniona przez graczy na całym świecie. Wysoka wydajność, niezawodność i doskonały stosunek ceny do jakości.\n\nCo otrzymujesz w zestawie:\n- Laptop ASUS ROG\n- Zasilacz 230W\n- Instrukcja obsługi\n\nZamów już dziś i ciesz się graniem na najwyższym poziomie!',
+        scoreBefore: 5, scoreAfter: 9,
+        keywords: 'laptop gaming, rtx 4060, asus rog', category: 'Komputery > Laptopy',
+      },
+      {
+        id: 'h2', title: 'Słuchawki Sony WH-1000XM5 Czarne',
+        date: new Date(now - 3 * day).toISOString(),
+        oldDesc: 'Słuchawki Sony WH-1000XM5 bezprzewodowe z ANC. Kolor czarny. Czas pracy na baterii do 30h.',
+        newDesc: 'Sony WH-1000XM5 — flagowe słuchawki z najlepszym ANC na rynku!\n\nSpecyfikacja:\n• Aktywna redukcja szumów (ANC) — wiodąca w branży\n• Czas pracy baterii: do 30 godzin\n• Szybkie ładowanie: 3 min = 3 godziny muzyki\n• Łączność: Bluetooth 5.2, NFC\n• Przetworniki: 30mm, neodymowe\n• Wbudowany mikrofon — crystal clear rozmowy\n\nDlaczego Sony XM5?\nXM5 to nowy standard słuchawek premium. Lepsza izolacja, doskonały dźwięk, wygodna nausznica.\n\nW zestawie:\n- Słuchawki Sony WH-1000XM5\n- Kabel USB-C\n- Kabel 3.5mm\n- Etui podróżne\n- Przejściówka samolotowa',
+        scoreBefore: 4, scoreAfter: 8,
+        keywords: 'słuchawki sony, wh-1000xm5, anc, bezprzewodowe', category: 'Audio > Słuchawki',
+      },
+      {
+        id: 'h3', title: 'Kamera GoPro Hero 12 Black',
+        date: new Date(now - 1 * day).toISOString(),
+        oldDesc: 'GoPro Hero 12 Black nowa kamera sportowa. Filmowanie 5.3K. Wodoszczelna do 10m bez obudowy. Stabilizacja HyperSmooth 6.0.',
+        newDesc: 'GoPro Hero 12 Black — uwiecznij każdą przygodę w 5.3K!\n\nPodstawowe parametry:\n• Rozdzielczość wideo: 5.3K60 / 4K120 / 2.7K240\n• Zdjęcia: 27 megapikseli\n• Stabilizacja: HyperSmooth 6.0 (przełomowa)\n• Wodoszczelność: do 10m bez obudowy\n• Bateria: 1720 mAh, do 70 min (5.3K)\n• Łączność: Wi-Fi, Bluetooth, GPS\n\nDlaczego Hero 12?\nNajlepsza GoPro w historii — lepsza stabilizacja, dłuższy czas pracy, więcej opcji montażu.\n\nW zestawie:\n- Kamera GoPro Hero 12 Black\n- Bateria Enduro\n- Uchwyt rowerowy\n- Klej montażowy x2\n- Kabel USB-C',
+        scoreBefore: 6, scoreAfter: 9,
+        keywords: 'gopro hero 12, kamera sportowa, 5.3k', category: 'Foto > Kamery sportowe',
+      },
+    ]);
+  }
+
+  const audyt = lsGet(KEY.audyt, []);
+  if (audyt.length === 0) {
+    lsSet(KEY.audyt, [
+      {
+        id: 'a1', title: 'Klawiatura Mechaniczna Logitech G Pro X',
+        url: '', photos: 5,
+        desc: 'Profesjonalna klawiatura mechaniczna Logitech G Pro X dla graczy. Wymienne przełączniki GX. Podświetlenie RGB LIGHTSYNC. Aluminiowa obudowa. Odłączany kabel micro-USB. Rozmiar TKL (tenkeyless).',
+        notes: '',
+      },
+      {
+        id: 'a2', title: 'Mysz',
+        url: '', photos: 1,
+        desc: 'Mysz do komputera.',
+        notes: 'Do poprawy — za krótki opis',
+      },
+    ]);
+  }
+
+  if (!lsGet(KEY.guidelines)) {
+    lsSet(KEY.guidelines, DEFAULT_GUIDELINES);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// 2. WELCOME SCREEN
+// ═══════════════════════════════════════════════════════
+const QUOTES = [
+  { text: "Twój czas jest ograniczony. Nie marnuj go, żyjąc cudzym życiem.", author: "Steve Jobs", years: "(1955–2011)" },
+  { text: "Twój niezadowolony klient to twoje największe źródło wiedzy.", author: "Bill Gates", years: "(ur. 1955)" },
+  { text: "Wyobraźnia jest ważniejsza niż wiedza.", author: "Albert Einstein", years: "(1879–1955)" },
+  { text: "Pracuj mądrze, nie ciężko.", author: "Allen F. Morgenstern", years: "(1891–1983)" },
+  { text: "Cena jest tym, co płacisz. Wartość jest tym, co otrzymujesz.", author: "Warren Buffett", years: "(ur. 1930)" },
+  { text: "Najlepsza reklama to zadowolony klient.", author: "Bill Gates", years: "(ur. 1955)" },
+  { text: "Marki, które są na szczycie, osiągają go przez innowację, nie naśladowanie.", author: "Jack Welch", years: "(1935–2020)" },
+  { text: "Gdy wszystko wydaje się iść pod prąd, pamiętaj: samolot startuje pod wiatr.", author: "Henry Ford", years: "(1863–1947)" },
+  { text: "Sukces to idąc od porażki do porażki, nie tracić entuzjazmu.", author: "Winston Churchill", years: "(1874–1965)" },
+  { text: "Jeśli nie budujesz swoich marzeń, ktoś wynajmie cię do budowania swoich.", author: "Tony Gaskins", years: "(ur. 1982)" },
+  { text: "Podróż tysiąca mil zaczyna się od jednego kroku.", author: "Konfucjusz", years: "(551–479 p.n.e.)" },
+  { text: "Największym ryzykiem jest brak podejmowania ryzyka.", author: "Mark Zuckerberg", years: "(ur. 1984)" },
+  { text: "Klienci nie wiedzą, czego chcą, dopóki im tego nie pokażesz.", author: "Steve Jobs", years: "(1955–2011)" },
+  { text: "Biznes ma tylko dwie funkcje: marketing i innowacje.", author: "Peter Drucker", years: "(1909–2005)" },
+  { text: "Działaj jak gdybyś nie mógł ponieść porażki.", author: "Winston Churchill", years: "(1874–1965)" },
+  { text: "Edukacja to najlepsze narzędzie, jakiego możesz użyć, by zmienić świat.", author: "Nelson Mandela", years: "(1918–2013)" },
+  { text: "Szczęście sprzyja odważnym.", author: "Wergiliusz", years: "(70–19 p.n.e.)" },
+  { text: "Strata czasu jest największą rozrzutnością.", author: "Benjamin Franklin", years: "(1706–1790)" },
+  { text: "Jedyna droga do sukcesu biegnie przez ciężką pracę.", author: "Jeff Bezos", years: "(ur. 1964)" },
+  { text: "Nie ufaj strategiom bez egzekucji. Egzekucja to strategia.", author: "Andy Grove", years: "(1936–2016)" },
+  { text: "Trudności hartują człowieka.", author: "Marcus Aurelius", years: "(121–180)" },
+  { text: "Nie szukaj uznania. Szukaj wyników.", author: "Peter Drucker", years: "(1909–2005)" },
+  { text: "Każdy cel jest osiągalny, jeśli podzielisz go na małe kroki.", author: "Lee Iacocca", years: "(1924–2019)" },
+  { text: "Odwaga to nie brak strachu, lecz ocena, że coś innego jest ważniejsze.", author: "Ambrose Redmoon", years: "(1933–1996)" },
+  { text: "Jeśli nie wiesz, dokąd zmierzasz, każda droga cię tam zaprowadzi.", author: "Lewis Carroll", years: "(1832–1898)" },
+  { text: "Jakość nie jest przypadkiem, zawsze jest efektem inteligentnego wysiłku.", author: "John Ruskin", years: "(1819–1900)" },
+  { text: "Rób to, co kochasz, a nie przepracujesz ani jednego dnia.", author: "Konfucjusz", years: "(551–479 p.n.e.)" },
+  { text: "Jedyne ograniczenia, jakie masz, to te w twoim umyśle.", author: "Richard Branson", years: "(ur. 1950)" },
+  { text: "Życie jest zbyt krótkie, by robić rzeczy bez sensu.", author: "Elon Musk", years: "(ur. 1971)" },
+  { text: "Żadne wielkie przedsięwzięcie nigdy nie odniosło sukcesu bez entuzjazmu.", author: "Arystoteles", years: "(384–322 p.n.e.)" },
+  { text: "Dum spiro, spero — Dopóki oddycham, mam nadzieję.", author: "Seneka Młodszy", years: "(ok. 4 p.n.e.–65 n.e.)" },
+];
+
+(function initWelcome() {
+  const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  document.getElementById('quoteText').textContent = `"${q.text}"`;
+  document.getElementById('quoteAuthor').textContent = q.author;
+  document.getElementById('quoteYears').textContent = q.years;
+
+  const bar = document.getElementById('welcomeBar');
+  const total = 5000;
+  const step = 50;
+  let elapsed = 0;
+  const timer = setInterval(() => {
+    elapsed += step;
+    bar.style.width = Math.min(100, (elapsed / total) * 100) + '%';
+    if (elapsed >= total) dismiss();
+  }, step);
+
+  function dismiss() {
+    clearInterval(timer);
+    const w = document.getElementById('welcome');
+    w.style.transition = 'opacity 0.4s';
+    w.style.opacity = '0';
+    setTimeout(() => {
+      w.style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      const last = localStorage.getItem(KEY.lastTab) || 'dashboard';
+      switchTab(last);
+    }, 400);
+  }
+
+  document.getElementById('welcome').addEventListener('click', dismiss);
+  document.addEventListener('keydown', function onKey(e) {
+    document.removeEventListener('keydown', onKey);
+    dismiss();
+  }, { once: true });
+})();
+
+// ═══════════════════════════════════════════════════════
+// 3. TAB NAVIGATION
+// ═══════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + name);
+  });
+  localStorage.setItem(KEY.lastTab, name);
+
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'audyt') renderAudyt();
+  if (name === 'historia') renderHistoria();
+  if (name === 'wytyczne') renderWytyczne();
+}
+
+document.querySelectorAll('.tab-btn').forEach(b => {
+  b.addEventListener('click', () => switchTab(b.dataset.tab));
+});
+
+// ═══════════════════════════════════════════════════════
+// 4. SEO SCORE CALCULATOR
+// ═══════════════════════════════════════════════════════
+function calcScore(title, desc, photos) {
+  let score = 10;
+  if ((title || '').trim().length < 30) score -= 2;
+  const dl = (desc || '').trim().length;
+  if (dl < 200) score -= 3;
+  else if (dl < 500) score -= 1;
+  const ph = parseInt(photos) || 0;
+  if (ph === 0) score -= 3;
+  else if (ph < 3) score -= 1;
+  return Math.max(1, score);
+}
+
+function scoreClass(s) {
+  if (s >= 8) return 'score-green';
+  if (s >= 5) return 'score-yellow';
+  return 'score-red';
+}
+
+function scoreBadge(s) {
+  return `<span class="score-badge ${scoreClass(s)}">${s}/10</span>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// 5. DASHBOARD
+// ═══════════════════════════════════════════════════════
+let dashChartInst = null;
+
+function renderDashboard() {
+  const historia = lsGet(KEY.historia, []);
+
+  // Stats
+  const today = new Date().toDateString();
+  const countToday = historia.filter(h => new Date(h.date).toDateString() === today).length;
+  const avgBefore = historia.length
+    ? (historia.reduce((a, h) => a + (h.scoreBefore || 0), 0) / historia.length).toFixed(1)
+    : '—';
+  const avgAfter = historia.length
+    ? (historia.reduce((a, h) => a + (h.scoreAfter || 0), 0) / historia.length).toFixed(1)
+    : '—';
+
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat-card c-accent">
+      <div class="stat-label">Przepisane aukcje</div>
+      <div class="stat-value">${historia.length}</div>
+      <div class="stat-sub">łącznie</div>
+    </div>
+    <div class="stat-card c-green">
+      <div class="stat-label">Dziś</div>
+      <div class="stat-value">${countToday}</div>
+      <div class="stat-sub">sesja</div>
+    </div>
+    <div class="stat-card c-yellow">
+      <div class="stat-label">Śr. ocena przed</div>
+      <div class="stat-value">${avgBefore}</div>
+      <div class="stat-sub">średnia historii</div>
+    </div>
+    <div class="stat-card c-red">
+      <div class="stat-label">Śr. ocena po</div>
+      <div class="stat-value">${avgAfter}</div>
+      <div class="stat-sub">średnia historii</div>
+    </div>
+  `;
+
+  // Chart — last 30 days
+  const labels = [];
+  const counts = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = d.toDateString();
+    labels.push(i === 0 ? 'dziś' : `${d.getDate()}.${d.getMonth()+1}`);
+    counts.push(historia.filter(h => new Date(h.date).toDateString() === ds).length);
+  }
+
+  if (dashChartInst) dashChartInst.destroy();
+  const ctx = document.getElementById('dashChart').getContext('2d');
+  dashChartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: counts,
+        borderColor: '#00d4aa',
+        backgroundColor: 'rgba(0,212,170,0.08)',
+        borderWidth: 1.5,
+        pointRadius: 2,
+        pointBackgroundColor: '#00d4aa',
+        fill: true,
+        tension: 0.4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: '#555570', font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 10 },
+          grid: { color: '#2a2a3a' },
+        },
+        y: {
+          ticks: { color: '#555570', font: { family: 'DM Mono', size: 10 }, stepSize: 1 },
+          grid: { color: '#2a2a3a' },
+          min: 0,
+        }
+      }
+    }
+  });
+
+  // Recent 5
+  const recent = [...historia].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+  const tbody = document.getElementById('dashRecentBody');
+  if (recent.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Brak danych — przepisz pierwszą aukcję</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = recent.map(h => {
+    const delta = (h.scoreAfter || 0) - (h.scoreBefore || 0);
+    const dc = delta > 0 ? 'delta-pos' : delta < 0 ? 'delta-neg' : 'delta-neu';
+    const ds = delta > 0 ? '▲ +' + delta : delta < 0 ? '▼ ' + delta : '— 0';
+    const d = new Date(h.date);
+    return `<tr>
+      <td class="primary">${esc(h.title)}</td>
+      <td class="mono">${d.toLocaleDateString('pl')}</td>
+      <td>${scoreBadge(h.scoreBefore)}</td>
+      <td>${scoreBadge(h.scoreAfter)}</td>
+      <td class="${dc}">${ds}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// 6. AUDYT
+// ═══════════════════════════════════════════════════════
+function renderAudyt() {
+  const audyt = lsGet(KEY.audyt, []);
+  const tbody = document.getElementById('audytBody');
+  if (audyt.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Brak aukcji — dodaj pierwszą klikając + DODAJ AUKCJĘ</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = audyt.map(a => {
+    const score = calcScore(a.title, a.desc, a.photos);
+    const dl = (a.desc || '').trim().length;
+    const status = score >= 8 ? `<span class="score-badge score-green">Dobra</span>`
+      : score >= 5 ? `<span class="score-badge score-yellow">Wymaga poprawy</span>`
+      : `<span class="score-badge score-red">Słaba</span>`;
+    return `<tr>
+      <td class="primary">${esc(a.title)}</td>
+      <td class="mono">${a.photos}</td>
+      <td class="mono">${dl} zn.</td>
+      <td>${scoreBadge(score)}</td>
+      <td>${status}</td>
+      <td>
+        <div class="gap-row">
+          <button class="btn btn-accent" onclick="sendToAgent('${esc(a.id)}')">PRZEPISZ</button>
+          <button class="btn btn-red" onclick="deleteAukcja('${esc(a.id)}')">USUŃ</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function sendToAgent(id) {
+  const audyt = lsGet(KEY.audyt, []);
+  const a = audyt.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('agentTitle').value = a.title || '';
+  document.getElementById('agentOldDesc').value = a.desc || '';
+  switchTab('agent');
+}
+
+function deleteAukcja(id) {
+  if (!confirm('Usunąć tę aukcję z audytu?')) return;
+  let audyt = lsGet(KEY.audyt, []);
+  audyt = audyt.filter(x => x.id !== id);
+  lsSet(KEY.audyt, audyt);
+  saveAllWithSync();
+  renderAudyt();
+}
+
+// Modal: dodaj aukcję
+document.getElementById('addAukcjaBtn').addEventListener('click', () => {
+  openModal('modalAukcja');
+});
+document.getElementById('closeModalAukcja').addEventListener('click', () => closeModal('modalAukcja'));
+document.getElementById('cancelModalAukcja').addEventListener('click', () => closeModal('modalAukcja'));
+document.getElementById('confirmModalAukcja').addEventListener('click', () => {
+  const title = document.getElementById('aukcjaTitle').value.trim();
+  const desc = document.getElementById('aukcjaDesc').value.trim();
+  if (!title || !desc) { alert('Tytuł i opis są wymagane.'); return; }
+  const audyt = lsGet(KEY.audyt, []);
+  audyt.push({
+    id: 'a' + Date.now(),
+    title, desc,
+    url: document.getElementById('aukcjaUrl').value.trim(),
+    photos: parseInt(document.getElementById('aukcjaPhotos').value) || 0,
+    notes: document.getElementById('aukcjaNotes').value.trim(),
+  });
+  lsSet(KEY.audyt, audyt);
+  saveAllWithSync();
+  closeModal('modalAukcja');
+  // Reset form
+  ['aukcjaTitle','aukcjaUrl','aukcjaDesc','aukcjaNotes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('aukcjaPhotos').value = '0';
+  renderAudyt();
+});
+
+// ═══════════════════════════════════════════════════════
+// 7. AGENT
+// ═══════════════════════════════════════════════════════
+async function callAgent(prompt, systemPrompt) {
+  const response = await fetch('https://red-haze-5f37mplace-agent.contactmplace.workers.dev', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8192,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await response.json();
+  return data.content[0].text;
+}
+
+let agentResult = '';
+
+document.getElementById('agentRunBtn').addEventListener('click', async () => {
+  const title = document.getElementById('agentTitle').value.trim();
+  const oldDesc = document.getElementById('agentOldDesc').value.trim();
+  if (!oldDesc) { alert('Wklej opis aukcji.'); return; }
+
+  const category = document.getElementById('agentCategory').value.trim();
+  const keywords = document.getElementById('agentKeywords').value.trim();
+  const useGuidelines = document.getElementById('agentUseGuidelines').checked;
+  const guidelines = useGuidelines ? (lsGet(KEY.guidelines) || DEFAULT_GUIDELINES) : '';
+
+  const scoreBefore = calcScore(title, oldDesc, 0);
+  document.getElementById('scoreBefore').textContent = scoreBefore + '/10';
+  document.getElementById('scoreBefore').style.color = scoreBefore >= 8 ? 'var(--green)' : scoreBefore >= 5 ? 'var(--yellow)' : 'var(--red)';
+
+  // UI: loading
+  const outputEl = document.getElementById('agentOutput');
+  const loadingEl = document.getElementById('agentLoading');
+  const actionsEl = document.getElementById('agentActions');
+  const dot = document.getElementById('agentPulseDot');
+
+  outputEl.style.display = 'none';
+  loadingEl.classList.add('visible');
+  actionsEl.style.display = 'none';
+  dot.classList.remove('inactive');
+  document.getElementById('scoreAfter').textContent = '—';
+  document.getElementById('scoreAfter').style.color = 'var(--text-muted)';
+
+  let systemPrompt = 'Jesteś ekspertem SEO platformy Allegro. Przepisujesz opisy aukcji aby maksymalizować widoczność w wyszukiwarce Allegro i konwersję. Używasz naturalnego języka polskiego, unikasz spamu słów kluczowych, strukturyzujesz opis w czytelne sekcje.';
+  if (guidelines) systemPrompt += '\n\nWYTYCZNE:\n' + guidelines;
+
+  const userPrompt = `Przepisz poniższy opis aukcji.\n\nTytuł: ${title || '(brak)'}\nKategoria: ${category || '(brak)'}\nSłowa kluczowe do uwzględnienia: ${keywords || '(brak)'}\n\nSTARY OPIS:\n${oldDesc}\n\nZwróć TYLKO przepisany opis, bez komentarzy, bez wyjaśnień.`;
+
+  try {
+    const result = await callAgent(userPrompt, systemPrompt);
+    agentResult = result;
+    outputEl.textContent = result;
+    outputEl.style.display = 'block';
+    loadingEl.classList.remove('visible');
+    dot.classList.add('inactive');
+    actionsEl.style.display = 'flex';
+
+    const scoreAfter = calcScore(title, result, 3);
+    document.getElementById('scoreAfter').textContent = scoreAfter + '/10';
+    document.getElementById('scoreAfter').style.color = scoreAfter >= 8 ? 'var(--green)' : scoreAfter >= 5 ? 'var(--yellow)' : 'var(--red)';
+  } catch (err) {
+    agentResult = '';
+    outputEl.textContent = 'Błąd połączenia z agentem: ' + err.message;
+    outputEl.style.display = 'block';
+    loadingEl.classList.remove('visible');
+    dot.classList.add('inactive');
+  }
+});
+
+document.getElementById('copyResultBtn').addEventListener('click', () => {
+  if (!agentResult) return;
+  navigator.clipboard.writeText(agentResult).then(() => {
+    const btn = document.getElementById('copyResultBtn');
+    btn.textContent = 'SKOPIOWANO ✓';
+    setTimeout(() => btn.textContent = 'KOPIUJ', 2000);
+  });
+});
+
+document.getElementById('saveHistoryBtn').addEventListener('click', () => {
+  if (!agentResult) return;
+  const title = document.getElementById('agentTitle').value.trim() || 'Bez tytułu';
+  const oldDesc = document.getElementById('agentOldDesc').value.trim();
+  const scoreBefore = parseInt(document.getElementById('scoreBefore').textContent) || calcScore(title, oldDesc, 0);
+  const scoreAfterText = document.getElementById('scoreAfter').textContent;
+  const scoreAfter = parseInt(scoreAfterText) || calcScore(title, agentResult, 3);
+
+  const historia = lsGet(KEY.historia, []);
+  historia.unshift({
+    id: 'h' + Date.now(),
+    title,
+    date: new Date().toISOString(),
+    oldDesc,
+    newDesc: agentResult,
+    scoreBefore,
+    scoreAfter,
+    keywords: document.getElementById('agentKeywords').value.trim(),
+    category: document.getElementById('agentCategory').value.trim(),
+  });
+  lsSet(KEY.historia, historia);
+  saveAllWithSync();
+
+  const btn = document.getElementById('saveHistoryBtn');
+  btn.textContent = 'ZAPISANO ✓';
+  setTimeout(() => btn.textContent = 'ZAPISZ DO HISTORII', 2000);
+});
+
+document.getElementById('reScoreBtn').addEventListener('click', () => {
+  const title = document.getElementById('agentTitle').value.trim();
+  const s = calcScore(title, agentResult, 3);
+  document.getElementById('scoreAfter').textContent = s + '/10';
+  document.getElementById('scoreAfter').style.color = s >= 8 ? 'var(--green)' : s >= 5 ? 'var(--yellow)' : 'var(--red)';
+});
+
+// ═══════════════════════════════════════════════════════
+// 8. HISTORIA
+// ═══════════════════════════════════════════════════════
+function renderHistoria(filter = '') {
+  let historia = lsGet(KEY.historia, []);
+  historia = [...historia].sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (filter) historia = historia.filter(h => h.title.toLowerCase().includes(filter.toLowerCase()));
+
+  const tbody = document.getElementById('historiaBody');
+  if (historia.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Brak wpisów${filter ? ' pasujących do wyszukiwania' : ' — przepisz pierwszą aukcję'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = historia.map((h, i) => {
+    const delta = (h.scoreAfter || 0) - (h.scoreBefore || 0);
+    const dc = delta > 0 ? 'delta-pos' : delta < 0 ? 'delta-neg' : 'delta-neu';
+    const ds = delta > 0 ? '▲ +' + delta : delta < 0 ? '▼ ' + delta : '— 0';
+    const d = new Date(h.date);
+    return `<tr>
+      <td class="mono text-muted">${i + 1}</td>
+      <td class="primary">${esc(h.title)}</td>
+      <td class="mono">${d.toLocaleDateString('pl')}</td>
+      <td class="mono">${d.toLocaleTimeString('pl', {hour:'2-digit',minute:'2-digit'})}</td>
+      <td>${scoreBadge(h.scoreBefore)}</td>
+      <td>${scoreBadge(h.scoreAfter)}</td>
+      <td class="${dc}">${ds}</td>
+      <td>
+        <div class="gap-row">
+          <button class="btn" onclick="openPreview('${esc(h.id)}')">PODGLĄD</button>
+          <button class="btn btn-red" onclick="deleteHistoria('${esc(h.id)}')">USUŃ</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('historiaSearch').addEventListener('input', e => renderHistoria(e.target.value));
+
+function deleteHistoria(id) {
+  if (!confirm('Usunąć ten wpis z historii?')) return;
+  let historia = lsGet(KEY.historia, []);
+  historia = historia.filter(h => h.id !== id);
+  lsSet(KEY.historia, historia);
+  saveAllWithSync();
+  renderHistoria(document.getElementById('historiaSearch').value);
+}
+
+function openPreview(id) {
+  const historia = lsGet(KEY.historia, []);
+  const h = historia.find(x => x.id === id);
+  if (!h) return;
+  document.getElementById('previewTitle').textContent = esc(h.title).toUpperCase();
+  document.getElementById('previewOld').textContent = h.oldDesc || '(brak)';
+  document.getElementById('previewNew').textContent = h.newDesc || '(brak)';
+  openModal('modalPreview');
+}
+
+document.getElementById('closeModalPreview').addEventListener('click', () => closeModal('modalPreview'));
+document.getElementById('closeModalPreviewBtn').addEventListener('click', () => closeModal('modalPreview'));
+
+document.getElementById('exportCsvBtn').addEventListener('click', () => {
+  const historia = lsGet(KEY.historia, []);
+  if (!historia.length) { alert('Brak danych do eksportu.'); return; }
+  const header = 'Tytuł,Data,Ocena przed,Ocena po,Delta';
+  const rows = historia.map(h => {
+    const d = new Date(h.date).toLocaleDateString('pl');
+    const delta = (h.scoreAfter || 0) - (h.scoreBefore || 0);
+    return [csvEsc(h.title), d, h.scoreBefore, h.scoreAfter, delta].join(',');
+  });
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'mplace_seo_historia.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+function csvEsc(s) { return '"' + String(s || '').replace(/"/g, '""') + '"'; }
+
+// ═══════════════════════════════════════════════════════
+// 9. WYTYCZNE
+// ═══════════════════════════════════════════════════════
+function renderWytyczne() {
+  const val = lsGet(KEY.guidelines) || DEFAULT_GUIDELINES;
+  document.getElementById('guidelinesText').value = val;
+}
+
+document.getElementById('saveGuidelinesBtn').addEventListener('click', () => {
+  const val = document.getElementById('guidelinesText').value;
+  lsSet(KEY.guidelines, val);
+  saveAllWithSync();
+  const btn = document.getElementById('saveGuidelinesBtn');
+  btn.textContent = 'ZAPISANO ✓';
+  setTimeout(() => btn.textContent = 'ZAPISZ WYTYCZNE', 2000);
+});
+
+document.getElementById('resetGuidelinesBtn').addEventListener('click', () => {
+  if (!confirm('Przywrócić domyślne wytyczne?')) return;
+  document.getElementById('guidelinesText').value = DEFAULT_GUIDELINES;
+  lsSet(KEY.guidelines, DEFAULT_GUIDELINES);
+  saveAllWithSync();
+});
+
+// ═══════════════════════════════════════════════════════
+// 10. FIREBASE AUTH (placeholder)
+// ═══════════════════════════════════════════════════════
+// TODO: Dodaj Firebase config (firebaseConfig object) i odkomentuj poniższy kod
+
+/*
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const provider = new firebase.auth.GoogleAuthProvider();
+
+auth.onAuthStateChanged(user => {
+  if (!_fsLoaded) { _fsLoaded = true; }
+  if (user) {
+    document.getElementById('loginBtn').style.display = 'none';
+    document.getElementById('userInfo').style.display = 'flex';
+    document.getElementById('userEmail').textContent = user.email;
+    const av = document.getElementById('userAvatar');
+    if (user.photoURL) { av.innerHTML = `<img src="${user.photoURL}" alt="">`; }
+    else { av.textContent = user.email[0].toUpperCase(); }
+    // TODO: sync from Firestore
+  } else {
+    document.getElementById('loginBtn').style.display = '';
+    document.getElementById('userInfo').style.display = 'none';
+  }
+});
+
+document.getElementById('loginBtn').addEventListener('click', () => auth.signInWithPopup(provider));
+document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
+*/
+
+// Fallback buttons (no Firebase config)
+document.getElementById('loginBtn').addEventListener('click', () => {
+  alert('Firebase nie jest skonfigurowane.\nTODO: Dodaj Firebase config w pliku index.html');
+});
+document.getElementById('logoutBtn').addEventListener('click', () => {});
+
+// ═══════════════════════════════════════════════════════
+// 11. MODAL HELPERS
+// ═══════════════════════════════════════════════════════
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// 12. UTILS
+// ═══════════════════════════════════════════════════════
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════
+// 13. INIT
+// ═══════════════════════════════════════════════════════
+seedTestData();
+
+</script>
+
+<!-- MPlace SEO v1.0 — Content Intelligence Platform -->
+<!-- Worker: https://red-haze-5f37mplace-agent.contactmplace.workers.dev -->
+<!-- GitHub Pages: https://mplace-bz.github.io/Mplace-SEO/ -->
+<!-- TODO: Dodaj Firebase config (firebaseConfig object) -->
+<!-- TODO: Dodaj Google OAuth client ID -->
+</body>
+</html>
