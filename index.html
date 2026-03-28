@@ -689,7 +689,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
           </label>
         </div>
         <button class="btn btn-lg" id="agentRunBtn">GENERUJ ARTYKUŁ ►</button>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:8px">▸ Wersja skrócona (600 słów) — limit darmowego Cloudflare Worker 30s</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px">▸ Pełny artykuł 2500+ słów — generowanie może potrwać do 60s</div>
       </div>
 
       <!-- PRAWA: OUTPUT -->
@@ -1615,30 +1615,20 @@ function clientBtn(c, isActive, onclick) {
 // 7. AGENT
 // ═══════════════════════════════════════════════════════
 async function callAgent(prompt, systemPrompt) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 28000);
-  try {
-    const response = await fetch('https://red-haze-5f37mplace-agent.contactmplace.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    clearTimeout(timeoutId);
-    if (!response.ok) throw new Error('Worker zwrócił status ' + response.status);
-    const data = await response.json();
-    if (!data.content || !data.content[0]) throw new Error('Brak treści w odpowiedzi');
-    return data.content[0].text;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') throw new Error('Agent przekroczył limit czasu (28s). Cloudflare Worker na darmowym planie ma limit 30s. Spróbuj z krótszym planem artykułu lub skróć wytyczne.');
-    throw err;
-  }
+  const response = await fetch('https://red-haze-5f37mplace-agent.contactmplace.workers.dev', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8192,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!response.ok) throw new Error('Worker zwrócił status ' + response.status);
+  const data = await response.json();
+  if (!data.content || !data.content[0]) throw new Error('Brak treści w odpowiedzi');
+  return data.content[0].text;
 }
 
 let agentResult = '';
@@ -1685,7 +1675,7 @@ document.getElementById('agentRunBtn').addEventListener('click', async () => {
   const plan = document.getElementById('agentPlan').value.trim();
   const links = document.getElementById('agentLinks').value.trim();
   const useGuidelines = document.getElementById('agentUseGuidelines').checked;
-  const guidelinesSummary = useGuidelines ? 'Marka: Luxsen. Ton: profesjonalny, edukacyjny. Zakaz: obietnic medycznych, słów leczy/uzdrawia. Używaj: wspiera, sprzyja regeneracji, może poprawić komfort.' : '';
+  const guidelines = useGuidelines ? getActiveGuidelinesText(selectedAgentClient) : '';
 
   // UI: loading
   const outputEl = document.getElementById('agentOutput');
@@ -1700,22 +1690,55 @@ document.getElementById('agentRunBtn').addEventListener('click', async () => {
   wordCountEl.style.display = 'none';
   dot.classList.remove('inactive');
 
-  let systemPrompt = 'Jesteś ekspertem SEO i copywriterem. Piszesz profesjonalne artykuły blogowe po polsku, zoptymalizowane pod Google. Nie wymyślasz parametrów technicznych — jeśli brakuje danych, piszesz "sprawdź w karcie produktu".';
-  if (guidelinesSummary) systemPrompt += ' ' + guidelinesSummary;
+  let systemPrompt = `Jesteś ekspertem SEO i doświadczonym copywriterem polskich blogów e-commerce. Piszesz obszerne, profesjonalne artykuły blogowe w języku polskim (minimum 2500-3000 słów), zoptymalizowane pod Google.
 
-  const userPrompt = `Napisz KRÓTKI artykuł blogowy SEO (max 600 słów). Struktura: wstęp (2 zdania) → 3 sekcje H2 (po 100 słów każda) → FAQ (3 pytania) → CTA (1 zdanie). Bez ozdóbek, tylko treść.
+OBOWIĄZKOWA STRUKTURA KAŻDEGO ARTYKUŁU:
+1. Wstęp (3-4 zdania, pogrubiona fraza kluczowa)
+2. BOX 'W tym artykule:' — lista 5-7 punktów co czytelnik znajdzie
+3. Link do huba jako 'Poradnik zbiorczy:'
+4. BOX 'WAŻNA INFORMACJA:' jeśli temat dotyczy zdrowia/bólu
+5. Spis treści z kotwicami (numerowane punkty z linkami #id)
+6. 6-7 sekcji H2 (każda minimum 250-300 słów)
+7. Cytat eksperta w ramce (format: 'cytat' — eksperci [marka])
+8. H2 FAQ — dokładnie 6 pytań z rozbudowanymi odpowiedziami (min 3 zdania każda)
+9. BOX CTA — nagłówek + opis + przycisk z URL produktu
+10. Materiały do pogłębienia — dokładnie 4 linki
+11. Na końcu: tabela użytych anchorów z URL
 
-Tytuł: ${title}
+ZASADY PISANIA:
+- Minimum 2500 słów — nie skracaj
+- Każda sekcja H2 min 250 słów
+- Pisz konkretnie i praktycznie — nie ogólnikowo
+- Używaj list punktowanych i pogrubień
+- Naturalnie wplataj linki jako anchor texty
+- Ton: profesjonalny, edukacyjny, bez agresywnej sprzedaży
+- Zero obietnic medycznych (nie 'leczy', nie 'usuwa ból')
+- Jeśli brak danych technicznych produktu → 'sprawdź w karcie produktu'`;
+  if (guidelines) systemPrompt += guidelines;
+
+  const userPrompt = `Napisz kompletny artykuł blogowy SEO po polsku. MINIMUM 2500 SŁÓW.
+
+Tytuł SEO: ${title}
 Blog / Domena: ${domena || '(brak)'}
 Hub: ${hubName || '(brak)'}
 Główne słowo kluczowe: ${keyword || '(brak)'}
-Frazy wspierające: ${lsi || '(brak)'}
-Plan struktury H2: ${plan || '(brak — zaproponuj sam)'}
-Linki do wplecenia: ${links || '(brak)'}
+Frazy wspierające / LSI: ${lsi || '(brak)'}
 
-- Wpleć naturalnie podane linki jako anchor texty
-- Na końcu podaj listę użytych anchorów z URL
-- Pisz po polsku, profesjonalnie, bez agresywnej sprzedaży`;
+Plan struktury H2 (trzymaj się tego układu):
+${plan || '(brak — zaproponuj sam)'}
+
+Linki do wplecenia w treści (użyj jako anchor texty):
+${links || '(brak)'}
+
+WYMAGANIA OBOWIĄZKOWE:
+1. Zacznij od wciągającego wstępu (3-4 zdania) z pogrubionym słowem kluczowym
+2. Dodaj box 'W tym artykule:' z listą 5-7 punktów
+3. Dodaj spis treści z kotwicami H2
+4. Każda sekcja H2 minimum 250 słów — rozwijaj temat szczegółowo
+5. Dodaj cytat eksperta marki w odpowiednim miejscu
+6. FAQ: dokładnie 6 pytań, każda odpowiedź min 3 zdania
+7. Na końcu: box CTA + Materiały do pogłębienia (4 linki) + tabela anchorów
+8. Łącznie minimum 2500 słów — licz słowa i nie kończ przed osiągnięciem minimum`;
 
   try {
     const result = await callAgent(userPrompt, systemPrompt);
