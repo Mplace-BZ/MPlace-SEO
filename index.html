@@ -645,28 +645,40 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
   <!-- ══ AGENT ══ -->
   <div class="tab-panel" id="tab-agent">
     <div class="section-label">► AGENT</div>
-    <div class="section-title">Przepisz opis <span class="star">✦</span></div>
-    <div class="section-subtitle">AI przepisuje opis aukcji pod SEO Allegro</div>
+    <div class="section-title">Generator treści <span class="star">✦</span></div>
+    <div class="section-subtitle">AI pisze artykuły blogowe pod SEO zgodnie z wytycznymi marki</div>
 
     <div class="agent-layout">
       <!-- LEWA: INPUT -->
       <div class="agent-panel">
         <div class="agent-panel-header">▼ DANE WEJŚCIOWE</div>
         <div class="form-group">
-          <label class="form-label">Tytuł aukcji</label>
-          <input class="form-input" type="text" id="agentTitle" placeholder="np. Laptop Gaming ASUS ROG 15.6″ RTX 4060">
+          <label class="form-label">Tytuł artykułu SEO</label>
+          <input class="form-input" type="text" id="agentTitle" placeholder="np. Materac Mint Luxsen – dla kogo, budowa i twardość">
         </div>
         <div class="form-group">
-          <label class="form-label">Kategoria Allegro (opcjonalne)</label>
-          <input class="form-input" type="text" id="agentCategory" placeholder="np. Komputery > Laptopy">
+          <label class="form-label">Domena / Blog</label>
+          <input class="form-input" type="text" id="agentDomena" placeholder="np. luxsen.pl">
         </div>
         <div class="form-group">
-          <label class="form-label">Stary opis aukcji</label>
-          <textarea class="form-textarea" id="agentOldDesc" style="min-height:200px" placeholder="Wklej obecny opis aukcji..."></textarea>
+          <label class="form-label">Hub</label>
+          <select class="form-input" id="agentHub"><option value="">— wybierz hub —</option></select>
         </div>
         <div class="form-group">
-          <label class="form-label">Słowa kluczowe (opcjonalne)</label>
-          <textarea class="form-textarea" id="agentKeywords" style="min-height:70px" placeholder="np. laptop gaming, rtx 4060, 16gb ram"></textarea>
+          <label class="form-label">Główne słowo kluczowe</label>
+          <input class="form-input" type="text" id="agentKeyword" placeholder="np. materac Mint Luxsen">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Frazy wspierające / LSI</label>
+          <textarea class="form-textarea" id="agentLSI" style="min-height:70px" placeholder="np. Luxsen Mint, materac Mint dla kogo, Mint twardość"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Plan struktury H2 (opcjonalnie)</label>
+          <textarea class="form-textarea" id="agentPlan" style="min-height:90px" placeholder="np. Dla kogo jest Mint&#10;Budowa i technologie&#10;Twardość H3/H4&#10;Porównanie z Silver Pro&#10;FAQ 6 pytań"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Linki do wplecenia</label>
+          <textarea class="form-textarea" id="agentLinks" style="min-height:70px" placeholder="np. HUB #1: https://luxsen.pl/blogs/news/jaki-materac...&#10;Produkt: https://luxsen.pl/products/materac-mint"></textarea>
         </div>
         <div class="form-group">
           <label class="form-checkbox">
@@ -674,7 +686,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
             <span>Użyj wytycznych z zakładki WYTYCZNE</span>
           </label>
         </div>
-        <button class="btn btn-lg" id="agentRunBtn">PRZEPISZ OPIS ►</button>
+        <button class="btn btn-lg" id="agentRunBtn">GENERUJ ARTYKUŁ ►</button>
       </div>
 
       <!-- PRAWA: OUTPUT -->
@@ -686,30 +698,21 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
 
         <div class="agent-loading" id="agentLoading">
           <div class="loading-dots"><span></span><span></span><span></span></div>
-          <div class="loading-label">Agent pracuje...</div>
+          <div class="loading-label">Agent pisze artykuł...</div>
         </div>
 
         <div class="agent-output" id="agentOutput">
           <span style="color:var(--text-muted);font-family:var(--font-mono);font-size:0.72rem">
-            Wynik pojawi się tutaj po wciśnięciu PRZEPISZ OPIS ►
+            Wynik pojawi się tutaj po wciśnięciu GENERUJ ARTYKUŁ ►
           </span>
         </div>
 
-        <div class="score-cards">
-          <div class="score-mini-card">
-            <div class="score-mini-label">Ocena przed</div>
-            <div class="score-mini-val" id="scoreBefore" style="color:var(--text-muted)">—</div>
-          </div>
-          <div class="score-mini-card">
-            <div class="score-mini-label">Ocena po</div>
-            <div class="score-mini-val" id="scoreAfter" style="color:var(--text-muted)">—</div>
-          </div>
-        </div>
+        <div id="agentWordCount" style="font-family:var(--font-mono);font-size:12px;color:var(--accent);margin:8px 0;display:none"></div>
 
         <div class="agent-result-actions" id="agentActions" style="display:none">
-          <button class="btn btn-accent" id="copyResultBtn">KOPIUJ</button>
-          <button class="btn btn-green" id="saveHistoryBtn">ZAPISZ DO HISTORII</button>
-          <button class="btn" id="reScoreBtn">OCEŃ PONOWNIE</button>
+          <button class="btn btn-accent" id="copyTextBtn">KOPIUJ TEKST</button>
+          <button class="btn btn-accent" id="copyHtmlBtn">KOPIUJ HTML</button>
+          <button class="btn btn-green" id="saveArticleHistoryBtn">ZAPISZ DO HISTORII</button>
         </div>
       </div>
     </div>
@@ -718,23 +721,48 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
   <!-- ══ HISTORIA ══ -->
   <div class="tab-panel" id="tab-historia">
     <div class="section-label">► HISTORIA</div>
-    <div class="section-title">Historia przepisań <span class="star">✦</span></div>
-    <div class="section-subtitle">Archiwum wszystkich przepisanych aukcji</div>
+    <div class="section-title">Historia generacji <span class="star">✦</span></div>
+    <div class="section-subtitle">Archiwum wygenerowanych artykułów blogowych i przepisanych aukcji</div>
 
-    <div class="historia-toolbar">
-      <input class="form-input" type="text" id="historiaSearch" placeholder="Szukaj po tytule...">
-      <button class="btn btn-accent" id="exportCsvBtn">EKSPORTUJ CSV</button>
+    <div style="display:flex;gap:8px;margin-bottom:1.5rem">
+      <button class="btn btn-accent" id="historiaTabBlog" onclick="switchHistoriaTab('blog')">ARTYKUŁY BLOGOWE</button>
+      <button class="btn" id="historiaTabAukcje" onclick="switchHistoriaTab('aukcje')">AUKCJE ALLEGRO</button>
     </div>
 
-    <div class="table-card">
-      <div class="table-overflow">
-        <table>
-          <thead><tr>
-            <th>#</th><th>Tytuł</th><th>Data</th><th>Czas</th>
-            <th>Ocena przed</th><th>Ocena po</th><th>Delta</th><th>Akcje</th>
-          </tr></thead>
-          <tbody id="historiaBody"></tbody>
-        </table>
+    <!-- ARTYKUŁY BLOGOWE -->
+    <div id="historiaBlogi">
+      <div class="historia-toolbar">
+        <input class="form-input" type="text" id="blogHistoriaSearch" placeholder="Szukaj po tytule artykułu...">
+        <button class="btn btn-accent" id="exportBlogCsvBtn">EKSPORTUJ CSV</button>
+      </div>
+      <div class="table-card">
+        <div class="table-overflow">
+          <table>
+            <thead><tr>
+              <th>#</th><th>Tytuł</th><th>Domena</th><th>Słowo kluczowe</th><th>Słów</th><th>Data</th><th>Akcje</th>
+            </tr></thead>
+            <tbody id="blogHistoriaBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUKCJE ALLEGRO -->
+    <div id="historiaAukcje" style="display:none">
+      <div class="historia-toolbar">
+        <input class="form-input" type="text" id="historiaSearch" placeholder="Szukaj po tytule...">
+        <button class="btn btn-accent" id="exportCsvBtn">EKSPORTUJ CSV</button>
+      </div>
+      <div class="table-card">
+        <div class="table-overflow">
+          <table>
+            <thead><tr>
+              <th>#</th><th>Tytuł</th><th>Data</th><th>Czas</th>
+              <th>Ocena przed</th><th>Ocena po</th><th>Delta</th><th>Akcje</th>
+            </tr></thead>
+            <tbody id="historiaBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -917,6 +945,21 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
   </div>
 </div>
 
+<div class="modal-overlay" id="modalBlogPreview">
+  <div class="modal preview-modal" style="max-width:900px">
+    <div class="modal-header">
+      <span class="modal-title" id="blogPreviewTitle">PODGLĄD ARTYKUŁU</span>
+      <button class="modal-close" onclick="closeModal('modalBlogPreview')">&#x2715;</button>
+    </div>
+    <div style="padding:1.5rem;max-height:70vh;overflow-y:auto">
+      <div id="blogPreviewContent" style="font-size:13px;line-height:1.7;color:var(--text-secondary);white-space:pre-wrap;word-break:break-word"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-accent" onclick="closeModal('modalBlogPreview')">ZAMKNIJ</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: DODAJ HUB ══ -->
 <div class="modal-overlay" id="modalHub">
   <div class="modal">
@@ -983,6 +1026,7 @@ const KEY = {
   articles: PFX + 'articles',
   links:    PFX + 'links',
   keywords: PFX + 'keywords',
+  blogHistoria: PFX + 'articles_history',
 };
 
 const DEFAULT_GUIDELINES_SECTIONS = {
@@ -1312,7 +1356,8 @@ function switchTab(name) {
 
   if (name === 'dashboard') renderDashboard();
   if (name === 'audyt') renderAudyt();
-  if (name === 'historia') renderHistoria();
+  if (name === 'historia') { renderBlogHistoria(); renderHistoria(); }
+  if (name === 'agent') populateAgentHubSelect();
   if (name === 'wytyczne') renderWytyczne();
   if (name === 'huby') renderHuby();
   if (name === 'artykuly') renderArtykuly();
@@ -1556,37 +1601,65 @@ async function callAgent(prompt, systemPrompt) {
 
 let agentResult = '';
 
+function populateAgentHubSelect() {
+  const sel = document.getElementById('agentHub');
+  const hubs = lsGet(KEY.hubs, []);
+  sel.innerHTML = '<option value="">— wybierz hub —</option>' +
+    hubs.map(h => `<option value="${esc(h.id)}">${esc(h.nazwa)} (${esc(h.domena)})</option>`).join('');
+}
+
+function countWords(text) {
+  return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
 document.getElementById('agentRunBtn').addEventListener('click', async () => {
   const title = document.getElementById('agentTitle').value.trim();
-  const oldDesc = document.getElementById('agentOldDesc').value.trim();
-  if (!oldDesc) { alert('Wklej opis aukcji.'); return; }
+  if (!title) { alert('Podaj tytuł artykułu.'); return; }
 
-  const category = document.getElementById('agentCategory').value.trim();
-  const keywords = document.getElementById('agentKeywords').value.trim();
+  const domena = document.getElementById('agentDomena').value.trim();
+  const hubId = document.getElementById('agentHub').value;
+  const hubs = lsGet(KEY.hubs, []);
+  const hub = hubs.find(h => h.id === hubId);
+  const hubName = hub ? hub.nazwa : '';
+  const keyword = document.getElementById('agentKeyword').value.trim();
+  const lsi = document.getElementById('agentLSI').value.trim();
+  const plan = document.getElementById('agentPlan').value.trim();
+  const links = document.getElementById('agentLinks').value.trim();
   const useGuidelines = document.getElementById('agentUseGuidelines').checked;
   const guidelines = useGuidelines ? getActiveGuidelinesText() : '';
-
-  const scoreBefore = calcScore(title, oldDesc, 0);
-  document.getElementById('scoreBefore').textContent = scoreBefore + '/10';
-  document.getElementById('scoreBefore').style.color = scoreBefore >= 8 ? 'var(--green)' : scoreBefore >= 5 ? 'var(--yellow)' : 'var(--red)';
 
   // UI: loading
   const outputEl = document.getElementById('agentOutput');
   const loadingEl = document.getElementById('agentLoading');
   const actionsEl = document.getElementById('agentActions');
   const dot = document.getElementById('agentPulseDot');
+  const wordCountEl = document.getElementById('agentWordCount');
 
   outputEl.style.display = 'none';
   loadingEl.classList.add('visible');
   actionsEl.style.display = 'none';
+  wordCountEl.style.display = 'none';
   dot.classList.remove('inactive');
-  document.getElementById('scoreAfter').textContent = '—';
-  document.getElementById('scoreAfter').style.color = 'var(--text-muted)';
 
-  let systemPrompt = 'Jesteś ekspertem SEO platformy Allegro. Przepisujesz opisy aukcji aby maksymalizować widoczność w wyszukiwarce Allegro i konwersję. Używasz naturalnego języka polskiego, unikasz spamu słów kluczowych, strukturyzujesz opis w czytelne sekcje.';
+  let systemPrompt = 'Jesteś ekspertem SEO i copywriterem specjalizującym się w artykułach blogowych dla polskich marek e-commerce. Piszesz obszerne, profesjonalne artykuły blogowe w języku polskim, zoptymalizowane pod wyszukiwarkę Google. Twoje artykuły mają strukturę: wstęp z pogrubioną frazą kluczową, box "W tym artykule", spis treści z kotwicami H2, sekcje H2/H3, cytat eksperta, FAQ (6 pytań), CTA, Materiały do pogłębienia (4 linki). Nie wymyślasz parametrów technicznych produktów — jeśli brakuje danych, piszesz "sprawdź w karcie produktu". Unikasz obietnic medycznych.';
   if (guidelines) systemPrompt += guidelines;
 
-  const userPrompt = `Przepisz poniższy opis aukcji.\n\nTytuł: ${title || '(brak)'}\nKategoria: ${category || '(brak)'}\nSłowa kluczowe do uwzględnienia: ${keywords || '(brak)'}\n\nSTARY OPIS:\n${oldDesc}\n\nZwróć TYLKO przepisany opis, bez komentarzy, bez wyjaśnień.`;
+  const userPrompt = `Napisz artykuł blogowy SEO po polsku.
+
+Tytuł: ${title}
+Blog / Domena: ${domena || '(brak)'}
+Hub: ${hubName || '(brak)'}
+Główne słowo kluczowe: ${keyword || '(brak)'}
+Frazy wspierające: ${lsi || '(brak)'}
+Plan struktury H2: ${plan || '(brak — zaproponuj sam)'}
+Linki do wplecenia: ${links || '(brak)'}
+
+Wymagania:
+- Artykuł ma być obszerny (minimum 1200 słów)
+- Układ: wstęp → box "W tym artykule" → spis treści → sekcje H2 → cytat eksperta → FAQ (6 pytań) → CTA → Materiały do pogłębienia
+- Wpleć naturalnie podane linki jako anchor texty
+- Na końcu podaj listę użytych anchorów z URL
+- Pisz po polsku, profesjonalnie, bez agresywnej sprzedaży`;
 
   try {
     const result = await callAgent(userPrompt, systemPrompt);
@@ -1596,10 +1669,9 @@ document.getElementById('agentRunBtn').addEventListener('click', async () => {
     loadingEl.classList.remove('visible');
     dot.classList.add('inactive');
     actionsEl.style.display = 'flex';
-
-    const scoreAfter = calcScore(title, result, 3);
-    document.getElementById('scoreAfter').textContent = scoreAfter + '/10';
-    document.getElementById('scoreAfter').style.color = scoreAfter >= 8 ? 'var(--green)' : scoreAfter >= 5 ? 'var(--yellow)' : 'var(--red)';
+    const wc = countWords(result);
+    wordCountEl.textContent = `► ${wc} słów`;
+    wordCountEl.style.display = 'block';
   } catch (err) {
     agentResult = '';
     outputEl.textContent = 'Błąd połączenia z agentem: ' + err.message;
@@ -1609,53 +1681,129 @@ document.getElementById('agentRunBtn').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('copyResultBtn').addEventListener('click', () => {
+document.getElementById('copyTextBtn').addEventListener('click', () => {
   if (!agentResult) return;
   navigator.clipboard.writeText(agentResult).then(() => {
-    const btn = document.getElementById('copyResultBtn');
+    const btn = document.getElementById('copyTextBtn');
     btn.textContent = 'SKOPIOWANO ✓';
-    setTimeout(() => btn.textContent = 'KOPIUJ', 2000);
+    setTimeout(() => btn.textContent = 'KOPIUJ TEKST', 2000);
   });
 });
 
-document.getElementById('saveHistoryBtn').addEventListener('click', () => {
+document.getElementById('copyHtmlBtn').addEventListener('click', () => {
+  if (!agentResult) return;
+  navigator.clipboard.writeText(agentResult).then(() => {
+    const btn = document.getElementById('copyHtmlBtn');
+    btn.textContent = 'SKOPIOWANO ✓';
+    setTimeout(() => btn.textContent = 'KOPIUJ HTML', 2000);
+  });
+});
+
+document.getElementById('saveArticleHistoryBtn').addEventListener('click', () => {
   if (!agentResult) return;
   const title = document.getElementById('agentTitle').value.trim() || 'Bez tytułu';
-  const oldDesc = document.getElementById('agentOldDesc').value.trim();
-  const scoreBefore = parseInt(document.getElementById('scoreBefore').textContent) || calcScore(title, oldDesc, 0);
-  const scoreAfterText = document.getElementById('scoreAfter').textContent;
-  const scoreAfter = parseInt(scoreAfterText) || calcScore(title, agentResult, 3);
+  const domena = document.getElementById('agentDomena').value.trim();
+  const keyword = document.getElementById('agentKeyword').value.trim();
+  const wc = countWords(agentResult);
 
-  const historia = lsGet(KEY.historia, []);
+  const historia = lsGet(KEY.blogHistoria, []);
   historia.unshift({
-    id: 'h' + Date.now(),
-    title,
-    date: new Date().toISOString(),
-    oldDesc,
-    newDesc: agentResult,
-    scoreBefore,
-    scoreAfter,
-    keywords: document.getElementById('agentKeywords').value.trim(),
-    category: document.getElementById('agentCategory').value.trim(),
+    id: 'ba' + Date.now(),
+    tytul: title,
+    domena,
+    keyword,
+    tresc: agentResult,
+    liczbaSlow: wc,
+    createdAt: new Date().toISOString()
   });
-  lsSet(KEY.historia, historia);
+  lsSet(KEY.blogHistoria, historia);
   saveAllWithSync();
 
-  const btn = document.getElementById('saveHistoryBtn');
+  const btn = document.getElementById('saveArticleHistoryBtn');
   btn.textContent = 'ZAPISANO ✓';
   setTimeout(() => btn.textContent = 'ZAPISZ DO HISTORII', 2000);
 });
 
-document.getElementById('reScoreBtn').addEventListener('click', () => {
-  const title = document.getElementById('agentTitle').value.trim();
-  const s = calcScore(title, agentResult, 3);
-  document.getElementById('scoreAfter').textContent = s + '/10';
-  document.getElementById('scoreAfter').style.color = s >= 8 ? 'var(--green)' : s >= 5 ? 'var(--yellow)' : 'var(--red)';
+// ═══════════════════════════════════════════════════════
+// 8. HISTORIA (blog + aukcje)
+// ═══════════════════════════════════════════════════════
+let currentHistoriaTab = 'blog';
+
+function switchHistoriaTab(tab) {
+  currentHistoriaTab = tab;
+  document.getElementById('historiaBlogi').style.display = tab === 'blog' ? 'block' : 'none';
+  document.getElementById('historiaAukcje').style.display = tab === 'aukcje' ? 'block' : 'none';
+  document.getElementById('historiaTabBlog').className = 'btn' + (tab === 'blog' ? ' btn-accent' : '');
+  document.getElementById('historiaTabAukcje').className = 'btn' + (tab === 'aukcje' ? ' btn-accent' : '');
+}
+
+// Blog articles history
+function renderBlogHistoria(filter = '') {
+  let historia = lsGet(KEY.blogHistoria, []);
+  historia = [...historia].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (filter) historia = historia.filter(h => h.tytul.toLowerCase().includes(filter.toLowerCase()));
+
+  const tbody = document.getElementById('blogHistoriaBody');
+  if (historia.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Brak wpisów${filter ? ' pasujących do wyszukiwania' : ' — wygeneruj pierwszy artykuł'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = historia.map((h, i) => {
+    const d = new Date(h.createdAt);
+    return `<tr>
+      <td class="mono text-muted">${i + 1}</td>
+      <td class="primary">${esc(h.tytul)}</td>
+      <td class="mono">${esc(h.domena || '—')}</td>
+      <td class="mono">${esc(h.keyword || '—')}</td>
+      <td class="mono" style="color:var(--accent)">${h.liczbaSlow || '—'}</td>
+      <td class="mono">${d.toLocaleDateString('pl')} ${d.toLocaleTimeString('pl', {hour:'2-digit',minute:'2-digit'})}</td>
+      <td>
+        <div class="gap-row">
+          <button class="btn" onclick="openBlogPreview('${esc(h.id)}')">PODGLĄD</button>
+          <button class="btn btn-red" onclick="deleteBlogHistoria('${esc(h.id)}')">USUŃ</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function deleteBlogHistoria(id) {
+  if (!confirm('Usunąć ten wpis z historii?')) return;
+  let historia = lsGet(KEY.blogHistoria, []);
+  historia = historia.filter(h => h.id !== id);
+  lsSet(KEY.blogHistoria, historia);
+  saveAllWithSync();
+  renderBlogHistoria(document.getElementById('blogHistoriaSearch').value);
+}
+
+function openBlogPreview(id) {
+  const historia = lsGet(KEY.blogHistoria, []);
+  const h = historia.find(x => x.id === id);
+  if (!h) return;
+  document.getElementById('blogPreviewTitle').textContent = esc(h.tytul).toUpperCase();
+  document.getElementById('blogPreviewContent').textContent = h.tresc || '(brak)';
+  openModal('modalBlogPreview');
+}
+
+document.getElementById('blogHistoriaSearch').addEventListener('input', e => renderBlogHistoria(e.target.value));
+
+document.getElementById('exportBlogCsvBtn').addEventListener('click', () => {
+  const historia = lsGet(KEY.blogHistoria, []);
+  if (!historia.length) { alert('Brak danych do eksportu.'); return; }
+  const header = 'Tytuł,Domena,Słowo kluczowe,Słów,Data';
+  const rows = historia.map(h => {
+    const d = new Date(h.createdAt).toLocaleDateString('pl');
+    return [csvEsc(h.tytul), csvEsc(h.domena), csvEsc(h.keyword), h.liczbaSlow, d].join(',');
+  });
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'mplace_seo_blog_historia.csv'; a.click();
+  URL.revokeObjectURL(url);
 });
 
-// ═══════════════════════════════════════════════════════
-// 8. HISTORIA
-// ═══════════════════════════════════════════════════════
+// Aukcje history (legacy)
 function renderHistoria(filter = '') {
   let historia = lsGet(KEY.historia, []);
   historia = [...historia].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1663,7 +1811,7 @@ function renderHistoria(filter = '') {
 
   const tbody = document.getElementById('historiaBody');
   if (historia.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Brak wpisów${filter ? ' pasujących do wyszukiwania' : ' — przepisz pierwszą aukcję'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Brak wpisów${filter ? ' pasujących do wyszukiwania' : ''}</td></tr>`;
     return;
   }
   tbody.innerHTML = historia.map((h, i) => {
