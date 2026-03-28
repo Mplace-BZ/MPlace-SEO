@@ -967,6 +967,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
         </table>
       </div>
     </div>
+    <div id="kwPagination" style="display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:8px;font-family:var(--font-mono);font-size:11px"></div>
     <div class="stat-card c-yellow" style="margin-top:1.5rem" id="contentGapCard">
       <div class="stat-label">Content gap</div>
       <div class="stat-value" id="contentGapCount">0</div>
@@ -3389,12 +3390,19 @@ function renderKeywords() {
     filtered = filtered.filter(k => k.articleId === filterArt || artKws.has(k.fraza.toLowerCase()));
   }
 
+  const PER_PAGE = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  if (window._kwPage === undefined || window._kwPage > totalPages) window._kwPage = 1;
+  const page = window._kwPage;
+  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
   const tbody = document.getElementById('kwBody');
   if (filtered.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Brak fraz' + (filterArt || filterHub || filterType ? ' pasujących do filtrów' : ' — dodaj pierwszą') + '</td></tr>';
+    document.getElementById('kwPagination').innerHTML = '';
   } else {
     const typColor = t => t === 'LSI' ? '#00bcd4' : t === 'długi ogon' ? '#fbbf24' : 'var(--green)';
-    tbody.innerHTML = filtered.map(kw => {
+    tbody.innerHTML = paged.map(kw => {
       const hub = hubs.find(h => h.id === kw.hubId);
       const kwLower = kw.fraza.toLowerCase();
       const art = kw.articleId ? articles.find(a => a.id === kw.articleId) : articles.find(a => (a.keywords || []).some(k => k.toLowerCase() === kwLower));
@@ -3411,6 +3419,25 @@ function renderKeywords() {
         </div></td>
       </tr>`;
     }).join('');
+
+    // Pagination
+    let pagHtml = `<span style="color:var(--text-muted);margin-right:8px">${filtered.length} fraz</span>`;
+    if (totalPages > 1) {
+      pagHtml += `<button class="btn" style="font-size:9px;padding:2px 8px" onclick="window._kwPage=Math.max(1,window._kwPage-1);renderKeywords()">‹</button>`;
+      for (let p = 1; p <= totalPages; p++) {
+        if (p === page) {
+          pagHtml += `<span style="background:var(--accent);color:#fff;padding:2px 8px;border-radius:3px;font-size:10px">${p}</span>`;
+        } else if (p <= 3 || p >= totalPages - 1 || Math.abs(p - page) <= 1) {
+          pagHtml += `<button class="btn" style="font-size:9px;padding:2px 8px" onclick="window._kwPage=${p};renderKeywords()">${p}</button>`;
+        } else if (p === 4 && page > 5) {
+          pagHtml += `<span style="color:var(--text-muted)">…</span>`;
+        } else if (p === totalPages - 2 && page < totalPages - 4) {
+          pagHtml += `<span style="color:var(--text-muted)">…</span>`;
+        }
+      }
+      pagHtml += `<button class="btn" style="font-size:9px;padding:2px 8px" onclick="window._kwPage=Math.min(${totalPages},window._kwPage+1);renderKeywords()">›</button>`;
+    }
+    document.getElementById('kwPagination').innerHTML = pagHtml;
   }
 
   // Content gap
@@ -3503,7 +3530,7 @@ document.getElementById('kwAddBtn').addEventListener('click', () => {
 });
 
 ['kwFilterArticle','kwFilterHub','kwFilterType'].forEach(id =>
-  document.getElementById(id).addEventListener('change', () => renderKeywords())
+  document.getElementById(id).addEventListener('change', () => { window._kwPage = 1; renderKeywords(); })
 );
 
 // Auto-fill hub when article selected in form
