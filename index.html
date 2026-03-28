@@ -1031,8 +1031,8 @@ function seedTestData() {
   // Huby
   if (lsGet(KEY.hubs, []).length === 0) {
     lsSet(KEY.hubs, [
-      { id: 'hub1', nazwa: 'Jak wybrać materac', domena: 'luxsen.pl', urlPillar: 'https://luxsen.pl/jak-wybrac-materac',
-        keyword: 'materac', opis: 'Kompletny hub o doborze materacy — twardość, pozycje snu, technologie.',
+      { id: 'hub1', nazwa: 'Jak wybrać materac', domena: 'luxsen.pl', urlPillar: 'https://luxsen.pl/pages/jak-wybrac-materac',
+        keyword: 'jak wybrać materac', opis: 'Jak wybrać materac? Kompleksowy przewodnik Luxsen — twardość, pozycje snu, technologie.',
         artykuly: [
           { id: 'sa1', tytul: 'Materac kieszeniowy — przewodnik', url: '/blogs/materac-kieszeniowy', linkStatus: 'ok' },
           { id: 'sa2', tytul: 'Materac hybrydowy — czy warto?', url: '/blogs/materac-hybrydowy', linkStatus: 'ok' },
@@ -1059,8 +1059,15 @@ function seedTestData() {
           { id: 'sa15', tytul: 'Retinol — jak zacząć stosować', url: '/blog/retinol', linkStatus: 'ok' },
           { id: 'sa16', tytul: 'Rutyna pielęgnacyjna krok po kroku', url: '/blog/rutyna', linkStatus: 'sprawdz' },
         ], createdAt: new Date().toISOString() },
+      { id: 'hub4', nazwa: 'Materace Luxsen', domena: 'luxsen.pl', urlPillar: 'https://luxsen.pl/pages/poradnik',
+        keyword: 'poradnik materace', opis: 'Poradnik wyboru materaca – wiedza, modele i wskazówki Luxsen.',
+        artykuly: [], createdAt: new Date().toISOString() },
+      { id: 'hub5', nazwa: 'Sen i Regeneracja', domena: 'luxsen.pl', urlPillar: 'https://luxsen.pl/pages/sen-i-regeneracja',
+        keyword: 'sen i regeneracja', opis: 'Sen i regeneracja – jak poprawić jakość snu i nocną regenerację.',
+        artykuly: [], createdAt: new Date().toISOString() },
     ]);
   }
+
 
   // Artykuły
   if (lsGet(KEY.articles, []).length === 0) {
@@ -2103,6 +2110,27 @@ function esc(s) {
 // 13. INIT
 // ═══════════════════════════════════════════════════════
 seedTestData();
+
+// Migracja: dodaj brakujące huby (hub4, hub5) + aktualizuj hub1
+(function() {
+  var hubs = lsGet(KEY.hubs, []);
+  console.log('[MIGRACJA] Huby przed:', hubs.map(function(h){return h.id;}));
+  var h1 = hubs.find(function(h){ return h.id === 'hub1'; });
+  if (h1) { h1.urlPillar = 'https://luxsen.pl/pages/jak-wybrac-materac'; h1.keyword = 'jak wybrać materac'; h1.opis = 'Jak wybrać materac? Kompleksowy przewodnik Luxsen — twardość, pozycje snu, technologie.'; }
+  if (!hubs.find(function(h){ return h.id === 'hub4'; })) {
+    hubs.push({ id: 'hub4', nazwa: 'Materace Luxsen', domena: 'luxsen.pl', urlPillar: 'https://luxsen.pl/pages/poradnik',
+      keyword: 'poradnik materace', opis: 'Poradnik wyboru materaca – wiedza, modele i wskazówki Luxsen.',
+      artykuly: [], createdAt: new Date().toISOString() });
+  }
+  if (!hubs.find(function(h){ return h.id === 'hub5'; })) {
+    hubs.push({ id: 'hub5', nazwa: 'Sen i Regeneracja', domena: 'luxsen.pl', urlPillar: 'https://luxsen.pl/pages/sen-i-regeneracja',
+      keyword: 'sen i regeneracja', opis: 'Sen i regeneracja – jak poprawić jakość snu i nocną regenerację.',
+      artykuly: [], createdAt: new Date().toISOString() });
+  }
+  lsSet(KEY.hubs, hubs);
+  console.log('[MIGRACJA] Huby po:', hubs.map(function(h){return h.id;}));
+})();
+
 document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 updateLinkiBadge();
 
