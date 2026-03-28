@@ -1589,8 +1589,8 @@ document.getElementById('confirmModalAukcja').addEventListener('click', () => {
 // KLIENCI (globalne)
 // ═══════════════════════════════════════════════════════
 const GUIDELINES_CLIENTS = [
-  { id: 'luxsen', label: 'LUXSEN', domena: 'luxsen.pl', defaults: DEFAULT_GUIDELINES_SECTIONS },
-  { id: 'domglamour', label: 'DOM GLAMOUR', domena: 'domglamour.pl', defaults: {
+  { id: 'luxsen', label: 'LUXSEN', domena: 'luxsen.pl', color: '#bd9a6c', defaults: DEFAULT_GUIDELINES_SECTIONS },
+  { id: 'domglamour', label: 'DOM GLAMOUR', domena: 'domglamour.pl', color: '#c0392b', defaults: {
     sekcja1: { aktywna: true, tresc: '' },
     sekcja2: { aktywna: true, tresc: '' },
     sekcja3: { aktywna: true, tresc: '' },
@@ -1601,6 +1601,13 @@ const GUIDELINES_CLIENTS = [
 function getClientDomena(clientId) {
   const c = GUIDELINES_CLIENTS.find(x => x.id === clientId);
   return c ? c.domena : '';
+}
+
+function clientBtn(c, isActive, onclick) {
+  const style = isActive
+    ? `background:${c.color};color:#fff;border-color:${c.color}`
+    : `background:transparent;color:${c.color};border-color:${c.color}44`;
+  return `<button class="btn" style="${style}" onclick="${onclick}">${c.label}</button>`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1639,7 +1646,7 @@ let selectedAgentClient = GUIDELINES_CLIENTS[0].id;
 function renderAgentClientFilter() {
   const el = document.getElementById('agentClientFilter');
   el.innerHTML = GUIDELINES_CLIENTS.map(c =>
-    `<button class="btn ${selectedAgentClient === c.id ? 'btn-accent' : ''}" onclick="switchAgentClient('${c.id}')">${c.label}</button>`
+    clientBtn(c, selectedAgentClient === c.id, `switchAgentClient('${c.id}')`)
   ).join('');
 }
 
@@ -1785,7 +1792,7 @@ let selectedHistoriaClient = GUIDELINES_CLIENTS[0].id;
 function renderHistoriaClientFilter() {
   const el = document.getElementById('historiaClientFilter');
   el.innerHTML = GUIDELINES_CLIENTS.map(c =>
-    `<button class="btn ${selectedHistoriaClient === c.id ? 'btn-accent' : ''}" onclick="switchHistoriaClient('${c.id}')">${c.label}</button>`
+    clientBtn(c, selectedHistoriaClient === c.id, `switchHistoriaClient('${c.id}')`)
   ).join('');
 }
 
@@ -1967,7 +1974,7 @@ function getClientGuidelines(clientId) {
 function renderGuidelinesClientFilter() {
   const el = document.getElementById('guidelinesClientFilter');
   el.innerHTML = GUIDELINES_CLIENTS.map(c =>
-    `<button class="btn ${selectedGuidelinesClient === c.id ? 'btn-accent' : ''}" onclick="switchGuidelinesClient('${c.id}')">${c.label}</button>`
+    clientBtn(c, selectedGuidelinesClient === c.id, `switchGuidelinesClient('${c.id}')`)
   ).join('');
 }
 
@@ -2076,8 +2083,14 @@ function renderClientFilter() {
   const el = document.getElementById('hubClientFilter');
   el.innerHTML = `<button class="btn ${!selectedClient ? 'btn-accent' : ''}" onclick="filterClient('')">WSZYSTKIE</button>` +
     domeny.map(d => {
+      const gc = GUIDELINES_CLIENTS.find(c => c.domena === d);
+      const color = gc ? gc.color : 'var(--accent)';
+      const isActive = selectedClient === d;
+      const style = isActive
+        ? `background:${color};color:#fff;border-color:${color}`
+        : `background:transparent;color:${color};border-color:${color}44`;
       const label = d.replace('.pl','').replace('.com','').toUpperCase();
-      return `<button class="btn ${selectedClient === d ? 'btn-accent' : ''}" onclick="filterClient('${esc(d)}')">${label}</button>`;
+      return `<button class="btn" style="${style}" onclick="filterClient('${esc(d)}')">${label}</button>`;
     }).join('');
 }
 
