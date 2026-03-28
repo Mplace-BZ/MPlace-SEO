@@ -949,6 +949,11 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
         <button class="btn btn-accent" id="kwAddBtn">DODAJ ►</button>
       </div>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      <select class="form-input" id="kwFilterArticle" style="max-width:280px"><option value="">Wszystkie artykuły</option></select>
+      <select class="form-input" id="kwFilterHub" style="max-width:200px"><option value="">Wszystkie huby</option></select>
+      <select class="form-input" id="kwFilterType" style="max-width:140px"><option value="">Wszystkie typy</option><option>główna</option><option>LSI</option><option>długi ogon</option></select>
+    </div>
     <div class="table-card">
       <div class="table-overflow">
         <table>
@@ -3314,19 +3319,39 @@ function renderKeywords() {
   const kwHubSel = document.getElementById('kwHub');
   kwHubSel.innerHTML = '<option value="">— brak —</option>' + hubs.map(h => `<option value="${h.id}">${esc(h.nazwa)}</option>`).join('');
 
-  // populate article dropdown
+  // populate article dropdown (form)
   const articles = lsGet(KEY.articles, []);
   const kwArtSel = document.getElementById('kwArticle');
   const curArtVal = kwArtSel.value;
   kwArtSel.innerHTML = '<option value="">— brak —</option>' + articles.map(a => `<option value="${a.id}"${a.id === curArtVal ? ' selected' : ''}>${esc(a.tytul)}</option>`).join('');
 
+  // populate filter dropdowns
+  const fArt = document.getElementById('kwFilterArticle');
+  const curFArt = fArt.value;
+  fArt.innerHTML = '<option value="">Wszystkie artykuły</option>' + articles.map(a => `<option value="${a.id}"${a.id === curFArt ? ' selected' : ''}>${esc(a.tytul)}</option>`).join('');
+  const fHub = document.getElementById('kwFilterHub');
+  const curFHub = fHub.value;
+  fHub.innerHTML = '<option value="">Wszystkie huby</option>' + hubs.map(h => `<option value="${h.id}"${h.id === curFHub ? ' selected' : ''}>${esc(h.nazwa)}</option>`).join('');
+
+  // Apply filters
+  const filterArt = document.getElementById('kwFilterArticle').value;
+  const filterHub = document.getElementById('kwFilterHub').value;
+  const filterType = document.getElementById('kwFilterType').value;
+  let filtered = [...keywords];
+  if (filterHub) filtered = filtered.filter(k => k.hubId === filterHub);
+  if (filterType) filtered = filtered.filter(k => k.typ === filterType);
+  if (filterArt) {
+    const artObj = articles.find(a => a.id === filterArt);
+    const artKws = artObj ? new Set((artObj.keywords || []).map(k => k.toLowerCase())) : new Set();
+    filtered = filtered.filter(k => k.articleId === filterArt || artKws.has(k.fraza.toLowerCase()));
+  }
+
   const tbody = document.getElementById('kwBody');
-  if (keywords.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Brak fraz — dodaj pierwszą</td></tr>';
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Brak fraz' + (filterArt || filterHub || filterType ? ' pasujących do filtrów' : ' — dodaj pierwszą') + '</td></tr>';
   } else {
-    const articles = lsGet(KEY.articles, []);
     const typColor = t => t === 'LSI' ? '#00bcd4' : t === 'długi ogon' ? '#fbbf24' : 'var(--green)';
-    tbody.innerHTML = keywords.map(kw => {
+    tbody.innerHTML = filtered.map(kw => {
       const hub = hubs.find(h => h.id === kw.hubId);
       const kwLower = kw.fraza.toLowerCase();
       const art = kw.articleId ? articles.find(a => a.id === kw.articleId) : articles.find(a => (a.keywords || []).some(k => k.toLowerCase() === kwLower));
@@ -3432,6 +3457,18 @@ document.getElementById('kwAddBtn').addEventListener('click', () => {
   window._editKwId = null;
   document.getElementById('kwAddBtn').textContent = 'DODAJ ►';
   renderKeywords();
+});
+
+['kwFilterArticle','kwFilterHub','kwFilterType'].forEach(id =>
+  document.getElementById(id).addEventListener('change', () => renderKeywords())
+);
+
+// Auto-fill hub when article selected in form
+document.getElementById('kwArticle').addEventListener('change', function() {
+  if (!this.value) return;
+  const articles = lsGet(KEY.articles, []);
+  const art = articles.find(a => a.id === this.value);
+  if (art && art.hubId) document.getElementById('kwHub').value = art.hubId;
 });
 
 // ═══════════════════════════════════════════════════════
