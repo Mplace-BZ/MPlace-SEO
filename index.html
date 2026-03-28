@@ -766,6 +766,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div class="section-label">► HUBY TEMATYCZNE</div>
     <div class="section-title">Klastry <span class="star">✦</span></div>
     <div class="section-subtitle">Zarządzanie hubami i artykułami satelitarnymi</div>
+    <div id="hubClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem"></div>
     <div class="agent-layout">
       <div class="agent-panel">
         <div class="agent-panel-header">▼ TWOJE HUBY</div>
@@ -1050,6 +1051,13 @@ function seedTestData() {
           { id: 'sa11', tytul: 'Czyszczenie tapicerki — poradnik', url: '/blog/czyszczenie', linkStatus: 'ok' },
           { id: 'sa12', tytul: 'Kolory narożników — trendy 2026', url: '/blog/kolory-2026', linkStatus: 'ok' },
           { id: 'sa13', tytul: 'Narożnik z funkcją spania', url: '/blog/funkcja-spania', linkStatus: 'brak' },
+        ], createdAt: new Date().toISOString() },
+      { id: 'hub3', nazwa: 'Pielęgnacja skóry twarzy', domena: 'semmi.pl', urlPillar: 'https://semmi.pl/pielegnacja-skory',
+        keyword: 'pielęgnacja skóry', opis: 'Hub o pielęgnacji — rutyna, składniki aktywne, typy skóry.',
+        artykuly: [
+          { id: 'sa14', tytul: 'Kwas hialuronowy — co warto wiedzieć', url: '/blog/kwas-hialuronowy', linkStatus: 'ok' },
+          { id: 'sa15', tytul: 'Retinol — jak zacząć stosować', url: '/blog/retinol', linkStatus: 'ok' },
+          { id: 'sa16', tytul: 'Rutyna pielęgnacyjna krok po kroku', url: '/blog/rutyna', linkStatus: 'sprawdz' },
         ], createdAt: new Date().toISOString() },
     ]);
   }
@@ -1609,6 +1617,24 @@ document.getElementById('resetGuidelinesBtn').addEventListener('click', () => {
 // 10. HUBY
 // ═══════════════════════════════════════════════════════
 let selectedHubId = null;
+let selectedClient = '';
+
+function renderClientFilter() {
+  const hubs = lsGet(KEY.hubs, []);
+  const domeny = [...new Set(hubs.map(h => h.domena))];
+  const el = document.getElementById('hubClientFilter');
+  el.innerHTML = `<button class="btn ${!selectedClient ? 'btn-accent' : ''}" onclick="filterClient('')">WSZYSTKIE</button>` +
+    domeny.map(d => {
+      const label = d.replace('.pl','').replace('.com','').toUpperCase();
+      return `<button class="btn ${selectedClient === d ? 'btn-accent' : ''}" onclick="filterClient('${esc(d)}')">${label}</button>`;
+    }).join('');
+}
+
+function filterClient(domena) {
+  selectedClient = domena;
+  selectedHubId = null;
+  renderHuby();
+}
 
 function hubHealth(hub) {
   const arts = hub.artykuly || [];
@@ -1624,10 +1650,13 @@ function healthClass(pct) {
 }
 
 function renderHuby() {
-  const hubs = lsGet(KEY.hubs, []);
+  renderClientFilter();
+  const allHubs = lsGet(KEY.hubs, []);
+  const hubs = selectedClient ? allHubs.filter(h => h.domena === selectedClient) : allHubs;
   const list = document.getElementById('hubsList');
   if (hubs.length === 0) {
-    list.innerHTML = '<div class="empty-state">Brak hubów — kliknij DODAJ HUB ►</div>';
+    list.innerHTML = '<div class="empty-state">Brak hubów' + (selectedClient ? ' dla tego klienta' : ' — kliknij DODAJ HUB ►') + '</div>';
+    document.getElementById('hubDetail').innerHTML = '<div class="empty-state">Wybierz hub z listy po lewej</div>';
     return;
   }
   list.innerHTML = hubs.map(h => {
