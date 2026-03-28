@@ -821,38 +821,6 @@ function saveAllWithSync() {
 // 1. TEST DATA — seed on first run
 // ═══════════════════════════════════════════════════════
 function seedTestData() {
-  const historia = lsGet(KEY.historia, []);
-  if (historia.length === 0) {
-    const now = Date.now();
-    const day = 86400000;
-    lsSet(KEY.historia, [
-      {
-        id: 'h1', title: 'Laptop Gaming ASUS ROG 15.6″ RTX 4060',
-        date: new Date(now - 6 * day).toISOString(),
-        oldDesc: 'Laptop gaming ASUS z procesorem Intel i7 i kartą graficzną RTX 4060. Pamięć RAM 16GB, dysk SSD 512GB. Ekran 15.6 cali Full HD 144Hz. System Windows 11.',
-        newDesc: 'Laptop ASUS ROG — najlepszy wybór dla graczy!\n\nGłówne cechy:\n• Procesor Intel Core i7 12. generacji\n• Karta graficzna NVIDIA RTX 4060 8GB\n• 16GB RAM DDR5\n• Dysk SSD NVMe 512GB\n• Ekran 15.6" Full HD 144Hz IPS\n• System Windows 11 Home\n\nDlaczego warto kupić:\nASUS ROG to marka ceniona przez graczy na całym świecie. Wysoka wydajność, niezawodność i doskonały stosunek ceny do jakości.\n\nCo otrzymujesz w zestawie:\n- Laptop ASUS ROG\n- Zasilacz 230W\n- Instrukcja obsługi\n\nZamów już dziś i ciesz się graniem na najwyższym poziomie!',
-        scoreBefore: 5, scoreAfter: 9,
-        keywords: 'laptop gaming, rtx 4060, asus rog', category: 'Komputery > Laptopy',
-      },
-      {
-        id: 'h2', title: 'Słuchawki Sony WH-1000XM5 Czarne',
-        date: new Date(now - 3 * day).toISOString(),
-        oldDesc: 'Słuchawki Sony WH-1000XM5 bezprzewodowe z ANC. Kolor czarny. Czas pracy na baterii do 30h.',
-        newDesc: 'Sony WH-1000XM5 — flagowe słuchawki z najlepszym ANC na rynku!\n\nSpecyfikacja:\n• Aktywna redukcja szumów (ANC) — wiodąca w branży\n• Czas pracy baterii: do 30 godzin\n• Szybkie ładowanie: 3 min = 3 godziny muzyki\n• Łączność: Bluetooth 5.2, NFC\n• Przetworniki: 30mm, neodymowe\n• Wbudowany mikrofon — crystal clear rozmowy\n\nDlaczego Sony XM5?\nXM5 to nowy standard słuchawek premium. Lepsza izolacja, doskonały dźwięk, wygodna nausznica.\n\nW zestawie:\n- Słuchawki Sony WH-1000XM5\n- Kabel USB-C\n- Kabel 3.5mm\n- Etui podróżne\n- Przejściówka samolotowa',
-        scoreBefore: 4, scoreAfter: 8,
-        keywords: 'słuchawki sony, wh-1000xm5, anc, bezprzewodowe', category: 'Audio > Słuchawki',
-      },
-      {
-        id: 'h3', title: 'Kamera GoPro Hero 12 Black',
-        date: new Date(now - 1 * day).toISOString(),
-        oldDesc: 'GoPro Hero 12 Black nowa kamera sportowa. Filmowanie 5.3K. Wodoszczelna do 10m bez obudowy. Stabilizacja HyperSmooth 6.0.',
-        newDesc: 'GoPro Hero 12 Black — uwiecznij każdą przygodę w 5.3K!\n\nPodstawowe parametry:\n• Rozdzielczość wideo: 5.3K60 / 4K120 / 2.7K240\n• Zdjęcia: 27 megapikseli\n• Stabilizacja: HyperSmooth 6.0 (przełomowa)\n• Wodoszczelność: do 10m bez obudowy\n• Bateria: 1720 mAh, do 70 min (5.3K)\n• Łączność: Wi-Fi, Bluetooth, GPS\n\nDlaczego Hero 12?\nNajlepsza GoPro w historii — lepsza stabilizacja, dłuższy czas pracy, więcej opcji montażu.\n\nW zestawie:\n- Kamera GoPro Hero 12 Black\n- Bateria Enduro\n- Uchwyt rowerowy\n- Klej montażowy x2\n- Kabel USB-C',
-        scoreBefore: 6, scoreAfter: 9,
-        keywords: 'gopro hero 12, kamera sportowa, 5.3k', category: 'Foto > Kamery sportowe',
-      },
-    ]);
-  }
-
   const audyt = lsGet(KEY.audyt, []);
   if (audyt.length === 0) {
     lsSet(KEY.audyt, [
