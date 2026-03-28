@@ -1362,7 +1362,7 @@ function switchTab(name) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'audyt') renderAudyt();
   if (name === 'historia') { renderHistoriaClientFilter(); renderBlogHistoria(); renderHistoria(); }
-  if (name === 'agent') { renderAgentClientFilter(); populateAgentHubSelect(); }
+  if (name === 'agent') { renderAgentClientFilter(); populateAgentHubSelect(); restoreAgentForm(); }
   if (name === 'wytyczne') renderWytyczne();
   if (name === 'huby') renderHuby();
   if (name === 'artykuly') renderArtykuly();
@@ -1660,6 +1660,44 @@ function populateAgentHubSelect() {
 function countWords(text) {
   return text.trim().split(/\s+/).filter(w => w.length > 0).length;
 }
+
+// Autosave formularza AGENT
+const AGENT_FORM_KEY = PFX + 'agent_form';
+const AGENT_FORM_FIELDS = [
+  { id: 'agentTitle', key: 'tytul' },
+  { id: 'agentDomena', key: 'domena' },
+  { id: 'agentHub', key: 'hub' },
+  { id: 'agentKeyword', key: 'keyword' },
+  { id: 'agentLSI', key: 'frazy' },
+  { id: 'agentPlan', key: 'plan' },
+  { id: 'agentLinks', key: 'linki' },
+  { id: 'agentUseGuidelines', key: 'uzyj_wytycznych', type: 'checkbox' },
+];
+
+function saveAgentForm() {
+  const data = {};
+  AGENT_FORM_FIELDS.forEach(f => {
+    const el = document.getElementById(f.id);
+    data[f.key] = f.type === 'checkbox' ? el.checked : el.value;
+  });
+  lsSet(AGENT_FORM_KEY, data);
+}
+
+function restoreAgentForm() {
+  const data = lsGet(AGENT_FORM_KEY);
+  if (!data) return;
+  AGENT_FORM_FIELDS.forEach(f => {
+    const el = document.getElementById(f.id);
+    if (!el) return;
+    if (f.type === 'checkbox') { el.checked = data[f.key] !== undefined ? data[f.key] : true; }
+    else if (data[f.key] !== undefined) { el.value = data[f.key]; }
+  });
+}
+
+AGENT_FORM_FIELDS.forEach(f => {
+  const el = document.getElementById(f.id);
+  if (el) el.addEventListener(f.type === 'checkbox' ? 'change' : 'input', saveAgentForm);
+});
 
 document.getElementById('agentRunBtn').addEventListener('click', async () => {
   const title = document.getElementById('agentTitle').value.trim();
