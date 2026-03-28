@@ -947,6 +947,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
         <defs>
           <marker id="arrowHead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="var(--accent)" opacity="0.6"/></marker>
           <marker id="arrowGray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="var(--text-muted)" opacity="0.4"/></marker>
+          <marker id="arrowCyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#00bcd4" opacity="0.5"/></marker>
         </defs>
       </svg>
 
@@ -3555,6 +3556,72 @@ function drawSitemapLines() {
       line.setAttribute('stroke', 'var(--accent)'); line.setAttribute('stroke-width', '1');
       line.setAttribute('opacity', '0.2');
       svg.appendChild(line);
+    });
+  });
+
+  // Cross-links between articles (article A links to article B's URL)
+  const articles = lsGet(KEY.articles, []);
+  const domena = getClientDomena(selectedSitemapClient);
+  const clientArts = domena ? articles.filter(a => a.domena === domena) : articles;
+  const artUrlMap = {};
+  document.querySelectorAll('.sitemap-art').forEach(el => {
+    artUrlMap[el.dataset.artid] = el;
+  });
+
+  clientArts.forEach(srcArt => {
+    const srcEl = artUrlMap[srcArt.id];
+    if (!srcEl) return;
+    const srcRect = srcEl.getBoundingClientRect();
+    const sx = srcRect.right - rect.left;
+    const sy = srcRect.top + srcRect.height / 2 - rect.top;
+
+    (srcArt.linksWewnetrzne || []).forEach(link => {
+      // Find target article by URL
+      const targetArt = clientArts.find(a => a.id !== srcArt.id && a.url === link.url);
+      if (!targetArt) return;
+      const targetEl = artUrlMap[targetArt.id];
+      if (!targetEl) return;
+
+      const tRect = targetEl.getBoundingClientRect();
+      const tx = tRect.left - rect.left;
+      const ty = tRect.top + tRect.height / 2 - rect.top;
+
+      // Curved path for cross-links
+      const midX = (sx + tx) / 2;
+      const curve = Math.abs(sy - ty) < 30 ? 30 : 0;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${sx} ${sy} C ${midX + curve} ${sy}, ${midX - curve} ${ty}, ${tx} ${ty}`);
+      path.setAttribute('stroke', '#00bcd4');
+      path.setAttribute('stroke-width', '1');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('opacity', '0.25');
+      path.setAttribute('stroke-dasharray', '4 3');
+      path.setAttribute('marker-end', 'url(#arrowCyan)');
+      path.setAttribute('data-from', srcArt.id);
+      path.setAttribute('data-to', targetArt.id);
+      path.classList.add('crosslink');
+      svg.appendChild(path);
+    });
+  });
+
+  // Hover: highlight cross-links for hovered article
+  document.querySelectorAll('.sitemap-art').forEach(el => {
+    el.addEventListener('mouseenter', function() {
+      const id = this.dataset.artid;
+      document.querySelectorAll('.crosslink').forEach(p => {
+        if (p.dataset.from === id || p.dataset.to === id) {
+          p.setAttribute('opacity', '0.8');
+          p.setAttribute('stroke-width', '2');
+        } else {
+          p.setAttribute('opacity', '0.08');
+        }
+      });
+    });
+    el.addEventListener('mouseleave', function() {
+      document.querySelectorAll('.crosslink').forEach(p => {
+        p.setAttribute('opacity', '0.25');
+        p.setAttribute('stroke-width', '1');
+      });
     });
   });
 }
