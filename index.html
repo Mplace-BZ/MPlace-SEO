@@ -947,6 +947,13 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <div id="sitemapClientFilter" style="display:flex;gap:8px"></div>
       <select class="form-input" id="sitemapHubFilter" style="max-width:220px"><option value="">Wszystkie huby</option></select>
       <button class="btn btn-accent" id="exportSitemapBtn">EKSPORTUJ RAPORT ►</button>
+      <button class="btn" id="linkSuggestionsBtn" style="color:#fbbf24;border-color:#fbbf2444">LINK SUGGESTIONS ►</button>
+    </div>
+
+    <!-- MUST FIX + SUGGESTIONS panel -->
+    <div id="sitemapSuggestions" style="display:none;margin-bottom:1.5rem">
+      <div id="sugMustFix"></div>
+      <div id="sugPerArticle" style="margin-top:1rem"></div>
     </div>
 
     <div id="sitemapEmpty" style="display:none" class="empty-state">
@@ -3712,6 +3719,145 @@ function closeSitemapPanel() {
 }
 
 document.getElementById('sitemapHubFilter').addEventListener('change', () => renderSitemap());
+
+document.getElementById('linkSuggestionsBtn').addEventListener('click', () => {
+  const panel = document.getElementById('sitemapSuggestions');
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  generateLinkSuggestions();
+});
+
+function generateLinkSuggestions() {
+  const domena = getClientDomena(selectedSitemapClient);
+  const hubs = lsGet(KEY.hubs, []).filter(h => !domena || h.domena === domena);
+  const articles = lsGet(KEY.articles, []).filter(a => !domena || a.domena === domena);
+  const artUrlToId = {};
+  articles.forEach(a => { if (a.url) artUrlToId[a.url] = a.id; });
+
+  const backlinksMap = {};
+  articles.forEach(a => (a.linksWewnetrzne || []).forEach(l => {
+    if (!backlinksMap[l.url]) backlinksMap[l.url] = [];
+    backlinksMap[l.url].push(a.tytul);
+  }));
+
+  // Analyze
+  const mustFix = [];
+  const suggestions = [];
+
+  articles.forEach(a => {
+    const hub = hubs.find(h => h.id === a.hubId);
+    const links = a.linksWewnetrzne || [];
+    const linkedUrls = new Set(links.map(l => l.url));
+    const backlinks = backlinksMap[a.url] || [];
+    const hubArts = hub ? articles.filter(x => x.hubId === hub.id && x.id !== a.id) : [];
+    const artSugs = [];
+
+    // 1. MUST FIX: no backlinks
+    if (backlinks.length === 0) {
+      mustFix.push({ type: 'no-backlinks', art: a, hub, msg: `Nikt nie linkuje do tego artykułu. Dodaj link z min. 2 artykułów w klastrze.` });
+    }
+
+    // 2. MUST FIX: doesn't link to any article in same hub
+    const linksInHub = hubArts.filter(x => x.url && linkedUrls.has(x.url));
+    if (hub && hubArts.length > 0 && linksInHub.length === 0) {
+      mustFix.push({ type: 'no-cluster-link', art: a, hub, msg: `Nie linkuje do żadnego artykułu w swoim hubie "${hub.nazwa}".` });
+    }
+
+    // 3. MUST FIX: doesn't link to pillar page
+    if (hub && hub.urlPillar && !linkedUrls.has(hub.urlPillar)) {
+      const pillarInLinks = links.some(l => l.url && l.url.includes(hub.urlPillar.split('/').pop()));
+      if (!pillarInLinks) {
+        mustFix.push({ type: 'no-pillar-link', art: a, hub, msg: `Brak linku do pillar page huba "${hub.nazwa}".` });
+      }
+    }
+
+    // 4. Suggestions: which hub articles to link to
+    hubArts.forEach(target => {
+      if (!target.url || linkedUrls.has(target.url)) return;
+      // Check if target links back
+      const targetLinks = (target.linksWewnetrzne || []).map(l => l.url);
+      const targetLinksToMe = a.url && targetLinks.includes(a.url);
+      artSugs.push({
+        target,
+        direction: 'w klastrze',
+        priority: targetLinksToMe ? 'wysoki' : 'normalny',
+        reason: targetLinksToMe
+          ? `"${target.tytul.substring(0,40)}" linkuje do Ciebie ale Ty nie linkujesz zwrotnie`
+          : `Brak wzajemnego linku z "${target.tytul.substring(0,40)}" w tym samym hubie`
+      });
+    });
+
+    // 5. Suggestions: cross-hub links
+    hubs.forEach(otherHub => {
+      if (!hub || otherHub.id === hub.id) return;
+      const otherArts = articles.filter(x => x.hubId === otherHub.id);
+      const linksToOther = otherArts.filter(x => x.url && linkedUrls.has(x.url));
+      if (linksToOther.length === 0 && otherArts.length > 0) {
+        // Suggest linking to 1-2 articles from other hub
+        otherArts.slice(0, 2).forEach(target => {
+          artSugs.push({
+            target,
+            direction: `do huba "${otherHub.nazwa}"`,
+            priority: 'normalny',
+            reason: `Zero linków do huba "${otherHub.nazwa}" — dodaj min. 1 link`
+          });
+        });
+      }
+    });
+
+    if (artSugs.length > 0) {
+      suggestions.push({ art: a, hub, sugs: artSugs });
+    }
+  });
+
+  // Render MUST FIX
+  const mfHtml = mustFix.length ? `
+    <div class="table-card" style="border-top:3px solid var(--red)">
+      <div class="table-card-header"><span class="table-card-title" style="color:var(--red)">⚠ MUST FIX (${mustFix.length})</span></div>
+      <div style="padding:1rem">
+        ${mustFix.map(m => `<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;align-items:flex-start">
+          <span style="color:var(--red);font-family:var(--font-mono);font-size:9px;min-width:110px;padding-top:2px">${m.type === 'no-backlinks' ? 'BEZ BACKLINKÓW' : m.type === 'no-cluster-link' ? 'IZOLOWANY' : 'BRAK PILLAR'}</span>
+          <div style="flex:1">
+            <div style="color:var(--text-primary);font-weight:500">${esc(m.art.tytul)}</div>
+            <div style="color:var(--text-muted);font-size:11px;margin-top:2px">${esc(m.hub ? m.hub.nazwa : '—')} · ${m.msg}</div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>` : `<div class="table-card" style="border-top:3px solid var(--green)"><div style="padding:1rem;color:var(--green);font-size:13px">✓ Brak krytycznych problemów z linkami</div></div>`;
+
+  document.getElementById('sugMustFix').innerHTML = mfHtml;
+
+  // Render per article suggestions
+  if (suggestions.length === 0) {
+    document.getElementById('sugPerArticle').innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:1rem">Brak sugestii — wszystkie artykuły są dobrze połączone</div>';
+    return;
+  }
+
+  const prioColor = p => p === 'wysoki' ? 'var(--red)' : 'var(--yellow)';
+  document.getElementById('sugPerArticle').innerHTML = `
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:8px">► SUGESTIE LINKÓW PER ARTYKUŁ (${suggestions.length})</div>
+    ${suggestions.map(s => `
+      <div class="table-card" style="margin-bottom:8px">
+        <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:12px;font-weight:500;color:var(--text-primary)">${esc(s.art.tytul)}</div>
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${s.hub ? esc(s.hub.nazwa) : '—'} · ${s.sugs.length} sugestii</div>
+          </div>
+        </div>
+        <div style="padding:8px 16px">
+          ${s.sugs.map(sg => `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
+            <span style="color:${prioColor(sg.priority)};font-family:var(--font-mono);font-size:8px;min-width:55px;text-transform:uppercase">${sg.priority}</span>
+            <span style="color:${sg.direction.includes('klastrze') ? '#00bcd4' : '#a78bfa'};font-family:var(--font-mono);font-size:9px;min-width:80px">${sg.direction}</span>
+            <div style="flex:1">
+              <div style="color:var(--text-secondary)">→ <strong>${esc(sg.target.tytul)}</strong></div>
+              <div style="color:var(--text-muted);font-size:10px">${sg.reason}</div>
+              ${sg.target.url ? `<div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);margin-top:2px">${esc(sg.target.url)}</div>` : ''}
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+    `).join('')}`;
+}
 window.addEventListener('resize', () => { if (document.getElementById('tab-sitemap').style.display !== 'none') setTimeout(drawSitemapLines, 200); });
 
 document.getElementById('exportSitemapBtn').addEventListener('click', () => {
