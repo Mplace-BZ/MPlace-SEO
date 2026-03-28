@@ -571,6 +571,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
       <button class="tab-btn" data-tab="audyt">Audyt</button>
       <button class="tab-btn" data-tab="agent">Agent</button>
+      <button class="tab-btn" data-tab="htmlgen">Html Generator</button>
       <button class="tab-btn" data-tab="historia">Historia</button>
       <button class="tab-btn" data-tab="wytyczne">Wytyczne</button>
       <button class="tab-btn" data-tab="huby">Huby</button>
@@ -716,6 +717,51 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
           <button class="btn btn-accent" id="copyTextBtn">KOPIUJ TEKST</button>
           <button class="btn btn-accent" id="copyHtmlBtn">KOPIUJ HTML</button>
           <button class="btn btn-green" id="saveArticleHistoryBtn">ZAPISZ DO HISTORII</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ HTML GENERATOR ══ -->
+  <div class="tab-panel" id="tab-htmlgen">
+    <div class="section-label">► HTML GENERATOR</div>
+    <div class="section-title">Konwerter HTML <span class="star">✦</span></div>
+    <div class="section-subtitle">Wklej tekst artykułu z Generatora treści — otrzymasz gotowy kod HTML w stylu marki</div>
+
+    <div id="htmlgenClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem"></div>
+
+    <div style="background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:8px;padding:12px 16px;margin-bottom:1.5rem;font-size:12px;color:var(--text-secondary)">
+      ► Wybierz klienta, wklej tekst artykułu i kliknij GENERUJ HTML. Kod będzie miał style, kolory i strukturę dopasowaną do wybranej marki.
+    </div>
+
+    <div class="agent-layout">
+      <div class="agent-panel">
+        <div class="agent-panel-header">▼ TEKST ARTYKUŁU</div>
+        <div class="form-group">
+          <label class="form-label">Breadcrumb (opcjonalnie)</label>
+          <input class="form-input" type="text" id="htmlgenBreadcrumb" placeholder="np. Poradniki → Wybór materaca → Jak wybrać materac">
+        </div>
+        <div class="form-group">
+          <label class="form-label">URL przycisku CTA</label>
+          <input class="form-input" type="text" id="htmlgenCtaUrl" placeholder="np. https://luxsen.pl/collections/materace-luxsen">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tekst przycisku CTA</label>
+          <input class="form-input" type="text" id="htmlgenCtaText" placeholder="np. ZOBACZ MATERACE LUXSEN" value="ZOBACZ MATERACE LUXSEN">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Wklej tekst artykułu z Generatora treści</label>
+          <textarea class="form-textarea" id="htmlgenInput" style="min-height:400px;font-family:var(--font-mono);font-size:12px" placeholder="Wklej tutaj cały tekst artykułu wygenerowany przez Agenta..."></textarea>
+        </div>
+        <button class="btn btn-lg" id="htmlgenRunBtn">GENERUJ HTML ►</button>
+      </div>
+
+      <div class="agent-panel">
+        <div class="agent-panel-header">▼ KOD HTML</div>
+        <textarea class="form-textarea" id="htmlgenOutput" style="min-height:400px;font-family:var(--font-mono);font-size:11px;line-height:1.5" readonly placeholder="Tutaj pojawi się wygenerowany kod HTML..."></textarea>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-accent" id="htmlgenCopyBtn">KOPIUJ HTML</button>
+          <button class="btn" id="htmlgenPreviewBtn">PODGLĄD ►</button>
         </div>
       </div>
     </div>
@@ -961,6 +1007,21 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     </div>
     <div class="modal-footer">
       <button class="btn btn-accent" onclick="closeModal('modalBlogPreview')">ZAMKNIJ</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalHtmlPreview">
+  <div class="modal preview-modal" style="max-width:960px">
+    <div class="modal-header">
+      <span class="modal-title">PODGLĄD HTML</span>
+      <button class="modal-close" onclick="closeModal('modalHtmlPreview')">&#x2715;</button>
+    </div>
+    <div style="padding:1.5rem;max-height:70vh;overflow-y:auto;background:#fff;border-radius:0 0 8px 8px">
+      <div id="htmlPreviewContent"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-accent" onclick="closeModal('modalHtmlPreview')">ZAMKNIJ</button>
     </div>
   </div>
 </div>
@@ -1363,6 +1424,7 @@ function switchTab(name) {
   if (name === 'audyt') renderAudyt();
   if (name === 'historia') { renderHistoriaClientFilter(); renderBlogHistoria(); renderHistoria(); }
   if (name === 'agent') { renderAgentClientFilter(); populateAgentHubSelect(); restoreAgentForm(); }
+  if (name === 'htmlgen') { renderHtmlgenClientFilter(); }
   if (name === 'wytyczne') renderWytyczne();
   if (name === 'huby') renderHuby();
   if (name === 'artykuly') renderArtykuly();
@@ -2128,6 +2190,264 @@ document.getElementById('resetAllGuidelinesBtn').addEventListener('click', () =>
     document.getElementById('gText_' + meta.key).value = def.tresc;
     document.getElementById('gCheck_' + meta.key).checked = def.aktywna;
   });
+});
+
+// ═══════════════════════════════════════════════════════
+// 9b. HTML GENERATOR
+// ═══════════════════════════════════════════════════════
+let selectedHtmlgenClient = GUIDELINES_CLIENTS[0].id;
+
+const CLIENT_STYLES = {
+  luxsen: {
+    accent: '#bd9a6c',
+    ctaText: 'ZOBACZ MATERACE LUXSEN',
+    ctaUrl: 'https://luxsen.pl/collections/materace-luxsen',
+    brand: 'Luxsen',
+    experts: 'eksperci Luxsen',
+  },
+  domglamour: {
+    accent: '#c0392b',
+    ctaText: 'ZOBACZ KOLEKCJĘ DOM GLAMOUR',
+    ctaUrl: 'https://domglamour.pl',
+    brand: 'Dom Glamour',
+    experts: 'eksperci Dom Glamour',
+  },
+};
+
+function renderHtmlgenClientFilter() {
+  const el = document.getElementById('htmlgenClientFilter');
+  el.innerHTML = GUIDELINES_CLIENTS.map(c =>
+    clientBtn(c, selectedHtmlgenClient === c.id, `switchHtmlgenClient('${c.id}')`)
+  ).join('');
+}
+
+function switchHtmlgenClient(clientId) {
+  selectedHtmlgenClient = clientId;
+  renderHtmlgenClientFilter();
+  const s = CLIENT_STYLES[clientId] || CLIENT_STYLES.luxsen;
+  document.getElementById('htmlgenCtaText').value = s.ctaText;
+  document.getElementById('htmlgenCtaUrl').value = s.ctaUrl;
+}
+
+function textToHtml(text, clientId) {
+  const s = CLIENT_STYLES[clientId] || CLIENT_STYLES.luxsen;
+  const a = s.accent;
+  const lines = text.split('\n').filter(l => l.trim());
+  let html = '';
+  let inFaq = false;
+  let inList = false;
+  const breadcrumb = document.getElementById('htmlgenBreadcrumb').value.trim();
+  const ctaUrl = document.getElementById('htmlgenCtaUrl').value.trim();
+  const ctaText = document.getElementById('htmlgenCtaText').value.trim();
+
+  // Breadcrumb
+  if (breadcrumb) {
+    html += `<p><strong>${esc(breadcrumb)}</strong></p>\n`;
+  }
+
+  html += '<article>\n';
+
+  // Parse sections
+  const tocItems = [];
+  let sections = [];
+  let currentSection = null;
+  let wTymArtykule = [];
+  let faqItems = [];
+  let materialyLinks = [];
+  let inWTym = false;
+  let inMaterialy = false;
+  let introLines = [];
+  let introDone = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Detect H2
+    const h2Match = line.match(/^##\s+(.+)/);
+    if (h2Match) {
+      if (currentSection) sections.push(currentSection);
+      const title = h2Match[1].replace(/\*\*/g, '');
+      const id = title.toLowerCase().replace(/[^a-ząćęłńóśżź0-9\s-]/g, '').replace(/\s+/g, '-').substring(0, 50);
+      currentSection = { type: 'h2', title, id, content: [] };
+      tocItems.push({ title, id });
+      introDone = true;
+      inWTym = false;
+      inMaterialy = false;
+      if (/faq|częst/i.test(title)) inFaq = true;
+      else inFaq = false;
+      if (/materiały|pogłębien/i.test(title)) inMaterialy = true;
+      continue;
+    }
+
+    // Detect H3
+    const h3Match = line.match(/^###\s+(.+)/);
+    if (h3Match && currentSection) {
+      currentSection.content.push({ type: 'h3', text: h3Match[1].replace(/\*\*/g, '') });
+      continue;
+    }
+
+    // Detect "W tym artykule" box
+    if (/w tym artykule|w tym przewodniku|w tym poradniku/i.test(line) && !currentSection) {
+      inWTym = true;
+      continue;
+    }
+
+    if (inWTym && !currentSection) {
+      if (line.startsWith('-') || line.startsWith('•') || line.match(/^\d+\./)) {
+        wTymArtykule.push(line.replace(/^[-•]\s*/, '').replace(/^\d+\.\s*/, ''));
+      } else if (wTymArtykule.length > 0) {
+        inWTym = false;
+      }
+      continue;
+    }
+
+    // Collect intro
+    if (!introDone && !currentSection) {
+      introLines.push(line);
+      continue;
+    }
+
+    // Collect content in sections
+    if (currentSection) {
+      // Detect list items
+      if (line.startsWith('-') || line.startsWith('•') || line.match(/^\d+\.\s/)) {
+        currentSection.content.push({ type: 'li', text: line.replace(/^[-•]\s*/, '').replace(/^\d+\.\s*/, '') });
+      } else if (line.startsWith('>') || line.startsWith('„') || line.startsWith('"')) {
+        currentSection.content.push({ type: 'quote', text: line.replace(/^>\s*/, '') });
+      } else {
+        currentSection.content.push({ type: 'p', text: line });
+      }
+    }
+  }
+  if (currentSection) sections.push(currentSection);
+
+  // Helper: format inline markdown
+  function fmt(text) {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, `<a href="$2" rel="noopener noreferrer" style="color: ${a}; text-decoration: none; font-weight: bold;">$1</a>`);
+  }
+
+  // Intro
+  introLines.forEach(l => {
+    html += `<p>${fmt(l)}</p>\n`;
+  });
+
+  // Box: W tym artykule
+  if (wTymArtykule.length > 0) {
+    html += `\n<!-- BOX: W tym artykule -->\n`;
+    html += `<div style="background: #f4f4f4; padding: 18px 18px; border: 1px solid #eee; border-radius: 10px; margin: 18px 0;">\n`;
+    html += `<p style="margin: 0 0 10px 0; font-weight: bold;">✅ W tym artykule:</p>\n`;
+    html += `<ul style="margin: 0; padding-left: 18px; line-height: 1.8;">\n`;
+    wTymArtykule.forEach(item => {
+      html += `<li>${fmt(item)}</li>\n`;
+    });
+    html += `</ul>\n</div>\n`;
+  }
+
+  // Spis treści
+  if (tocItems.length > 0) {
+    html += `\n<!-- SPIS TREŚCI -->\n`;
+    html += `<div style="background: #ffffff; border: 1px solid #eee; border-radius: 10px; padding: 18px; margin: 18px 0;">\n`;
+    html += `<h2 style="margin: 0 0 10px 0; font-size: 20px;">Spis treści</h2>\n`;
+    html += `<ol style="margin: 0; padding-left: 18px; line-height: 1.9;">\n`;
+    tocItems.forEach(t => {
+      html += `<li><a href="#${t.id}" style="color: ${a}; text-decoration: none;">${esc(t.title)}</a></li>\n`;
+    });
+    html += `</ol>\n</div>\n`;
+  }
+
+  // Sections
+  sections.forEach(sec => {
+    const isFaq = /faq|częst/i.test(sec.title);
+    const isMaterialy = /materiały|pogłębien/i.test(sec.title);
+    const isPodsumowanie = /podsumowanie/i.test(sec.title);
+
+    html += `\n<h2 id="${sec.id}">${esc(sec.title)}</h2>\n`;
+
+    if (isMaterialy) {
+      html += `<div id="materialy" style="background: #f4f4f4; padding: 18px; border: 1px solid #eee; border-radius: 10px; margin: 22px 0; text-align: left;">\n`;
+      html += `<p style="margin: 0 0 10px 0; font-weight: bold;">Materiały do pogłębienia</p>\n`;
+      html += `<ul style="margin: 0; padding-left: 18px; line-height: 1.75;">\n`;
+      sec.content.forEach(c => {
+        if (c.type === 'li') html += `<li>${fmt(c.text)}</li>\n`;
+      });
+      html += `</ul>\n</div>\n`;
+      return;
+    }
+
+    let listOpen = false;
+    let listType = 'ul';
+
+    sec.content.forEach((c, ci) => {
+      if (c.type === 'li') {
+        if (!listOpen) {
+          html += `<${listType} style="line-height: 1.9; padding-left: 18px;">\n`;
+          listOpen = true;
+        }
+        if (isFaq) {
+          html += `<p><strong>${fmt(c.text)}</strong></p>\n`;
+          listOpen = false;
+        } else {
+          html += `<li>${fmt(c.text)}</li>\n`;
+        }
+      } else {
+        if (listOpen) {
+          html += `</${listType}>\n`;
+          listOpen = false;
+        }
+        if (c.type === 'h3') {
+          html += `<h3>${esc(c.text)}</h3>\n`;
+        } else if (c.type === 'quote') {
+          const quoteText = c.text.replace(/^[„""]/, '').replace(/["""]$/, '');
+          html += `\n<!-- CYTAT -->\n`;
+          html += `<div style="background: #f4f4f4; border: 1px solid #eee; border-left: 5px solid ${a}; border-radius: 10px; padding: 16px; margin: 18px 0; font-style: italic;">${fmt(quoteText)} — <strong>${s.experts}</strong></div>\n`;
+        } else if (c.type === 'p' && isFaq) {
+          html += `<p>${fmt(c.text)}</p>\n`;
+        } else {
+          html += `<p>${fmt(c.text)}</p>\n`;
+        }
+      }
+    });
+    if (listOpen) html += `</${listType}>\n`;
+
+    // CTA after podsumowanie
+    if (isPodsumowanie && ctaUrl) {
+      html += `\n<!-- CTA -->\n`;
+      html += `<div style="background-color: #f4f4f4; padding: 40px 20px; border-radius: 12px; margin-top: 34px; text-align: center; border: 1px solid #eee;">\n`;
+      html += `<h3 style="margin-top: 0; font-size: 24px; font-weight: bold;">Gotowy na wybór?</h3>\n`;
+      html += `<p style="margin: 10px auto 26px; font-size: 16px; color: #666; max-width: 720px;">Zobacz kolekcję i porównaj rozwiązania.</p>\n`;
+      html += `<a rel="noopener noreferrer" style="background-color: ${a}; color: white !important; padding: 18px 35px; text-decoration: none !important; font-weight: bold; border-radius: 6px; display: inline-block; font-size: 16px; text-transform: uppercase; border: none !important;" href="${esc(ctaUrl)}">${esc(ctaText)}</a>\n`;
+      html += `</div>\n`;
+    }
+  });
+
+  html += '\n</article>';
+  return html;
+}
+
+document.getElementById('htmlgenRunBtn').addEventListener('click', () => {
+  const text = document.getElementById('htmlgenInput').value.trim();
+  if (!text) { alert('Wklej tekst artykułu.'); return; }
+  const result = textToHtml(text, selectedHtmlgenClient);
+  document.getElementById('htmlgenOutput').value = result;
+});
+
+document.getElementById('htmlgenCopyBtn').addEventListener('click', () => {
+  const val = document.getElementById('htmlgenOutput').value;
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = document.getElementById('htmlgenCopyBtn');
+    btn.textContent = 'SKOPIOWANO ✓';
+    setTimeout(() => btn.textContent = 'KOPIUJ HTML', 2000);
+  });
+});
+
+document.getElementById('htmlgenPreviewBtn').addEventListener('click', () => {
+  const val = document.getElementById('htmlgenOutput').value;
+  if (!val) return;
+  document.getElementById('htmlPreviewContent').innerHTML = val;
+  openModal('modalHtmlPreview');
 });
 
 // ═══════════════════════════════════════════════════════
