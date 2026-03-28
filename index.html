@@ -939,6 +939,10 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
           <label class="form-label">Hub</label>
           <select class="form-input" id="kwHub"></select>
         </div>
+        <div class="form-group" style="width:220px;margin-bottom:0">
+          <label class="form-label">Artykuł</label>
+          <select class="form-input" id="kwArticle"><option value="">— brak —</option></select>
+        </div>
         <div class="form-group" style="margin-bottom:0">
           <label class="form-checkbox"><input type="checkbox" id="kwCovered"><span>Pokryta</span></label>
         </div>
@@ -3310,6 +3314,12 @@ function renderKeywords() {
   const kwHubSel = document.getElementById('kwHub');
   kwHubSel.innerHTML = '<option value="">— brak —</option>' + hubs.map(h => `<option value="${h.id}">${esc(h.nazwa)}</option>`).join('');
 
+  // populate article dropdown
+  const articles = lsGet(KEY.articles, []);
+  const kwArtSel = document.getElementById('kwArticle');
+  const curArtVal = kwArtSel.value;
+  kwArtSel.innerHTML = '<option value="">— brak —</option>' + articles.map(a => `<option value="${a.id}"${a.id === curArtVal ? ' selected' : ''}>${esc(a.tytul)}</option>`).join('');
+
   const tbody = document.getElementById('kwBody');
   if (keywords.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Brak fraz — dodaj pierwszą</td></tr>';
@@ -3319,7 +3329,7 @@ function renderKeywords() {
     tbody.innerHTML = keywords.map(kw => {
       const hub = hubs.find(h => h.id === kw.hubId);
       const kwLower = kw.fraza.toLowerCase();
-      const art = articles.find(a => (a.keywords || []).some(k => k.toLowerCase() === kwLower));
+      const art = kw.articleId ? articles.find(a => a.id === kw.articleId) : articles.find(a => (a.keywords || []).some(k => k.toLowerCase() === kwLower));
       return `<tr style="${!kw.pokryta ? 'background:var(--yellow-dim)' : ''}">
         <td class="primary">${esc(kw.fraza)}</td>
         <td><span style="font-family:var(--font-mono);font-size:9px;padding:2px 8px;border-radius:3px;background:${typColor(kw.typ)}18;color:${typColor(kw.typ)};border:1px solid ${typColor(kw.typ)}44">${esc(kw.typ || 'główna')}</span></td>
@@ -3369,6 +3379,12 @@ function editKeyword(id) {
   const kwHubSel = document.getElementById('kwHub');
   kwHubSel.innerHTML = '<option value="">— brak —</option>' + hubs.map(h => `<option value="${h.id}"${h.id === kw.hubId ? ' selected' : ''}>${esc(h.nazwa)}</option>`).join('');
   document.getElementById('kwCovered').checked = kw.pokryta || false;
+  // Find article for this keyword
+  const allArts = lsGet(KEY.articles, []);
+  const kwLower = kw.fraza.toLowerCase();
+  const matchArt = kw.articleId ? allArts.find(a => a.id === kw.articleId) : allArts.find(a => (a.keywords || []).some(k => k.toLowerCase() === kwLower));
+  const kwArtSel = document.getElementById('kwArticle');
+  kwArtSel.innerHTML = '<option value="">— brak —</option>' + allArts.map(a => `<option value="${a.id}"${matchArt && a.id === matchArt.id ? ' selected' : ''}>${esc(a.tytul)}</option>`).join('');
   document.getElementById('kwAddBtn').textContent = 'ZAPISZ ►';
   document.getElementById('kwInput').focus();
 }
@@ -3386,12 +3402,14 @@ document.getElementById('kwAddBtn').addEventListener('click', () => {
   if (!fraza) { alert('Wpisz frazę.'); return; }
   const kws = lsGet(KEY.keywords, []);
 
+  const articleId = document.getElementById('kwArticle').value;
   if (window._editKwId) {
     const kw = kws.find(x => x.id === window._editKwId);
     if (kw) {
       kw.fraza = fraza;
       kw.typ = document.getElementById('kwType').value;
       kw.hubId = document.getElementById('kwHub').value;
+      kw.articleId = articleId;
       kw.pokryta = document.getElementById('kwCovered').checked;
     }
     window._editKwId = null;
@@ -3401,6 +3419,7 @@ document.getElementById('kwAddBtn').addEventListener('click', () => {
       id: 'kw' + Date.now(), fraza,
       typ: document.getElementById('kwType').value,
       hubId: document.getElementById('kwHub').value,
+      articleId,
       pokryta: document.getElementById('kwCovered').checked,
       createdAt: new Date().toISOString()
     });
@@ -3409,6 +3428,7 @@ document.getElementById('kwAddBtn').addEventListener('click', () => {
   lsSet(KEY.keywords, kws); saveAllWithSync();
   document.getElementById('kwInput').value = '';
   document.getElementById('kwCovered').checked = false;
+  document.getElementById('kwArticle').value = '';
   window._editKwId = null;
   document.getElementById('kwAddBtn').textContent = 'DODAJ ►';
   renderKeywords();
