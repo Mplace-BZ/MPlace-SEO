@@ -1114,19 +1114,25 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
 
     <!-- Tab: tekst -->
     <div id="importTextPane">
-      <textarea class="form-textarea" id="importTextInput" style="min-height:250px;font-family:var(--font-mono);font-size:11px" placeholder="Wklej dane artykułu w formacie:
-Tytuł: ...
-URL: ...
-Hub / kategoria: ...
-Autor: ...
-Data publikacji: ...
-Słowa kluczowe: ...
-Czy artykuł ma H1: tak/nie
-Czy ma spis treści: tak/nie
-Czy ma FAQ: tak/nie
-Czy ma CTA: tak/nie
+      <textarea class="form-textarea" id="importTextInput" style="min-height:250px;font-family:var(--font-mono);font-size:11px" placeholder="Tytuł: Materac pocket vs multipocket – różnice
+URL: https://luxsen.pl/blogs/news/materac-pocket-vs-multipocket
+Hub / kategoria: Jak wybrać materac
+Autor: Luxsen
+Data publikacji: 2026-03-15
+
+główna: materac pocket, materac multipocket, sprężyny kieszeniowe
+LSI: pocket vs multipocket, materac kieszeniowy porównanie
+długi ogon: jaki materac kieszeniowy wybrać do 3000 zł, materac pocket czy multipocket dla par
+
+Czy artykuł ma H1: tak
+Czy ma spis treści: tak
+Czy ma FAQ: tak
+Czy ma CTA: tak
+
 Linki wewnętrzne:
-https://luxsen.pl/blogs/news/... anchor: tekst linku"></textarea>
+https://luxsen.pl/blogs/news/jaki-materac-wybrac anchor: jak wybrać materac
+https://luxsen.pl/products/silver-pro anchor: Silver Pro
+https://luxsen.pl/collections/materace-luxsen anchor: kolekcja materacy"></textarea>
       <button class="btn btn-accent" style="margin-top:8px" id="parseTextBtn">PARSUJ DANE ►</button>
     </div>
 
@@ -2892,8 +2898,29 @@ document.getElementById('parseTextBtn').addEventListener('click', () => {
   const hub = extractField(text, 'Hub(?:\\s*/\\s*kategoria)?');
   const autor = extractField(text, 'Autor');
   const data = extractField(text, 'Data publikacji');
-  const kwRaw = extractField(text, 'Słowa kluczowe');
-  const keywords = kwRaw ? [...new Set(kwRaw.split(/[,;]+/).map(s => s.trim()).filter(Boolean))] : [];
+  // Keywords — obsługuje format z typami: "główna: materac pocket, LSI: sprężyny kieszeniowe"
+  // lub prosty: "materac pocket, sprężyny kieszeniowe"
+  const kwLines = text.split('\n').filter(l => /^(główna|glowna|LSI|długi ogon|dlugi ogon|słowa kluczowe)\s*:/i.test(l.trim()));
+  let keywordsWithType = [];
+  if (kwLines.length > 0) {
+    kwLines.forEach(line => {
+      const m = line.match(/^(główna|glowna|LSI|długi ogon|dlugi ogon|słowa kluczowe)\s*:\s*(.+)/i);
+      if (m) {
+        let typ = m[1].toLowerCase();
+        if (typ === 'glowna' || typ === 'słowa kluczowe') typ = 'główna';
+        if (typ === 'dlugi ogon') typ = 'długi ogon';
+        m[2].split(/[,;]+/).map(s => s.trim()).filter(Boolean).forEach(kw => {
+          keywordsWithType.push({ fraza: kw, typ: typ.toUpperCase() === 'LSI' ? 'LSI' : typ });
+        });
+      }
+    });
+  } else {
+    const kwRaw = extractField(text, 'Słowa kluczowe');
+    if (kwRaw) kwRaw.split(/[,;]+/).map(s => s.trim()).filter(Boolean).forEach(kw => {
+      keywordsWithType.push({ fraza: kw, typ: 'główna' });
+    });
+  }
+  const keywords = keywordsWithType.map(k => k.fraza);
 
   const maH1 = extractFlag(text, 'Czy artykuł ma H1');
   const maSpis = extractFlag(text, 'Czy ma spis treści');
@@ -2913,7 +2940,7 @@ document.getElementById('parseTextBtn').addEventListener('click', () => {
   let domena = '';
   try { domena = new URL(url).hostname; } catch(e) {}
 
-  _importedData = { tytul, url, domena, hub, autor, data, keywords, maH1, maSpis, maFAQ, maCTA, links, h2Sections: [], zrodlo: 'import_tekst' };
+  _importedData = { tytul, url, domena, hub, autor, data, keywords, keywordsWithType, maH1, maSpis, maFAQ, maCTA, links, h2Sections: [], zrodlo: 'import_tekst' };
   showImportPreview();
 });
 
@@ -3045,14 +3072,15 @@ document.getElementById('importSaveBtn').addEventListener('click', () => {
   if (keywords.length > 0) {
     const kws = lsGet(KEY.keywords, []);
     const existing = new Map(kws.map(k => [k.fraza.toLowerCase(), k]));
-    keywords.forEach(kw => {
-      const key = kw.toLowerCase();
+    // Try to get typed keywords from _importedData
+    const typedKws = (_importedData && _importedData.keywordsWithType) || keywords.map(k => ({ fraza: k, typ: 'główna' }));
+    typedKws.forEach(kwObj => {
+      const key = kwObj.fraza.toLowerCase();
       if (existing.has(key)) {
-        // Update hubId if keyword was orphaned
         const ex = existing.get(key);
         if (!ex.hubId && hubId) { ex.hubId = hubId; ex.pokryta = true; }
       } else {
-        kws.push({ id: 'kw' + Date.now() + Math.random().toString(36).slice(2, 6), fraza: kw, typ: 'główna', hubId, pokryta: true });
+        kws.push({ id: 'kw' + Date.now() + Math.random().toString(36).slice(2, 6), fraza: kwObj.fraza, typ: kwObj.typ || 'główna', hubId, pokryta: true });
         existing.set(key, kws[kws.length - 1]);
       }
     });
@@ -3388,6 +3416,14 @@ seedTestData();
 
   lsSet(PFX + 'cleaned_v3', true);
   console.log('[MIGRACJA v3] Usunięto stare testowe dane: artykuły, keywords, huby, satelity');
+})();
+
+// Migracja v4: wyczyść wszystkie śmieciowe keywords z parserów
+(function() {
+  if (lsGet(PFX + 'cleaned_v4')) return;
+  lsSet(KEY.keywords, []);
+  lsSet(PFX + 'cleaned_v4', true);
+  console.log('[MIGRACJA v4] Wyczyszczono keywords — rebuild z importów');
 })();
 
 document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
