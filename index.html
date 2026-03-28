@@ -258,6 +258,7 @@ html, body {
 .stat-card.c-green::before { background: var(--green); }
 .stat-card.c-yellow::before { background: var(--yellow); }
 .stat-card.c-red::before { background: var(--red); }
+.stat-card.c-blue::before { background: #60a5fa; }
 .stat-label {
   font-family: var(--font-mono); font-size: 9px;
   text-transform: uppercase; letter-spacing: 0.14em;
@@ -270,6 +271,7 @@ html, body {
 .stat-card.c-accent .stat-value { color: var(--accent); }
 .stat-card.c-green .stat-value { color: var(--green); }
 .stat-card.c-yellow .stat-value { color: var(--yellow); }
+.stat-card.c-blue .stat-value { color: #60a5fa; }
 .stat-sub { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-top: 0.3rem; }
 
 /* ── CHART ── */
@@ -603,40 +605,50 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
   <!-- ══ DASHBOARD ══ -->
   <div class="tab-panel active" id="tab-dashboard">
     <div class="section-label">► DASHBOARD</div>
-    <div class="section-title">Przegląd <span class="star">✦</span></div>
-    <div class="section-subtitle">Statystyki użycia agenta i ostatnia aktywność</div>
+    <div class="section-title">Przegląd SEO <span class="star">✦</span></div>
+    <div class="section-subtitle">Metryki artykułów, hubów, linków i słów kluczowych</div>
 
-    <div class="stats-grid" id="dashStats"></div>
+    <div id="dashClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
 
-    <div class="chart-card">
-      <div class="chart-title">► Przepisane aukcje — ostatnie 30 dni</div>
+    <!-- Metryki główne -->
+    <div class="stats-grid" id="dashStats" style="grid-template-columns:repeat(5,1fr)"></div>
+
+    <!-- Dwie kolumny -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.5rem">
+
+      <!-- Lewa: Huby health -->
+      <div class="table-card">
+        <div class="table-card-header"><span class="table-card-title">► Stan hubów</span></div>
+        <div class="table-overflow">
+          <table>
+            <thead><tr><th>Hub</th><th>Artykuły</th><th>Health</th><th>Linki wew.</th></tr></thead>
+            <tbody id="dashHubsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Prawa: Ostatnie artykuły -->
+      <div class="table-card">
+        <div class="table-card-header"><span class="table-card-title">► Ostatnie importy</span></div>
+        <div class="table-overflow">
+          <table>
+            <thead><tr><th>Artykuł</th><th>Hub</th><th>Linki</th><th>Data</th></tr></thead>
+            <tbody id="dashRecentBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alerty -->
+    <div class="table-card" style="margin-top:1rem">
+      <div class="table-card-header"><span class="table-card-title">► Alerty i problemy</span></div>
+      <div id="dashAlerts" style="padding:1rem"></div>
+    </div>
+
+    <!-- Chart: artykuły per hub -->
+    <div class="chart-card" style="margin-top:1rem">
+      <div class="chart-title">► Artykuły per hub</div>
       <div class="chart-wrap"><canvas id="dashChart"></canvas></div>
-    </div>
-
-    <div class="table-card">
-      <div class="table-card-header">
-        <span class="table-card-title">► Ostatnie 5 aukcji</span>
-      </div>
-      <div class="table-overflow">
-        <table>
-          <thead><tr>
-            <th>Tytuł</th><th>Data</th><th>Ocena przed</th><th>Ocena po</th><th>Delta</th>
-          </tr></thead>
-          <tbody id="dashRecentBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="table-card" id="dashHubsCard">
-      <div class="table-card-header">
-        <span class="table-card-title">► Stan hubów</span>
-      </div>
-      <div class="table-overflow">
-        <table>
-          <thead><tr><th>Hub</th><th>Domena</th><th>Artykuły</th><th>Health</th></tr></thead>
-          <tbody id="dashHubsBody"></tbody>
-        </table>
-      </div>
     </div>
   </div>
 
@@ -1607,108 +1619,159 @@ function scoreBadge(s) {
 // ═══════════════════════════════════════════════════════
 let dashChartInst = null;
 
+let selectedDashClient = GUIDELINES_CLIENTS[0].id;
+
+function renderDashClientFilter() {
+  document.getElementById('dashClientFilter').innerHTML = GUIDELINES_CLIENTS.map(c =>
+    clientBtn(c, selectedDashClient === c.id, `switchDashClient('${c.id}')`)
+  ).join('');
+}
+
+function switchDashClient(clientId) {
+  selectedDashClient = clientId;
+  renderDashboard();
+}
+
 function renderDashboard() {
-  const historia = lsGet(KEY.historia, []);
+  renderDashClientFilter();
+  const domena = getClientDomena(selectedDashClient);
+  const allArticles = lsGet(KEY.articles, []);
+  const allHubs = lsGet(KEY.hubs, []);
+  const allKeywords = lsGet(KEY.keywords, []);
 
-  // Stats
-  const today = new Date().toDateString();
-  const countToday = historia.filter(h => new Date(h.date).toDateString() === today).length;
-  const avgBefore = historia.length
-    ? (historia.reduce((a, h) => a + (h.scoreBefore || 0), 0) / historia.length).toFixed(1)
-    : '—';
-  const avgAfter = historia.length
-    ? (historia.reduce((a, h) => a + (h.scoreAfter || 0), 0) / historia.length).toFixed(1)
-    : '—';
+  const articles = domena ? allArticles.filter(a => a.domena === domena) : allArticles;
+  const hubs = domena ? allHubs.filter(h => h.domena === domena) : allHubs;
+  const keywords = allKeywords.filter(k => {
+    if (!domena) return true;
+    const hub = allHubs.find(h => h.id === k.hubId);
+    return hub && hub.domena === domena;
+  });
 
+  // Total internal links
+  let totalLinks = 0;
+  let totalCrossLinks = 0;
+  const artUrls = new Set(articles.filter(a => a.url).map(a => a.url));
+  articles.forEach(a => {
+    const links = a.linksWewnetrzne || [];
+    totalLinks += links.length;
+    totalCrossLinks += links.filter(l => artUrls.has(l.url)).length;
+  });
+
+  const kwCovered = keywords.filter(k => k.pokryta).length;
+  const kwTotal = keywords.length;
+  const avgHealth = hubs.length ? Math.round(hubs.reduce((s, h) => s + hubHealth(h), 0) / hubs.length) : 0;
+
+  // Stats cards
   document.getElementById('dashStats').innerHTML = `
     <div class="stat-card c-accent">
-      <div class="stat-label">Przepisane aukcje</div>
-      <div class="stat-value">${historia.length}</div>
-      <div class="stat-sub">łącznie</div>
+      <div class="stat-label">Artykuły</div>
+      <div class="stat-value">${articles.length}</div>
+      <div class="stat-sub">w bazie</div>
     </div>
     <div class="stat-card c-green">
-      <div class="stat-label">Dziś</div>
-      <div class="stat-value">${countToday}</div>
-      <div class="stat-sub">sesja</div>
+      <div class="stat-label">Huby</div>
+      <div class="stat-value">${hubs.length}</div>
+      <div class="stat-sub">śr. health ${avgHealth}%</div>
+    </div>
+    <div class="stat-card c-blue">
+      <div class="stat-label">Linki wewnętrzne</div>
+      <div class="stat-value">${totalLinks}</div>
+      <div class="stat-sub">${totalCrossLinks} cross-linków w bazie</div>
     </div>
     <div class="stat-card c-yellow">
-      <div class="stat-label">Śr. ocena przed</div>
-      <div class="stat-value">${avgBefore}</div>
-      <div class="stat-sub">średnia historii</div>
+      <div class="stat-label">Słowa kluczowe</div>
+      <div class="stat-value">${kwTotal}</div>
+      <div class="stat-sub">${kwCovered} pokrytych</div>
     </div>
-    <div class="stat-card c-red">
-      <div class="stat-label">Śr. ocena po</div>
-      <div class="stat-value">${avgAfter}</div>
-      <div class="stat-sub">średnia historii</div>
+    <div class="stat-card ${kwTotal - kwCovered > 0 ? 'c-red' : 'c-green'}">
+      <div class="stat-label">Content gap</div>
+      <div class="stat-value">${kwTotal - kwCovered}</div>
+      <div class="stat-sub">fraz bez treści</div>
     </div>
   `;
 
-  // Chart — last 30 days
-  const labels = [];
-  const counts = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const ds = d.toDateString();
-    labels.push(i === 0 ? 'dziś' : `${d.getDate()}.${d.getMonth()+1}`);
-    counts.push(historia.filter(h => new Date(h.date).toDateString() === ds).length);
+  // Hubs table
+  const hubsBody = document.getElementById('dashHubsBody');
+  if (hubs.length === 0) {
+    hubsBody.innerHTML = '<tr><td colspan="4" class="empty-state">Brak hubów</td></tr>';
+  } else {
+    hubsBody.innerHTML = hubs.map(h => {
+      const hp = hubHealth(h);
+      const artCount = articles.filter(a => a.hubId === h.id).length;
+      const hubLinks = articles.filter(a => a.hubId === h.id).reduce((s, a) => s + (a.linksWewnetrzne || []).length, 0);
+      return `<tr>
+        <td class="primary">${esc(h.nazwa)}</td>
+        <td class="mono">${artCount}</td>
+        <td><span class="score-badge ${healthClass(hp)}">${hp}%</span></td>
+        <td class="mono">${hubLinks}</td>
+      </tr>`;
+    }).join('');
   }
 
+  // Recent articles
+  const recent = [...articles].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 8);
+  const recentBody = document.getElementById('dashRecentBody');
+  if (recent.length === 0) {
+    recentBody.innerHTML = '<tr><td colspan="4" class="empty-state">Brak artykułów — zaimportuj pierwszy</td></tr>';
+  } else {
+    recentBody.innerHTML = recent.map(a => {
+      const hub = hubs.find(h => h.id === a.hubId);
+      const d = a.createdAt ? new Date(a.createdAt) : null;
+      return `<tr>
+        <td class="primary" style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.tytul)}</td>
+        <td style="font-size:11px">${hub ? esc(hub.nazwa) : '—'}</td>
+        <td class="mono">${(a.linksWewnetrzne || []).length}</td>
+        <td class="mono">${d ? d.toLocaleDateString('pl') : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Alerts
+  const alerts = [];
+  // Artykuły bez huba
+  const noHub = articles.filter(a => !a.hubId).length;
+  if (noHub) alerts.push(`<span style="color:var(--red)">✗ ${noHub} artykułów bez przypisanego huba</span>`);
+  // Huby bez artykułów
+  const emptyHubs = hubs.filter(h => articles.filter(a => a.hubId === h.id).length === 0);
+  if (emptyHubs.length) alerts.push(`<span style="color:var(--yellow)">⚠ ${emptyHubs.length} hubów bez artykułów: ${emptyHubs.map(h => esc(h.nazwa)).join(', ')}</span>`);
+  // Artykuły bez backlinków
+  const allLinkedUrls = new Set();
+  articles.forEach(a => (a.linksWewnetrzne || []).forEach(l => allLinkedUrls.add(l.url)));
+  const noBacklinks = articles.filter(a => a.url && !allLinkedUrls.has(a.url));
+  if (noBacklinks.length) alerts.push(`<span style="color:var(--yellow)">⚠ ${noBacklinks.length} artykułów bez linków przychodzących</span>`);
+  // Content gap
+  const uncovered = keywords.filter(k => !k.pokryta);
+  if (uncovered.length) alerts.push(`<span style="color:var(--red)">✗ ${uncovered.length} fraz kluczowych bez pokrycia treścią</span>`);
+  // All good
+  if (alerts.length === 0) alerts.push('<span style="color:var(--green)">✓ Wszystko wygląda dobrze</span>');
+
+  document.getElementById('dashAlerts').innerHTML = alerts.map(a => `<div style="padding:4px 0;font-size:12px">${a}</div>`).join('');
+
+  // Chart: articles per hub (bar)
   if (dashChartInst) dashChartInst.destroy();
   const ctx = document.getElementById('dashChart').getContext('2d');
+  const chartHubs = hubs.length ? hubs : [{ nazwa: 'Brak hubów', id: '' }];
   dashChartInst = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
-      labels,
+      labels: chartHubs.map(h => h.nazwa),
       datasets: [{
-        data: counts,
+        label: 'Artykuły',
+        data: chartHubs.map(h => articles.filter(a => a.hubId === h.id).length),
+        backgroundColor: '#00d4aa33',
         borderColor: '#00d4aa',
-        backgroundColor: 'rgba(0,212,170,0.08)',
-        borderWidth: 1.5,
-        pointRadius: 2,
-        pointBackgroundColor: '#00d4aa',
-        fill: true,
-        tension: 0.4,
+        borderWidth: 1,
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, datalabels: { display: false } },
       scales: {
-        x: {
-          ticks: { color: '#555570', font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 10 },
-          grid: { color: '#2a2a3a' },
-        },
-        y: {
-          ticks: { color: '#555570', font: { family: 'DM Mono', size: 10 }, stepSize: 1 },
-          grid: { color: '#2a2a3a' },
-          min: 0,
-        }
+        x: { ticks: { color: '#555570', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#2a2a3a' } },
+        y: { ticks: { color: '#555570', font: { family: 'DM Mono', size: 10 }, stepSize: 1 }, grid: { color: '#2a2a3a' }, min: 0 }
       }
     }
   });
-
-  // Recent 5
-  const recent = [...historia].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
-  const tbody = document.getElementById('dashRecentBody');
-  if (recent.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Brak danych — przepisz pierwszą aukcję</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = recent.map(h => {
-    const delta = (h.scoreAfter || 0) - (h.scoreBefore || 0);
-    const dc = delta > 0 ? 'delta-pos' : delta < 0 ? 'delta-neg' : 'delta-neu';
-    const ds = delta > 0 ? '▲ +' + delta : delta < 0 ? '▼ ' + delta : '— 0';
-    const d = new Date(h.date);
-    return `<tr>
-      <td class="primary">${esc(h.title)}</td>
-      <td class="mono">${d.toLocaleDateString('pl')}</td>
-      <td>${scoreBadge(h.scoreBefore)}</td>
-      <td>${scoreBadge(h.scoreAfter)}</td>
-      <td class="${dc}">${ds}</td>
-    </tr>`;
-  }).join('');
-
-  renderDashHubs();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3819,23 +3882,7 @@ document.getElementById('kwArticle').addEventListener('change', function() {
 // ═══════════════════════════════════════════════════════
 // 14. DASHBOARD — hub health extension
 // ═══════════════════════════════════════════════════════
-function renderDashHubs() {
-  const hubs = lsGet(KEY.hubs, []);
-  const tbody = document.getElementById('dashHubsBody');
-  if (hubs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Brak hubów — dodaj w zakładce HUBY</td></tr>';
-    return;
-  }
-  tbody.innerHTML = hubs.map(h => {
-    const hp = hubHealth(h);
-    return `<tr>
-      <td class="primary">${esc(h.nazwa)}</td>
-      <td class="mono" style="font-size:11px">${esc(h.domena)}</td>
-      <td class="mono">${(h.artykuly||[]).length}</td>
-      <td><span class="score-badge ${healthClass(hp)}">${hp}%</span></td>
-    </tr>`;
-  }).join('');
-}
+// renderDashHubs — now integrated into renderDashboard
 
 // ═══════════════════════════════════════════════════════
 // 15. FIREBASE AUTH (placeholder)
