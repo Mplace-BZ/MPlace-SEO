@@ -73,45 +73,46 @@ html, body {
   background: radial-gradient(ellipse 60% 50% at 50% 50%, transparent 0%, var(--bg-primary) 80%);
   pointer-events: none;
 }
-.welcome-inner { position: relative; z-index: 1; text-align: center; max-width: 720px; padding: 0 2rem; }
-.welcome-logo {
-  font-family: var(--font-mono); font-size: clamp(2.5rem, 8vw, 5rem);
-  font-weight: 500; color: var(--accent);
-  letter-spacing: 0.15em; line-height: 1;
-  text-shadow: 0 0 40px var(--accent-border);
-  margin-bottom: 0.5rem;
+.welcome-inner { position: relative; z-index: 1; text-align: center; max-width: 800px; padding: 0 2.5rem; }
+.welcome-datetime {
+  font-family: var(--font-mono); font-size: 0.82rem;
+  color: var(--text-muted); letter-spacing: 0.12em;
+  margin-bottom: 3.5rem;
 }
-.welcome-subtitle {
-  font-family: var(--font-mono); font-size: 0.75rem;
-  color: var(--text-muted); letter-spacing: 0.3em; text-transform: uppercase;
-  margin-bottom: 2.5rem;
-}
-.welcome-quote-block {
-  margin: 0 auto 2.5rem;
-  border-top: 1px solid var(--accent-border);
-  padding-top: 1.5rem;
+.welcome-quotemark {
+  font-family: Georgia, serif; font-size: 4rem;
+  color: var(--accent); opacity: 0.45; line-height: 1;
+  margin-bottom: 1.5rem;
 }
 .welcome-quote-text {
   font-style: italic; color: rgba(232,232,240,0.9);
-  font-size: 1.25rem; line-height: 1.8; margin-bottom: 1.25rem;
+  font-size: clamp(1.4rem, 3.5vw, 2.2rem); line-height: 1.6;
+  margin-bottom: 2.5rem; font-weight: 400;
+}
+.welcome-quote-line {
+  width: 40px; height: 2px; background: var(--accent);
+  margin: 0 auto 1.5rem; border-radius: 1px;
 }
 .welcome-quote-author {
-  font-family: var(--font-mono); font-size: 0.8rem;
-  color: var(--accent); text-transform: uppercase; letter-spacing: 0.2em; font-weight: 500;
+  font-family: var(--font-mono); font-size: 0.85rem;
+  color: var(--accent); text-transform: uppercase;
+  letter-spacing: 0.25em; font-weight: 500;
+  margin-bottom: 0.4rem;
 }
 .welcome-quote-years {
-  font-family: var(--font-mono); font-size: 0.72rem;
-  color: var(--text-muted); margin-left: 0.5rem;
+  font-family: var(--font-mono); font-size: 0.75rem;
+  color: var(--text-muted); letter-spacing: 0.1em;
+  display: block; margin-top: 0.3rem;
 }
 .welcome-cta {
   font-family: var(--font-mono); font-size: 11px;
-  color: var(--accent); letter-spacing: 0.15em;
-  text-transform: uppercase; margin-top: 2rem;
+  color: var(--text-muted); letter-spacing: 0.15em;
+  text-transform: uppercase; margin-top: 4rem;
   animation: cta-pulse 2s ease-in-out infinite;
 }
 @keyframes cta-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.2; }
 }
 
 /* ── TOPBAR ── */
@@ -531,15 +532,12 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; }
 <!-- ══════════════════════════════════════════════════ WELCOME -->
 <div id="welcome">
   <div class="welcome-inner">
-    <div class="welcome-logo">MPLACE SEO</div>
-    <div class="welcome-subtitle">Content Intelligence Platform</div>
-    <div class="welcome-quote-block">
-      <div class="welcome-quote-text" id="quoteText"></div>
-      <div>
-        <span class="welcome-quote-author" id="quoteAuthor"></span>
-        <span class="welcome-quote-years" id="quoteYears"></span>
-      </div>
-    </div>
+    <div class="welcome-datetime" id="welcomeDatetime"></div>
+    <div class="welcome-quotemark">"</div>
+    <div class="welcome-quote-text" id="quoteText"></div>
+    <div class="welcome-quote-line"></div>
+    <div class="welcome-quote-author" id="quoteAuthor"></div>
+    <div class="welcome-quote-years" id="quoteYears"></div>
     <div class="welcome-cta">KLIKNIJ ABY KONTYNUOWAĆ</div>
   </div>
 </div>
@@ -906,8 +904,15 @@ const QUOTES = [
 ];
 
 (function initWelcome() {
+  const now = new Date();
+  const dayNames = ['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+  const monthNames = ['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
+  const timeStr = now.toLocaleTimeString('pl', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('welcomeDatetime').textContent =
+    `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}  ·  ${timeStr}`;
+
   const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-  document.getElementById('quoteText').textContent = `"${q.text}"`;
+  document.getElementById('quoteText').textContent = q.text;
   document.getElementById('quoteAuthor').textContent = q.author;
   document.getElementById('quoteYears').textContent = q.years;
 
