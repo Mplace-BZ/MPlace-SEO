@@ -1698,7 +1698,7 @@ function clientBtn(c, isActive, onclick) {
 // ═══════════════════════════════════════════════════════
 // 7. AGENT
 // ═══════════════════════════════════════════════════════
-async function callAgent(prompt, systemPrompt) {
+async function callAgent(prompt, systemPrompt, onChunk) {
   const response = await fetch('https://red-haze-5f37mplace-agent.contactmplace.workers.dev', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1706,13 +1706,44 @@ async function callAgent(prompt, systemPrompt) {
       model: 'claude-sonnet-4-6',
       max_tokens: 8192,
       system: systemPrompt,
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: prompt }],
+      stream: true
     })
   });
-  if (!response.ok) throw new Error('Worker zwrócił status ' + response.status);
-  const data = await response.json();
-  if (!data.content || !data.content[0]) throw new Error('Brak treści w odpowiedzi');
-  return data.content[0].text;
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error('Worker error: ' + response.status + ' ' + errText);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed === 'data: [DONE]') continue;
+      if (trimmed.startsWith('data: ')) {
+        try {
+          const parsed = JSON.parse(trimmed.slice(6));
+          if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+            fullText += parsed.delta.text;
+            if (onChunk) onChunk(parsed.delta.text, fullText);
+          }
+        } catch(e) {}
+      }
+    }
+  }
+  return fullText;
 }
 
 let agentResult = '';
@@ -1863,16 +1894,23 @@ WYMAGANIA OBOWIĄZKOWE:
 8. Łącznie minimum 2500 słów — licz słowa i nie kończ przed osiągnięciem minimum`;
 
   try {
-    const result = await callAgent(userPrompt, systemPrompt);
-    agentResult = result;
-    outputEl.textContent = result;
+    outputEl.textContent = '';
     outputEl.style.display = 'block';
     loadingEl.classList.remove('visible');
+    wordCountEl.style.display = 'block';
+    wordCountEl.textContent = '► 0 słów';
+
+    const result = await callAgent(userPrompt, systemPrompt, (chunk, full) => {
+      outputEl.textContent = full;
+      const wc = countWords(full);
+      wordCountEl.textContent = `► ${wc} słów`;
+      outputEl.scrollTop = outputEl.scrollHeight;
+    });
+    agentResult = result;
     dot.classList.add('inactive');
     actionsEl.style.display = 'flex';
     const wc = countWords(result);
     wordCountEl.textContent = `► ${wc} słów`;
-    wordCountEl.style.display = 'block';
   } catch (err) {
     agentResult = '';
     outputEl.textContent = 'Błąd połączenia z agentem. Sprawdź połączenie internetowe i spróbuj ponownie.';
@@ -2323,7 +2361,11 @@ ${text}
 Zwróć TYLKO gotowy kod HTML.`;
 
   try {
-    const result = await callAgent(userPrompt, systemPrompt);
+    outputEl.value = '';
+    const result = await callAgent(userPrompt, systemPrompt, (chunk, full) => {
+      outputEl.value = full;
+      outputEl.scrollTop = outputEl.scrollHeight;
+    });
     outputEl.value = result;
   } catch (err) {
     outputEl.value = 'Błąd: ' + err.message;
