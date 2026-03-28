@@ -3551,7 +3551,7 @@ function renderSitemap() {
     document.querySelectorAll('.sitemap-art').forEach(el => {
       el.addEventListener('mouseenter', function() {
         const id = this.dataset.artid;
-        el.style.borderColor = 'var(--accent)';
+        el.style.boxShadow = '0 0 0 1px var(--accent)';
         document.querySelectorAll('.crosslink').forEach(p => {
           if (p.dataset.from === id || p.dataset.to === id) {
             p.setAttribute('opacity', '0.8'); p.setAttribute('stroke-width', '2.5');
@@ -3561,7 +3561,7 @@ function renderSitemap() {
         });
       });
       el.addEventListener('mouseleave', function() {
-        el.style.borderColor = 'var(--border)';
+        el.style.boxShadow = 'none';
         document.querySelectorAll('.crosslink').forEach(p => {
           p.setAttribute('opacity', '0.3'); p.setAttribute('stroke-width', '1');
         });
