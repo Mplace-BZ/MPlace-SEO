@@ -2920,23 +2920,23 @@ document.getElementById('parseTextBtn').addEventListener('click', () => {
   const hub = extractField(text, 'Hub(?:\\s*/\\s*kategoria)?');
   const autor = extractField(text, 'Autor');
   const data = extractField(text, 'Data publikacji');
-  // Keywords — obsługuje format z typami: "główna: materac pocket, LSI: sprężyny kieszeniowe"
-  // lub prosty: "materac pocket, sprężyny kieszeniowe"
-  const kwLines = text.split('\n').filter(l => /^(główna|glowna|LSI|długi ogon|dlugi ogon|słowa kluczowe)\s*:/i.test(l.trim()));
+  // Keywords — format z typami: "główna: ..., LSI: ..., długi ogon: ..."
   let keywordsWithType = [];
-  if (kwLines.length > 0) {
-    kwLines.forEach(line => {
-      const m = line.match(/^(główna|glowna|LSI|długi ogon|dlugi ogon|słowa kluczowe)\s*:\s*(.+)/i);
-      if (m) {
-        let typ = m[1].toLowerCase();
-        if (typ === 'glowna' || typ === 'słowa kluczowe') typ = 'główna';
-        if (typ === 'dlugi ogon') typ = 'długi ogon';
-        m[2].split(/[,;]+/).map(s => s.trim()).filter(Boolean).forEach(kw => {
-          keywordsWithType.push({ fraza: kw, typ: typ.toUpperCase() === 'LSI' ? 'LSI' : typ });
-        });
-      }
-    });
-  } else {
+  const kwTypeRe = /^(g[lł][oó]wna|LSI|d[lł]ugi\s*ogon|s[lł]owa\s*kluczowe)\s*:\s*(.+)/i;
+  text.split('\n').forEach(rawLine => {
+    const line = rawLine.trim();
+    const m = line.match(kwTypeRe);
+    if (m) {
+      let typ = m[1].toLowerCase().normalize('NFC');
+      if (/g..wna|slowa|słowa/.test(typ)) typ = 'główna';
+      else if (/lsi/.test(typ)) typ = 'LSI';
+      else if (/d..gi/.test(typ)) typ = 'długi ogon';
+      m[2].split(/[,;]+/).map(s => s.trim()).filter(Boolean).forEach(kw => {
+        keywordsWithType.push({ fraza: kw, typ });
+      });
+    }
+  });
+  if (keywordsWithType.length === 0) {
     const kwRaw = extractField(text, 'Słowa kluczowe');
     if (kwRaw) kwRaw.split(/[,;]+/).map(s => s.trim()).filter(Boolean).forEach(kw => {
       keywordsWithType.push({ fraza: kw, typ: 'główna' });
@@ -3239,16 +3239,18 @@ function renderKeywords() {
   if (keywords.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Brak fraz — dodaj pierwszą</td></tr>';
   } else {
+    const typColor = t => t === 'LSI' ? '#00bcd4' : t === 'długi ogon' ? '#fbbf24' : 'var(--green)';
     tbody.innerHTML = keywords.map(kw => {
       const hub = hubs.find(h => h.id === kw.hubId);
       return `<tr style="${!kw.pokryta ? 'background:var(--yellow-dim)' : ''}">
         <td class="primary">${esc(kw.fraza)}</td>
-        <td><span class="score-badge" style="font-size:9px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-secondary)">${esc(kw.typ)}</span></td>
-        <td style="font-size:11px">${hub ? esc(hub.nazwa) : '—'}</td>
-        <td style="text-align:center">${kw.pokryta ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗ BRAK TREŚCI</span>'}</td>
+        <td><span style="font-family:var(--font-mono);font-size:9px;padding:2px 8px;border-radius:3px;background:${typColor(kw.typ)}18;color:${typColor(kw.typ)};border:1px solid ${typColor(kw.typ)}44">${esc(kw.typ || 'główna')}</span></td>
+        <td style="font-size:11px">${hub ? esc(hub.nazwa) : '<span style="color:var(--red)">—</span>'}</td>
+        <td style="text-align:center">${kw.pokryta ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>'}</td>
         <td><div class="gap-row">
-          ${!kw.pokryta ? `<button class="btn btn-accent" onclick="kwToAgent('${kw.id}')">GENERUJ ARTYKUŁ</button>` : ''}
-          <button class="btn btn-red" onclick="deleteKeyword('${kw.id}')">USUŃ</button>
+          <button class="btn" style="font-size:8px;padding:2px 6px" onclick="editKeyword('${kw.id}')">EDYTUJ</button>
+          ${!kw.pokryta ? `<button class="btn btn-accent" style="font-size:8px;padding:2px 6px" onclick="kwToAgent('${kw.id}')">GENERUJ</button>` : ''}
+          <button class="btn btn-red" style="font-size:8px;padding:2px 6px" onclick="deleteKeyword('${kw.id}')">USUŃ</button>
         </div></td>
       </tr>`;
     }).join('');
@@ -3275,6 +3277,23 @@ function kwToAgent(id) {
   switchTab('agent');
 }
 
+window._editKwId = null;
+
+function editKeyword(id) {
+  const kws = lsGet(KEY.keywords, []);
+  const kw = kws.find(x => x.id === id);
+  if (!kw) return;
+  window._editKwId = id;
+  document.getElementById('kwInput').value = kw.fraza;
+  document.getElementById('kwType').value = kw.typ || 'główna';
+  const hubs = lsGet(KEY.hubs, []);
+  const kwHubSel = document.getElementById('kwHub');
+  kwHubSel.innerHTML = '<option value="">— brak —</option>' + hubs.map(h => `<option value="${h.id}"${h.id === kw.hubId ? ' selected' : ''}>${esc(h.nazwa)}</option>`).join('');
+  document.getElementById('kwCovered').checked = kw.pokryta || false;
+  document.getElementById('kwAddBtn').textContent = 'ZAPISZ ►';
+  document.getElementById('kwInput').focus();
+}
+
 function deleteKeyword(id) {
   if (!confirm('Usunąć tę frazę?')) return;
   let kws = lsGet(KEY.keywords, []);
@@ -3287,16 +3306,32 @@ document.getElementById('kwAddBtn').addEventListener('click', () => {
   const fraza = document.getElementById('kwInput').value.trim();
   if (!fraza) { alert('Wpisz frazę.'); return; }
   const kws = lsGet(KEY.keywords, []);
-  kws.push({
-    id: 'kw' + Date.now(), fraza,
-    typ: document.getElementById('kwType').value,
-    hubId: document.getElementById('kwHub').value,
-    pokryta: document.getElementById('kwCovered').checked,
-    createdAt: new Date().toISOString()
-  });
+
+  if (window._editKwId) {
+    const kw = kws.find(x => x.id === window._editKwId);
+    if (kw) {
+      kw.fraza = fraza;
+      kw.typ = document.getElementById('kwType').value;
+      kw.hubId = document.getElementById('kwHub').value;
+      kw.pokryta = document.getElementById('kwCovered').checked;
+    }
+    window._editKwId = null;
+    document.getElementById('kwAddBtn').textContent = 'DODAJ ►';
+  } else {
+    kws.push({
+      id: 'kw' + Date.now(), fraza,
+      typ: document.getElementById('kwType').value,
+      hubId: document.getElementById('kwHub').value,
+      pokryta: document.getElementById('kwCovered').checked,
+      createdAt: new Date().toISOString()
+    });
+  }
+
   lsSet(KEY.keywords, kws); saveAllWithSync();
   document.getElementById('kwInput').value = '';
   document.getElementById('kwCovered').checked = false;
+  window._editKwId = null;
+  document.getElementById('kwAddBtn').textContent = 'DODAJ ►';
   renderKeywords();
 });
 
@@ -3449,12 +3484,12 @@ seedTestData();
   console.log('[MIGRACJA v3] Usunięto stare testowe dane: artykuły, keywords, huby, satelity');
 })();
 
-// Migracja v5: wyczyść WSZYSTKIE keywords — fresh start
+// Migracja v6: wyczyść keywords z nagłówków H2 (źle sparsowane) — fresh start
 (function() {
-  if (lsGet(PFX + 'cleaned_v5')) return;
+  if (lsGet(PFX + 'cleaned_v6')) return;
   lsSet(KEY.keywords, []);
-  lsSet(PFX + 'cleaned_v5', true);
-  console.log('[MIGRACJA v5] Wyczyszczono keywords — rebuild z importów');
+  lsSet(PFX + 'cleaned_v6', true);
+  console.log('[MIGRACJA v6] Wyczyszczono keywords — reimportuj artykuły z typami główna/LSI/długi ogon');
 })();
 
 document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
