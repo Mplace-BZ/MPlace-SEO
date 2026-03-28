@@ -3312,19 +3312,34 @@ seedTestData();
   }
 })();
 
-// Migracja: usuń stare testowe artykuły i keywords (jednorazowa)
+// Migracja: wyczyść wszystkie stare testowe dane (jednorazowa v3)
 (function() {
-  if (lsGet(PFX + 'cleaned_v2')) return;
-  // Usuń testowe artykuły (art1, art2, art3)
+  if (lsGet(PFX + 'cleaned_v3')) return;
+
+  // Wyczyść testowe artykuły
   var arts = lsGet(KEY.articles, []);
   arts = arts.filter(function(a) { return !['art1','art2','art3'].includes(a.id); });
   lsSet(KEY.articles, arts);
-  // Usuń testowe keywords (kw1-kw5)
+
+  // Wyczyść testowe keywords
   var kws = lsGet(KEY.keywords, []);
   kws = kws.filter(function(k) { return !['kw1','kw2','kw3','kw4','kw5'].includes(k.id); });
   lsSet(KEY.keywords, kws);
-  lsSet(PFX + 'cleaned_v2', true);
-  console.log('[MIGRACJA] Usunięto stare testowe artykuły i keywords');
+
+  // Wyczyść stare huby (hub2 Narożniki, hub3 Semmi) i testowe satelity z hubów Luxsen
+  var hubs = lsGet(KEY.hubs, []);
+  hubs = hubs.filter(function(h) { return !['hub2','hub3'].includes(h.id); });
+  hubs.forEach(function(h) {
+    if (h.artykuly) {
+      h.artykuly = h.artykuly.filter(function(a) {
+        return !a.id.startsWith('sa');
+      });
+    }
+  });
+  lsSet(KEY.hubs, hubs);
+
+  lsSet(PFX + 'cleaned_v3', true);
+  console.log('[MIGRACJA v3] Usunięto stare testowe dane: artykuły, keywords, huby, satelity');
 })();
 
 document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
