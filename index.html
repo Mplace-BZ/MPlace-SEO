@@ -942,25 +942,9 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <button class="btn btn-accent" style="margin-top:12px" onclick="switchTab('artykuly')">PRZEJDŹ DO IMPORTU ►</button>
     </div>
 
-    <div id="sitemapContainer" style="position:relative;overflow-x:auto;padding-bottom:2rem">
-      <svg id="sitemapSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1">
-        <defs>
-          <marker id="arrowHead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="var(--accent)" opacity="0.6"/></marker>
-          <marker id="arrowGray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="var(--text-muted)" opacity="0.4"/></marker>
-          <marker id="arrowCyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#00bcd4" opacity="0.5"/></marker>
-        </defs>
-      </svg>
-
-      <!-- Poziom 0: Domena -->
-      <div style="display:flex;justify-content:center;margin-bottom:2rem;position:relative;z-index:2">
-        <div id="sitemapRoot" style="background:var(--bg-card);border:2px solid var(--accent);border-radius:8px;padding:12px 32px;font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;text-align:center"></div>
-      </div>
-
-      <!-- Poziom 1: Huby -->
-      <div id="sitemapHubs" style="display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;margin-bottom:2rem;position:relative;z-index:2"></div>
-
-      <!-- Poziom 2: Artykuły per hub -->
-      <div id="sitemapArticles" style="display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;position:relative;z-index:2"></div>
+    <div id="sitemapContainer" style="position:relative;overflow:auto;min-height:600px">
+      <svg id="sitemapSvg" style="position:absolute;top:0;left:0;pointer-events:none;z-index:1"></svg>
+      <div id="sitemapNodes" style="position:relative;z-index:2"></div>
     </div>
 
     <!-- Panel boczny -->
@@ -973,12 +957,12 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     </div>
 
     <!-- Legenda -->
-    <div style="margin-top:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-size:11px;display:flex;gap:16px;flex-wrap:wrap">
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--accent);vertical-align:middle;margin-right:4px"></span> Hub / Pillar page</span>
-      <span><span style="display:inline-block;width:16px;height:2px;background:var(--accent);vertical-align:middle;margin-right:4px"></span> Link do huba</span>
-      <span><span style="display:inline-block;width:16px;height:2px;background:var(--text-muted);vertical-align:middle;margin-right:4px;border-top:2px dashed var(--text-muted)"></span> Cross-link</span>
-      <span><span style="display:inline-block;width:10px;height:10px;border-left:3px solid var(--green);vertical-align:middle;margin-right:4px"></span> Linkuje do huba ✓</span>
-      <span><span style="display:inline-block;width:10px;height:10px;border-left:3px solid var(--red);vertical-align:middle;margin-right:4px"></span> Brak linku do huba ✗</span>
+    <div style="margin-top:0.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 16px;font-size:10px;display:flex;gap:14px;flex-wrap:wrap">
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);vertical-align:middle;margin-right:4px"></span> Hub</span>
+      <span style="color:var(--accent)">— link hub→artykuł</span>
+      <span style="color:#00bcd4">⤍ cross-link artykuł→artykuł</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border:2px solid var(--green);border-radius:2px;vertical-align:middle;margin-right:4px"></span> linkuje w klastrze ✓</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border:2px solid var(--red);border-radius:2px;vertical-align:middle;margin-right:4px"></span> izolowany ✗</span>
     </div>
   </div>
 
@@ -3416,9 +3400,10 @@ function showLinkDetail(artId, focus) {
 }
 
 // ═══════════════════════════════════════════════════════
-// 12b. SITEMAP
+// 12b. SITEMAP (graph layout)
 // ═══════════════════════════════════════════════════════
 let selectedSitemapClient = GUIDELINES_CLIENTS[0].id;
+let _sitemapHover = null;
 
 function renderSitemapClientFilter() {
   document.getElementById('sitemapClientFilter').innerHTML = GUIDELINES_CLIENTS.map(c =>
@@ -3437,13 +3422,11 @@ function renderSitemap() {
   const hubs = lsGet(KEY.hubs, []).filter(h => !domena || h.domena === domena);
   const articles = lsGet(KEY.articles, []).filter(a => !domena || a.domena === domena);
   const hubFilter = document.getElementById('sitemapHubFilter').value;
-
-  // Populate hub filter
   const sel = document.getElementById('sitemapHubFilter');
   const curVal = sel.value;
   sel.innerHTML = '<option value="">Wszystkie huby</option>' + hubs.map(h => `<option value="${h.id}"${h.id === curVal ? ' selected' : ''}>${esc(h.nazwa)}</option>`).join('');
 
-  if (articles.length === 0 && hubs.length === 0) {
+  if (articles.length === 0) {
     document.getElementById('sitemapEmpty').style.display = 'block';
     document.getElementById('sitemapContainer').style.display = 'none';
     return;
@@ -3451,184 +3434,140 @@ function renderSitemap() {
   document.getElementById('sitemapEmpty').style.display = 'none';
   document.getElementById('sitemapContainer').style.display = 'block';
 
-  // Root
-  document.getElementById('sitemapRoot').textContent = domena || 'wszystkie domeny';
-
-  // Filtered hubs
   const visHubs = hubFilter ? hubs.filter(h => h.id === hubFilter) : hubs;
+  const visArts = hubFilter ? articles.filter(a => a.hubId === hubFilter) : articles;
+  const artUrlToId = {};
+  visArts.forEach(a => { if (a.url) artUrlToId[a.url] = a.id; });
 
-  // Build backlinks map
-  const linksToMap = {};
-  articles.forEach(a => (a.linksWewnetrzne || []).forEach(l => {
-    if (!linksToMap[l.url]) linksToMap[l.url] = [];
-    linksToMap[l.url].push(a.tytul);
-  }));
+  // Layout: position nodes
+  const W = document.getElementById('sitemapContainer').offsetWidth || 1200;
+  const hubSpacing = Math.max(280, W / (visHubs.length + 1));
+  const nodes = {};
+  const nodesHtml = [];
+
+  // Domain root
+  const rootX = W / 2;
+  const rootY = 30;
+  nodesHtml.push(`<div data-nodeid="root" style="position:absolute;left:${rootX - 60}px;top:${rootY}px;width:120px;background:var(--bg-card);border:2px solid var(--accent);border-radius:8px;padding:8px;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--accent);text-transform:uppercase">${esc(domena || 'site')}</div>`);
+  nodes['root'] = { x: rootX, y: rootY + 18 };
 
   // Hubs
-  document.getElementById('sitemapHubs').innerHTML = visHubs.map(h => {
+  visHubs.forEach((h, i) => {
+    const hx = hubSpacing * (i + 1) - hubSpacing / 2 + (W - hubSpacing * visHubs.length) / 2;
+    const hy = 100;
     const hp = hubHealth(h);
-    const artCount = articles.filter(a => a.hubId === h.id).length;
-    return `<div class="sitemap-hub" data-hubid="${h.id}" style="background:var(--bg-card);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 16px;min-width:200px;max-width:260px;text-align:center;cursor:pointer" onclick="document.getElementById('sitemapHubFilter').value='${h.id}';renderSitemap()">
-      <div style="font-size:12px;font-weight:500;color:var(--text-primary)">${esc(h.nazwa)}</div>
-      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:4px">${artCount} artykułów · <span class="${healthClass(hp)}" style="font-size:10px">${hp}%</span></div>
-    </div>`;
-  }).join('');
-
-  // Articles per hub
-  document.getElementById('sitemapArticles').innerHTML = visHubs.map(h => {
-    const hubArts = articles.filter(a => a.hubId === h.id);
-    if (hubArts.length === 0) return `<div style="min-width:200px;max-width:260px;text-align:center"><div style="color:var(--text-muted);font-size:11px;padding:1rem">Brak artykułów</div></div>`;
-
-    return `<div style="min-width:200px;max-width:260px;display:flex;flex-direction:column;gap:6px">
-      ${hubArts.map(a => {
-        const links = a.linksWewnetrzne || [];
-        const backlinks = linksToMap[a.url] || [];
-        // Check: artykuł linkuje do pillar URL huba LUB do innego artykułu w tym samym hubie
-        const hubArtUrls = new Set(hubArts.filter(x => x.id !== a.id && x.url).map(x => x.url));
-        if (h.urlPillar) hubArtUrls.add(h.urlPillar);
-        const linksToHub = links.some(l => hubArtUrls.has(l.url));
-        const borderColor = linksToHub ? 'var(--green)' : 'var(--red)';
-        const titleShort = a.tytul.length > 40 ? a.tytul.substring(0, 37) + '...' : a.tytul;
-        return `<div class="sitemap-art" data-artid="${a.id}" style="background:var(--bg-secondary);border:1px solid var(--border);border-left:3px solid ${borderColor};border-radius:4px;padding:8px 10px;cursor:pointer;transition:all 0.15s" onclick="openSitemapPanel('${a.id}')" onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)';this.style.borderLeftColor='${borderColor}'">
-          <div style="font-size:11px;color:var(--text-primary);margin-bottom:4px;line-height:1.3">${esc(titleShort)}</div>
-          <div style="display:flex;gap:8px;font-family:var(--font-mono);font-size:9px;color:var(--text-muted)">
-            <span>${a.maH1 ? '<span style="color:var(--green)">H1</span>' : '<span style="color:var(--red)">H1</span>'}</span>
-            <span>${a.maFAQ ? '<span style="color:var(--green)">FAQ</span>' : ''}</span>
-            <span>${a.maCTA ? '<span style="color:var(--yellow)">CTA</span>' : ''}</span>
-            <span style="margin-left:auto;color:var(--accent)">→${links.length}</span>
-            <span style="color:${backlinks.length ? '#00c896' : 'var(--red)'}">←${backlinks.length}</span>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
-  }).join('');
-
-  // Draw SVG lines
-  setTimeout(drawSitemapLines, 100);
-}
-
-function drawSitemapLines() {
-  const svg = document.getElementById('sitemapSvg');
-  const container = document.getElementById('sitemapContainer');
-  const rect = container.getBoundingClientRect();
-  svg.setAttribute('width', container.scrollWidth);
-  svg.setAttribute('height', container.scrollHeight);
-
-  // Clear old lines (keep defs)
-  const defs = svg.querySelector('defs');
-  svg.innerHTML = '';
-  svg.appendChild(defs);
-
-  const root = document.getElementById('sitemapRoot');
-  if (!root) return;
-  const rootRect = root.getBoundingClientRect();
-  const rootX = rootRect.left + rootRect.width / 2 - rect.left;
-  const rootY = rootRect.bottom - rect.top;
-
-  // Lines from root to hubs
-  document.querySelectorAll('.sitemap-hub').forEach(hubEl => {
-    const hr = hubEl.getBoundingClientRect();
-    const hx = hr.left + hr.width / 2 - rect.left;
-    const hy = hr.top - rect.top;
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', rootX); line.setAttribute('y1', rootY);
-    line.setAttribute('x2', hx); line.setAttribute('y2', hy);
-    line.setAttribute('stroke', 'var(--accent)'); line.setAttribute('stroke-width', '2');
-    line.setAttribute('opacity', '0.4');
-    line.setAttribute('marker-end', 'url(#arrowHead)');
-    svg.appendChild(line);
+    const artCount = visArts.filter(a => a.hubId === h.id).length;
+    nodes['hub_' + h.id] = { x: hx, y: hy + 20 };
+    nodesHtml.push(`<div data-nodeid="hub_${h.id}" style="position:absolute;left:${hx - 90}px;top:${hy}px;width:180px;background:var(--bg-card);border:1px solid var(--border);border-top:3px solid var(--accent);border-radius:6px;padding:10px;text-align:center;cursor:pointer" onclick="document.getElementById('sitemapHubFilter').value='${h.id}';renderSitemap()">
+      <div style="font-size:11px;font-weight:500;color:var(--text-primary)">${esc(h.nazwa)}</div>
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);margin-top:3px">${artCount} art. · <span class="${healthClass(hp)}">${hp}%</span></div>
+    </div>`);
   });
 
-  // Lines from hubs to articles (match by column position)
-  document.querySelectorAll('.sitemap-hub').forEach(hubEl => {
-    const hr = hubEl.getBoundingClientRect();
-    const hx = hr.left + hr.width / 2 - rect.left;
-    const hy = hr.bottom - rect.top;
-    const hubId = hubEl.dataset.hubid;
+  // Articles — spread under each hub
+  visHubs.forEach((h, hi) => {
+    const hubArts = visArts.filter(a => a.hubId === h.id);
+    const hx = nodes['hub_' + h.id].x;
+    const startY = 200;
+    const artW = 220;
 
-    document.querySelectorAll(`.sitemap-art`).forEach(artEl => {
-      const artId = artEl.dataset.artid;
-      const articles = lsGet(KEY.articles, []);
-      const art = articles.find(a => a.id === artId);
-      if (!art || art.hubId !== hubId) return;
+    hubArts.forEach((a, ai) => {
+      const ax = hx;
+      const ay = startY + ai * 60;
+      const links = a.linksWewnetrzne || [];
+      const hubArtUrls = new Set(hubArts.filter(x => x.id !== a.id && x.url).map(x => x.url));
+      if (h.urlPillar) hubArtUrls.add(h.urlPillar);
+      const linksToCluster = links.some(l => hubArtUrls.has(l.url));
+      const borderColor = linksToCluster ? '#00c896' : '#e8445a';
+      const crossCount = links.filter(l => artUrlToId[l.url] && artUrlToId[l.url] !== a.id).length;
+      const titleShort = a.tytul.length > 35 ? a.tytul.substring(0, 32) + '...' : a.tytul;
 
-      const ar = artEl.getBoundingClientRect();
-      const ax = ar.left + ar.width / 2 - rect.left;
-      const ay = ar.top - rect.top;
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', hx); line.setAttribute('y1', hy);
-      line.setAttribute('x2', ax); line.setAttribute('y2', ay);
-      line.setAttribute('stroke', 'var(--accent)'); line.setAttribute('stroke-width', '1');
-      line.setAttribute('opacity', '0.2');
-      svg.appendChild(line);
+      nodes['art_' + a.id] = { x: ax, y: ay + 22 };
+      nodesHtml.push(`<div data-nodeid="art_${a.id}" data-artid="${a.id}" class="sitemap-art" style="position:absolute;left:${ax - artW/2}px;top:${ay}px;width:${artW}px;background:var(--bg-secondary);border:1px solid var(--border);border-left:3px solid ${borderColor};border-radius:4px;padding:6px 10px;cursor:pointer;transition:all 0.15s;font-size:11px" onclick="openSitemapPanel('${a.id}')">
+        <div style="color:var(--text-primary);line-height:1.3;margin-bottom:3px">${esc(titleShort)}</div>
+        <div style="display:flex;gap:6px;font-family:var(--font-mono);font-size:9px;color:var(--text-muted)">
+          ${a.maH1 ? '<span style="color:var(--green)">H1</span>' : ''}
+          ${a.maFAQ ? '<span style="color:var(--green)">FAQ</span>' : ''}
+          ${a.maCTA ? '<span style="color:var(--yellow)">CTA</span>' : ''}
+          <span style="margin-left:auto;color:var(--accent)">→${links.length}</span>
+          ${crossCount ? `<span style="color:#00bcd4">⤍${crossCount}</span>` : ''}
+        </div>
+      </div>`);
     });
   });
 
-  // Cross-links between articles (article A links to article B's URL)
-  const articles = lsGet(KEY.articles, []);
-  const domena = getClientDomena(selectedSitemapClient);
-  const clientArts = domena ? articles.filter(a => a.domena === domena) : articles;
-  const artUrlMap = {};
-  document.querySelectorAll('.sitemap-art').forEach(el => {
-    artUrlMap[el.dataset.artid] = el;
-  });
+  // Set container height
+  const maxY = Math.max(...Object.values(nodes).map(n => n.y)) + 60;
+  document.getElementById('sitemapContainer').style.height = Math.max(600, maxY) + 'px';
 
-  clientArts.forEach(srcArt => {
-    const srcEl = artUrlMap[srcArt.id];
-    if (!srcEl) return;
-    const srcRect = srcEl.getBoundingClientRect();
-    const sx = srcRect.right - rect.left;
-    const sy = srcRect.top + srcRect.height / 2 - rect.top;
+  document.getElementById('sitemapNodes').innerHTML = nodesHtml.join('');
 
-    (srcArt.linksWewnetrzne || []).forEach(link => {
-      // Find target article by URL
-      const targetArt = clientArts.find(a => a.id !== srcArt.id && a.url === link.url);
-      if (!targetArt) return;
-      const targetEl = artUrlMap[targetArt.id];
-      if (!targetEl) return;
+  // Draw SVG
+  setTimeout(() => {
+    const svg = document.getElementById('sitemapSvg');
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', Math.max(600, maxY));
+    svg.innerHTML = '<defs><marker id="ah" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,6 2.5,0 5" fill="#00d4aa" opacity="0.5"/></marker><marker id="ac" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,6 2.5,0 5" fill="#00bcd4" opacity="0.6"/></marker></defs>';
 
-      const tRect = targetEl.getBoundingClientRect();
-      const tx = tRect.left - rect.left;
-      const ty = tRect.top + tRect.height / 2 - rect.top;
-
-      // Curved path for cross-links
-      const midX = (sx + tx) / 2;
-      const curve = Math.abs(sy - ty) < 30 ? 30 : 0;
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', `M ${sx} ${sy} C ${midX + curve} ${sy}, ${midX - curve} ${ty}, ${tx} ${ty}`);
-      path.setAttribute('stroke', '#00bcd4');
-      path.setAttribute('stroke-width', '1');
-      path.setAttribute('fill', 'none');
-      path.setAttribute('opacity', '0.25');
-      path.setAttribute('stroke-dasharray', '4 3');
-      path.setAttribute('marker-end', 'url(#arrowCyan)');
-      path.setAttribute('data-from', srcArt.id);
-      path.setAttribute('data-to', targetArt.id);
-      path.classList.add('crosslink');
-      svg.appendChild(path);
+    // Root → Hubs
+    visHubs.forEach(h => {
+      const from = nodes['root'];
+      const to = nodes['hub_' + h.id];
+      if (!from || !to) return;
+      svg.innerHTML += `<line x1="${from.x}" y1="${from.y + 18}" x2="${to.x}" y2="${to.y - 20}" stroke="#00d4aa" stroke-width="2" opacity="0.3" marker-end="url(#ah)"/>`;
     });
-  });
 
-  // Hover: highlight cross-links for hovered article
-  document.querySelectorAll('.sitemap-art').forEach(el => {
-    el.addEventListener('mouseenter', function() {
-      const id = this.dataset.artid;
-      document.querySelectorAll('.crosslink').forEach(p => {
-        if (p.dataset.from === id || p.dataset.to === id) {
-          p.setAttribute('opacity', '0.8');
-          p.setAttribute('stroke-width', '2');
-        } else {
-          p.setAttribute('opacity', '0.08');
-        }
+    // Hub → Articles
+    visHubs.forEach(h => {
+      const from = nodes['hub_' + h.id];
+      if (!from) return;
+      visArts.filter(a => a.hubId === h.id).forEach(a => {
+        const to = nodes['art_' + a.id];
+        if (!to) return;
+        svg.innerHTML += `<line x1="${from.x}" y1="${from.y + 20}" x2="${to.x}" y2="${to.y - 22}" stroke="#00d4aa" stroke-width="1" opacity="0.15"/>`;
       });
     });
-    el.addEventListener('mouseleave', function() {
-      document.querySelectorAll('.crosslink').forEach(p => {
-        p.setAttribute('opacity', '0.25');
-        p.setAttribute('stroke-width', '1');
+
+    // Cross-links between articles
+    visArts.forEach(srcArt => {
+      const from = nodes['art_' + srcArt.id];
+      if (!from) return;
+      (srcArt.linksWewnetrzne || []).forEach(link => {
+        const targetId = artUrlToId[link.url];
+        if (!targetId || targetId === srcArt.id) return;
+        const to = nodes['art_' + targetId];
+        if (!to) return;
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const offset = dx === 0 ? 80 : Math.min(60, Math.abs(dy) * 0.3 + 30);
+        const side = from.x <= to.x ? 1 : -1;
+        const cx1 = from.x + offset * side + 110;
+        const cx2 = to.x + offset * side + 110;
+        svg.innerHTML += `<path d="M ${from.x + 110} ${from.y} C ${cx1} ${from.y}, ${cx2} ${to.y}, ${to.x + 110} ${to.y}" fill="none" stroke="#00bcd4" stroke-width="1" opacity="0.3" stroke-dasharray="4 3" marker-end="url(#ac)" class="crosslink" data-from="${srcArt.id}" data-to="${targetId}"/>`;
       });
     });
-  });
+
+    // Hover
+    document.querySelectorAll('.sitemap-art').forEach(el => {
+      el.addEventListener('mouseenter', function() {
+        const id = this.dataset.artid;
+        el.style.borderColor = 'var(--accent)';
+        document.querySelectorAll('.crosslink').forEach(p => {
+          if (p.dataset.from === id || p.dataset.to === id) {
+            p.setAttribute('opacity', '0.8'); p.setAttribute('stroke-width', '2.5');
+          } else {
+            p.setAttribute('opacity', '0.05');
+          }
+        });
+      });
+      el.addEventListener('mouseleave', function() {
+        el.style.borderColor = 'var(--border)';
+        document.querySelectorAll('.crosslink').forEach(p => {
+          p.setAttribute('opacity', '0.3'); p.setAttribute('stroke-width', '1');
+        });
+      });
+    });
+  }, 50);
 }
 
 function openSitemapPanel(artId) {
