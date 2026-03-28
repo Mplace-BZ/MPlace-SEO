@@ -2944,9 +2944,12 @@ document.getElementById('parseHtmlBtn').addEventListener('click', () => {
   const maFAQ = html.toLowerCase().includes('faq');
   const maCTA = html.includes('background-color: #bd9a6c') || html.includes('background-color: #c0392b') || /ZOBACZ|SPRAWDŹ/i.test(html);
 
-  // Extract keywords from H2/H3
-  const headings = [...doc.querySelectorAll('h2, h3')].map(el => el.textContent.trim().toLowerCase());
-  const keywords = [...new Set(headings.flatMap(h => h.split(/[\s–—:]+/).filter(w => w.length > 3)))].slice(0, 15);
+  // Extract keywords from H2/H3 — keep as full phrases, clean up
+  const headings = [...doc.querySelectorAll('h2, h3')].map(el => el.textContent.trim());
+  const keywords = [...new Set(headings
+    .map(h => h.replace(/^[\d.)\s]+/, '').replace(/[–—:?!]+$/, '').trim())
+    .filter(h => h.length > 5 && h.length < 80)
+  )];
 
   let domena = '';
   const firstLink = allLinks.find(a => /luxsen\.pl|domglamour\.pl/.test(a.getAttribute('href')));
@@ -3038,14 +3041,19 @@ document.getElementById('importSaveBtn').addEventListener('click', () => {
   });
   lsSet(KEY.articles, articles); saveAllWithSync();
 
-  // Add keywords to Słowa kluczowe
+  // Add keywords to Słowa kluczowe + fix orphaned keywords
   if (keywords.length > 0) {
     const kws = lsGet(KEY.keywords, []);
-    const existing = new Set(kws.map(k => k.fraza.toLowerCase()));
+    const existing = new Map(kws.map(k => [k.fraza.toLowerCase(), k]));
     keywords.forEach(kw => {
-      if (!existing.has(kw.toLowerCase())) {
+      const key = kw.toLowerCase();
+      if (existing.has(key)) {
+        // Update hubId if keyword was orphaned
+        const ex = existing.get(key);
+        if (!ex.hubId && hubId) { ex.hubId = hubId; ex.pokryta = true; }
+      } else {
         kws.push({ id: 'kw' + Date.now() + Math.random().toString(36).slice(2, 6), fraza: kw, typ: 'główna', hubId, pokryta: true });
-        existing.add(kw.toLowerCase());
+        existing.set(key, kws[kws.length - 1]);
       }
     });
     lsSet(KEY.keywords, kws);
