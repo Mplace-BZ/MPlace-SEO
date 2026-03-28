@@ -1607,18 +1607,30 @@ function getClientDomena(clientId) {
 // 7. AGENT
 // ═══════════════════════════════════════════════════════
 async function callAgent(prompt, systemPrompt) {
-  const response = await fetch('https://red-haze-5f37mplace-agent.contactmplace.workers.dev', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8192,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
-  const data = await response.json();
-  return data.content[0].text;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120000); // 2 min timeout
+  try {
+    const response = await fetch('https://red-haze-5f37mplace-agent.contactmplace.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    clearTimeout(timeout);
+    if (!response.ok) throw new Error('Worker zwrócił status ' + response.status);
+    const data = await response.json();
+    if (!data.content || !data.content[0]) throw new Error('Brak treści w odpowiedzi');
+    return data.content[0].text;
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') throw new Error('Przekroczono limit czasu (2 min) — spróbuj ponownie');
+    throw err;
+  }
 }
 
 let agentResult = '';
