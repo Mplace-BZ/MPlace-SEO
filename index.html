@@ -2503,14 +2503,18 @@ function renderHuby() {
     document.getElementById('hubDetail').innerHTML = '<div class="empty-state">Wybierz hub z listy po lewej</div>';
     return;
   }
+  const allArticles = lsGet(KEY.articles, []);
   list.innerHTML = hubs.map(h => {
+    const satArts = h.artykuly || [];
+    const dbArts = allArticles.filter(a => a.hubId === h.id);
+    const totalCount = satArts.length + dbArts.length;
     const hp = hubHealth(h);
-    const hasProblems = (h.artykuly || []).some(a => a.linkStatus === 'brak');
+    const hasProblems = satArts.some(a => a.linkStatus === 'brak');
     return `<div class="stat-card c-accent" style="cursor:pointer;margin-bottom:0.75rem;${selectedHubId === h.id ? 'border-color:var(--accent)' : ''}" onclick="selectHub('${h.id}')">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-size:13px;font-weight:500;color:var(--text-primary)">${esc(h.nazwa)}${hasProblems ? ' <span class="pulse-dot" style="display:inline-block;width:6px;height:6px;background:var(--red);vertical-align:middle;margin-left:4px"></span>' : ''}</div>
-          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px">${esc(h.domena)} · ${(h.artykuly||[]).length} artykułów</div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px">${esc(h.domena)} · ${totalCount} artykułów</div>
         </div>
         <span class="score-badge ${healthClass(hp)}">${hp}%</span>
       </div>
@@ -2529,23 +2533,48 @@ function renderHubDetail(id) {
   const h = hubs.find(x => x.id === id);
   const el = document.getElementById('hubDetail');
   if (!h) { el.innerHTML = '<div class="empty-state">Hub nie znaleziony</div>'; return; }
-  const arts = h.artykuly || [];
+  const satArts = h.artykuly || [];
+  const dbArts = lsGet(KEY.articles, []).filter(a => a.hubId === id);
   const statusIcon = s => s === 'ok' ? '<span style="color:var(--green)">✓</span>'
     : s === 'brak' ? '<span style="color:var(--red)">✗</span>'
     : '<span style="color:var(--yellow)">⚠</span>';
-  el.innerHTML = `
-    <div style="font-size:15px;font-weight:500;color:var(--text-primary);margin-bottom:4px">${esc(h.nazwa)}</div>
-    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:1rem">${esc(h.urlPillar || '—')}</div>
-    <div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:0.75rem">► Artykuły satelitarne (${arts.length})</div>
-    ${arts.length ? arts.map(a => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+
+  let artHtml = '';
+
+  // Imported articles (from KEY.articles)
+  if (dbArts.length > 0) {
+    artHtml += `<div style="font-family:var(--font-mono);font-size:9px;color:#00bcd4;text-transform:uppercase;letter-spacing:0.14em;margin-bottom:0.5rem">► Artykuły z bazy (${dbArts.length})</div>`;
+    artHtml += dbArts.map(a => {
+      const flags = [a.maH1 ? '<span style="color:var(--green)">H1</span>' : '', a.maFAQ ? '<span style="color:var(--accent)">FAQ</span>' : '', a.maCTA ? '<span style="color:var(--yellow)">CTA</span>' : ''].filter(Boolean).join(' ');
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="color:var(--green)">●</span>
+        <span style="color:var(--text-secondary);flex:1">${esc(a.tytul)}</span>
+        <span style="font-family:var(--font-mono);font-size:9px">${flags}</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${a.linksWewnetrzne ? a.linksWewnetrzne.length : 0} linków</span>
+        <button class="btn" style="font-size:8px;padding:2px 6px" onclick="editArticle('${a.id}');closeModal('')">EDYTUJ</button>
+      </div>`;
+    }).join('');
+  }
+
+  // Satellite articles (old format from hub.artykuly)
+  if (satArts.length > 0) {
+    artHtml += `<div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:0.14em;margin:${dbArts.length ? '1rem' : '0'} 0 0.5rem">► Satelity ręczne (${satArts.length})</div>`;
+    artHtml += satArts.map(a => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
       ${statusIcon(a.linkStatus)}
       <span style="color:var(--text-secondary);flex:1">${esc(a.tytul)}</span>
       <button class="btn" style="font-size:8px;padding:2px 6px" onclick="markLinkOk('${h.id}','${a.id}')">OZNACZ OK</button>
-    </div>`).join('') : '<div class="empty-state">Brak artykułów satelitarnych</div>'}
+    </div>`).join('');
+  }
+
+  if (!artHtml) artHtml = '<div class="empty-state">Brak artykułów — użyj IMPORTUJ ARTYKUŁ w zakładce Artykuły</div>';
+
+  el.innerHTML = `
+    <div style="font-size:15px;font-weight:500;color:var(--text-primary);margin-bottom:4px">${esc(h.nazwa)}</div>
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:1rem">${esc(h.urlPillar || '—')}</div>
+    ${artHtml}
     <div style="margin-top:1rem;display:flex;gap:0.6rem;flex-wrap:wrap">
-      <button class="btn btn-accent" onclick="openModal('modalHubArticle');window._hubArticleTargetId='${h.id}'">DODAJ ARTYKUŁ DO HUBA</button>
+      <button class="btn btn-accent" onclick="openModal('modalHubArticle');window._hubArticleTargetId='${h.id}'">DODAJ SATELITĘ</button>
       <button class="btn" onclick="editHub('${h.id}')">EDYTUJ HUB</button>
-      <button class="btn" onclick="alert('Wkrótce dostępne')">GENERUJ ARTYKUŁ Z AI ►</button>
       <button class="btn btn-red" onclick="deleteHub('${h.id}')">USUŃ HUB</button>
     </div>`;
 }
