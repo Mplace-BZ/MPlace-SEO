@@ -689,6 +689,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
           </label>
         </div>
         <button class="btn btn-lg" id="agentRunBtn">GENERUJ ARTYKUŁ ►</button>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px">▸ Wersja skrócona (600 słów) — limit darmowego Cloudflare Worker 30s</div>
       </div>
 
       <!-- PRAWA: OUTPUT -->
@@ -1615,7 +1616,7 @@ function clientBtn(c, isActive, onclick) {
 // ═══════════════════════════════════════════════════════
 async function callAgent(prompt, systemPrompt) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  const timeoutId = setTimeout(() => controller.abort(), 28000);
   try {
     const response = await fetch('https://red-haze-5f37mplace-agent.contactmplace.workers.dev', {
       method: 'POST',
@@ -1623,7 +1624,7 @@ async function callAgent(prompt, systemPrompt) {
       signal: controller.signal,
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
+        max_tokens: 2000,
         system: systemPrompt,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -1635,7 +1636,7 @@ async function callAgent(prompt, systemPrompt) {
     return data.content[0].text;
   } catch (err) {
     clearTimeout(timeoutId);
-    if (err.name === 'AbortError') throw new Error('Agent przekroczył limit czasu (25s). Cloudflare Worker na darmowym planie ma limit 30s. Spróbuj z krótszym planem artykułu lub skróć wytyczne.');
+    if (err.name === 'AbortError') throw new Error('Agent przekroczył limit czasu (28s). Cloudflare Worker na darmowym planie ma limit 30s. Spróbuj z krótszym planem artykułu lub skróć wytyczne.');
     throw err;
   }
 }
@@ -1684,7 +1685,7 @@ document.getElementById('agentRunBtn').addEventListener('click', async () => {
   const plan = document.getElementById('agentPlan').value.trim();
   const links = document.getElementById('agentLinks').value.trim();
   const useGuidelines = document.getElementById('agentUseGuidelines').checked;
-  const guidelines = useGuidelines ? getActiveGuidelinesText(selectedAgentClient) : '';
+  const guidelinesSummary = useGuidelines ? 'Marka: Luxsen. Ton: profesjonalny, edukacyjny. Zakaz: obietnic medycznych, słów leczy/uzdrawia. Używaj: wspiera, sprzyja regeneracji, może poprawić komfort.' : '';
 
   // UI: loading
   const outputEl = document.getElementById('agentOutput');
@@ -1699,10 +1700,10 @@ document.getElementById('agentRunBtn').addEventListener('click', async () => {
   wordCountEl.style.display = 'none';
   dot.classList.remove('inactive');
 
-  let systemPrompt = 'Jesteś ekspertem SEO i copywriterem specjalizującym się w artykułach blogowych dla polskich marek e-commerce. Piszesz obszerne, profesjonalne artykuły blogowe w języku polskim, zoptymalizowane pod wyszukiwarkę Google. Twoje artykuły mają strukturę: wstęp z pogrubioną frazą kluczową, box "W tym artykule", spis treści z kotwicami H2, sekcje H2/H3, cytat eksperta, FAQ (6 pytań), CTA, Materiały do pogłębienia (4 linki). Nie wymyślasz parametrów technicznych produktów — jeśli brakuje danych, piszesz "sprawdź w karcie produktu". Unikasz obietnic medycznych.';
-  if (guidelines) systemPrompt += guidelines;
+  let systemPrompt = 'Jesteś ekspertem SEO i copywriterem. Piszesz profesjonalne artykuły blogowe po polsku, zoptymalizowane pod Google. Nie wymyślasz parametrów technicznych — jeśli brakuje danych, piszesz "sprawdź w karcie produktu".';
+  if (guidelinesSummary) systemPrompt += ' ' + guidelinesSummary;
 
-  const userPrompt = `Napisz artykuł blogowy SEO po polsku.
+  const userPrompt = `Napisz KRÓTKI artykuł blogowy SEO (max 600 słów). Struktura: wstęp (2 zdania) → 3 sekcje H2 (po 100 słów każda) → FAQ (3 pytania) → CTA (1 zdanie). Bez ozdóbek, tylko treść.
 
 Tytuł: ${title}
 Blog / Domena: ${domena || '(brak)'}
@@ -1712,12 +1713,9 @@ Frazy wspierające: ${lsi || '(brak)'}
 Plan struktury H2: ${plan || '(brak — zaproponuj sam)'}
 Linki do wplecenia: ${links || '(brak)'}
 
-Wymagania:
-- Układ: wstęp → box "W tym artykule" → spis treści → sekcje H2 → cytat eksperta → FAQ (6 pytań) → CTA → Materiały do pogłębienia
 - Wpleć naturalnie podane linki jako anchor texty
 - Na końcu podaj listę użytych anchorów z URL
-- Pisz po polsku, profesjonalnie, bez agresywnej sprzedaży
-- Napisz artykuł zwięźle ale kompletnie. Każda sekcja H2 max 150 słów. FAQ — każda odpowiedź max 3 zdania. Łącznie artykuł max 900 słów.`;
+- Pisz po polsku, profesjonalnie, bez agresywnej sprzedaży`;
 
   try {
     const result = await callAgent(userPrompt, systemPrompt);
