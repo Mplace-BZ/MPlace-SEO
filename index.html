@@ -689,7 +689,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
           </label>
         </div>
         <button class="btn btn-lg" id="agentRunBtn">GENERUJ ARTYKUŁ ►</button>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:8px">▸ Pełny artykuł 2500+ słów — generowanie może potrwać do 60s</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px">▸ Pełny artykuł 2500+ słów — generowanie może potrwać chwilę</div>
       </div>
 
       <!-- PRAWA: OUTPUT -->
@@ -1753,7 +1753,7 @@ WYMAGANIA OBOWIĄZKOWE:
     wordCountEl.style.display = 'block';
   } catch (err) {
     agentResult = '';
-    outputEl.textContent = 'Błąd połączenia z agentem: ' + err.message;
+    outputEl.textContent = 'Błąd połączenia z agentem. Sprawdź połączenie internetowe i spróbuj ponownie.';
     outputEl.style.display = 'block';
     loadingEl.classList.remove('visible');
     dot.classList.add('inactive');
