@@ -946,6 +946,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center">
       <div id="sitemapClientFilter" style="display:flex;gap:8px"></div>
       <select class="form-input" id="sitemapHubFilter" style="max-width:220px"><option value="">Wszystkie huby</option></select>
+      <button class="btn btn-accent" id="exportSitemapBtn">EKSPORTUJ RAPORT ►</button>
     </div>
 
     <div id="sitemapEmpty" style="display:none" class="empty-state">
@@ -3712,6 +3713,153 @@ function closeSitemapPanel() {
 
 document.getElementById('sitemapHubFilter').addEventListener('change', () => renderSitemap());
 window.addEventListener('resize', () => { if (document.getElementById('tab-sitemap').style.display !== 'none') setTimeout(drawSitemapLines, 200); });
+
+document.getElementById('exportSitemapBtn').addEventListener('click', () => {
+  const domena = getClientDomena(selectedSitemapClient);
+  const hubs = lsGet(KEY.hubs, []).filter(h => !domena || h.domena === domena);
+  const articles = lsGet(KEY.articles, []).filter(a => !domena || a.domena === domena);
+  const keywords = lsGet(KEY.keywords, []);
+  const artUrlToId = {};
+  articles.forEach(a => { if (a.url) artUrlToId[a.url] = a.id; });
+
+  // Build backlinks map
+  const backlinksMap = {};
+  articles.forEach(a => (a.linksWewnetrzne || []).forEach(l => {
+    if (!backlinksMap[l.url]) backlinksMap[l.url] = [];
+    backlinksMap[l.url].push({ from: a.tytul, anchor: l.anchor });
+  }));
+
+  let report = '';
+  report += `═══════════════════════════════════════════════════\n`;
+  report += `RAPORT SEO LINK STRUCTURE — ${domena || 'ALL'}\n`;
+  report += `Data: ${new Date().toLocaleDateString('pl')}\n`;
+  report += `═══════════════════════════════════════════════════\n\n`;
+
+  // Podsumowanie
+  let totalLinks = 0, totalCross = 0;
+  articles.forEach(a => {
+    const links = a.linksWewnetrzne || [];
+    totalLinks += links.length;
+    totalCross += links.filter(l => artUrlToId[l.url]).length;
+  });
+  report += `PODSUMOWANIE:\n`;
+  report += `  Artykuły w bazie:    ${articles.length}\n`;
+  report += `  Huby:                ${hubs.length}\n`;
+  report += `  Linki wewnętrzne:    ${totalLinks}\n`;
+  report += `  Cross-linki w bazie: ${totalCross}\n`;
+  report += `  Słowa kluczowe:      ${keywords.length}\n\n`;
+
+  // Per hub
+  hubs.forEach(h => {
+    const hubArts = articles.filter(a => a.hubId === h.id);
+    const hp = hubHealth(h);
+    report += `───────────────────────────────────────────────────\n`;
+    report += `HUB: ${h.nazwa} (${h.domena})\n`;
+    report += `Pillar URL: ${h.urlPillar || '—'}\n`;
+    report += `Artykuły: ${hubArts.length} | Health: ${hp}%\n`;
+    report += `───────────────────────────────────────────────────\n\n`;
+
+    hubArts.forEach(a => {
+      const links = a.linksWewnetrzne || [];
+      const backlinks = backlinksMap[a.url] || [];
+      const crossInHub = links.filter(l => {
+        const tid = artUrlToId[l.url];
+        return tid && articles.find(x => x.id === tid && x.hubId === h.id);
+      });
+      const crossToOtherHub = links.filter(l => {
+        const tid = artUrlToId[l.url];
+        return tid && articles.find(x => x.id === tid && x.hubId !== h.id);
+      });
+      const externalLinks = links.filter(l => !artUrlToId[l.url]);
+
+      report += `  ARTYKUŁ: ${a.tytul}\n`;
+      report += `  URL: ${a.url || '—'}\n`;
+      report += `  Flagi: ${a.maH1?'H1✓':'H1✗'} ${a.maFAQ?'FAQ✓':''} ${a.maCTA?'CTA✓':''} ${a.maSpis?'SPIS✓':''}\n`;
+      report += `  Keywords: ${(a.keywords||[]).join(', ') || '—'}\n`;
+      report += `  Linki: → ${links.length} wychodzących | ← ${backlinks.length} przychodzących\n`;
+
+      if (crossInHub.length) {
+        report += `\n  → LINKUJE W KLASTRZE (${crossInHub.length}):\n`;
+        crossInHub.forEach(l => {
+          const target = articles.find(x => x.url === l.url);
+          report += `    → ${target ? target.tytul : l.url}\n      anchor: "${l.anchor}"\n`;
+        });
+      }
+
+      if (crossToOtherHub.length) {
+        report += `\n  → LINKUJE DO INNEGO HUBA (${crossToOtherHub.length}):\n`;
+        crossToOtherHub.forEach(l => {
+          const target = articles.find(x => x.url === l.url);
+          const targetHub = target ? hubs.find(x => x.id === target.hubId) : null;
+          report += `    → [${targetHub ? targetHub.nazwa : '?'}] ${target ? target.tytul : l.url}\n      anchor: "${l.anchor}"\n`;
+        });
+      }
+
+      if (externalLinks.length) {
+        report += `\n  → LINKI ZEWNĘTRZNE / NIE W BAZIE (${externalLinks.length}):\n`;
+        externalLinks.forEach(l => {
+          report += `    → ${l.anchor || l.url} (${l.typ || 'link'})\n      ${l.url}\n`;
+        });
+      }
+
+      if (backlinks.length) {
+        report += `\n  ← LINKOWANY PRZEZ (${backlinks.length}):\n`;
+        backlinks.forEach(b => {
+          report += `    ← ${b.from}\n      anchor: "${b.anchor}"\n`;
+        });
+      } else {
+        report += `\n  ⚠ BRAK LINKÓW PRZYCHODZĄCYCH — nikt nie linkuje do tego artykułu!\n`;
+      }
+
+      report += `\n`;
+    });
+
+    // Diagnoza huba
+    const noBacklinks = hubArts.filter(a => !(backlinksMap[a.url] || []).length);
+    const noInternalCross = hubArts.filter(a => {
+      const links = a.linksWewnetrzne || [];
+      return !links.some(l => {
+        const tid = artUrlToId[l.url];
+        return tid && articles.find(x => x.id === tid && x.hubId === h.id);
+      });
+    });
+
+    if (noBacklinks.length || noInternalCross.length) {
+      report += `  ⚠ PROBLEMY W TYM HUBIE:\n`;
+      if (noBacklinks.length) {
+        report += `  • ${noBacklinks.length} artykułów bez linków przychodzących:\n`;
+        noBacklinks.forEach(a => report += `    - ${a.tytul}\n`);
+      }
+      if (noInternalCross.length) {
+        report += `  • ${noInternalCross.length} artykułów nie linkuje do żadnego innego w klastrze:\n`;
+        noInternalCross.forEach(a => report += `    - ${a.tytul}\n`);
+      }
+      report += `\n`;
+    }
+  });
+
+  // Artykuły bez huba
+  const noHub = articles.filter(a => !a.hubId);
+  if (noHub.length) {
+    report += `───────────────────────────────────────────────────\n`;
+    report += `⚠ ARTYKUŁY BEZ HUBA (${noHub.length}):\n`;
+    report += `───────────────────────────────────────────────────\n`;
+    noHub.forEach(a => report += `  - ${a.tytul} (${a.url || '—'})\n`);
+    report += `\n`;
+  }
+
+  report += `═══════════════════════════════════════════════════\n`;
+  report += `KONIEC RAPORTU\n`;
+
+  // Download as .txt
+  const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `raport-seo-${domena || 'all'}-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
 
 // ═══════════════════════════════════════════════════════
 // 13. SŁOWA KLUCZOWE
