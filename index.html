@@ -1407,28 +1407,11 @@ function seedTestData() {
   }
 
 
-  // Artykuły
-  if (lsGet(KEY.articles, []).length === 0) {
-    lsSet(KEY.articles, [
-      { id: 'art1', tytul: 'Jak wybrać materac krok po kroku', url: 'https://luxsen.pl/jak-wybrac-materac', hubId: 'hub1', domena: 'luxsen.pl',
-        status: 'opublikowany', keyword: 'jak wybrać materac', linki: 5, maH1: true, notatki: '', createdAt: new Date().toISOString() },
-      { id: 'art2', tytul: 'Narożnik rozkładany — kompletny poradnik', url: 'https://domglamour.pl/blog/naroznik-rozkladany', hubId: 'hub2', domena: 'domglamour.pl',
-        status: 'opublikowany', keyword: 'narożnik rozkładany', linki: 3, maH1: true, notatki: '', createdAt: new Date().toISOString() },
-      { id: 'art3', tytul: 'Materac hybrydowy opinie i recenzje', url: '', hubId: 'hub1', domena: 'luxsen.pl',
-        status: 'szkic', keyword: 'materac hybrydowy opinie', linki: 0, maH1: false, notatki: 'Do napisania', createdAt: new Date().toISOString() },
-    ]);
-  }
+  // Artykuły — pusta baza (import przez IMPORTUJ ARTYKUŁ)
+  if (!lsGet(KEY.articles)) lsSet(KEY.articles, []);
 
-  // Słowa kluczowe
-  if (lsGet(KEY.keywords, []).length === 0) {
-    lsSet(KEY.keywords, [
-      { id: 'kw1', fraza: 'jak wybrać materac', typ: 'główna', hubId: 'hub1', pokryta: true, createdAt: new Date().toISOString() },
-      { id: 'kw2', fraza: 'materac kieszeniowy 160x200', typ: 'długi ogon', hubId: 'hub1', pokryta: true, createdAt: new Date().toISOString() },
-      { id: 'kw3', fraza: 'materac dla par z różną wagą', typ: 'długi ogon', hubId: 'hub1', pokryta: false, createdAt: new Date().toISOString() },
-      { id: 'kw4', fraza: 'narożnik do salonu', typ: 'główna', hubId: 'hub2', pokryta: true, createdAt: new Date().toISOString() },
-      { id: 'kw5', fraza: 'narożnik skandynawski mały', typ: 'LSI', hubId: 'hub2', pokryta: false, createdAt: new Date().toISOString() },
-    ]);
-  }
+  // Słowa kluczowe — pusta baza (budowane z importów)
+  if (!lsGet(KEY.keywords)) lsSet(KEY.keywords, []);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2728,7 +2711,23 @@ function articleToAgent(id) {
 }
 
 function editArticle(id) {
-  alert('Edycja artykułu — wkrótce dostępne. Usuń i dodaj ponownie.');
+  const articles = lsGet(KEY.articles, []);
+  const a = articles.find(x => x.id === id);
+  if (!a) return;
+  const hubs = lsGet(KEY.hubs, []);
+  const sel = document.getElementById('artHub');
+  sel.innerHTML = '<option value="">— brak —</option>' + hubs.map(h => `<option value="${h.id}"${h.id === a.hubId ? ' selected' : ''}>${esc(h.nazwa)} (${esc(h.domena)})</option>`).join('');
+  document.getElementById('artTytul').value = a.tytul || '';
+  document.getElementById('artUrl').value = a.url || '';
+  document.getElementById('artDomena').value = a.domena || '';
+  document.getElementById('artStatus').value = a.status || 'szkic';
+  document.getElementById('artKeyword').value = a.keyword || '';
+  document.getElementById('artLinki').value = a.linksWewnetrzne ? a.linksWewnetrzne.length : (a.linki || 0);
+  document.getElementById('artH1').checked = a.maH1 || false;
+  document.getElementById('artNotatki').value = a.notatki || '';
+  window._editArticleId = id;
+  document.querySelector('#modalArticle .modal-title').textContent = 'EDYTUJ ARTYKUŁ';
+  openModal('modalArticle');
 }
 
 function deleteArticle(id) {
@@ -2739,10 +2738,17 @@ function deleteArticle(id) {
   renderArtykuly();
 }
 
+window._editArticleId = null;
+
 document.getElementById('addArticleBtn').addEventListener('click', () => {
+  window._editArticleId = null;
   const hubs = lsGet(KEY.hubs, []);
   const sel = document.getElementById('artHub');
   sel.innerHTML = '<option value="">— brak —</option>' + hubs.map(h => `<option value="${h.id}">${esc(h.nazwa)} (${esc(h.domena)})</option>`).join('');
+  ['artTytul','artUrl','artDomena','artKeyword','artNotatki'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('artLinki').value = '0';
+  document.getElementById('artH1').checked = false;
+  document.querySelector('#modalArticle .modal-title').textContent = 'DODAJ ARTYKUŁ';
   openModal('modalArticle');
 });
 
@@ -2753,19 +2759,36 @@ document.getElementById('confirmArticle').addEventListener('click', () => {
   const hubId = document.getElementById('artHub').value;
   const hubs = lsGet(KEY.hubs, []);
   const hub = hubs.find(h => h.id === hubId);
-  articles.push({
-    id: 'art' + Date.now(), tytul,
-    url: document.getElementById('artUrl').value.trim(),
-    hubId, domena: document.getElementById('artDomena').value.trim() || (hub ? hub.domena : ''),
-    status: document.getElementById('artStatus').value,
-    keyword: document.getElementById('artKeyword').value.trim(),
-    linki: parseInt(document.getElementById('artLinki').value) || 0,
-    maH1: document.getElementById('artH1').checked,
-    notatki: document.getElementById('artNotatki').value.trim(),
-    createdAt: new Date().toISOString()
-  });
+
+  if (window._editArticleId) {
+    const a = articles.find(x => x.id === window._editArticleId);
+    if (a) {
+      a.tytul = tytul;
+      a.url = document.getElementById('artUrl').value.trim();
+      a.hubId = hubId;
+      a.domena = document.getElementById('artDomena').value.trim() || (hub ? hub.domena : '');
+      a.status = document.getElementById('artStatus').value;
+      a.keyword = document.getElementById('artKeyword').value.trim();
+      a.linki = parseInt(document.getElementById('artLinki').value) || 0;
+      a.maH1 = document.getElementById('artH1').checked;
+      a.notatki = document.getElementById('artNotatki').value.trim();
+    }
+  } else {
+    articles.push({
+      id: 'art' + Date.now(), tytul,
+      url: document.getElementById('artUrl').value.trim(),
+      hubId, domena: document.getElementById('artDomena').value.trim() || (hub ? hub.domena : ''),
+      status: document.getElementById('artStatus').value,
+      keyword: document.getElementById('artKeyword').value.trim(),
+      linki: parseInt(document.getElementById('artLinki').value) || 0,
+      maH1: document.getElementById('artH1').checked,
+      notatki: document.getElementById('artNotatki').value.trim(),
+      createdAt: new Date().toISOString()
+    });
+  }
   lsSet(KEY.articles, articles); saveAllWithSync();
   closeModal('modalArticle');
+  window._editArticleId = null;
   ['artTytul','artUrl','artDomena','artKeyword','artNotatki'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('artLinki').value = '0';
   document.getElementById('artH1').checked = false;
@@ -3287,6 +3310,21 @@ seedTestData();
     lsSet(KEY.guidelines, { luxsen: g });
     console.log('[MIGRACJA] Wytyczne: flat → per klient');
   }
+})();
+
+// Migracja: usuń stare testowe artykuły i keywords (jednorazowa)
+(function() {
+  if (lsGet(PFX + 'cleaned_v2')) return;
+  // Usuń testowe artykuły (art1, art2, art3)
+  var arts = lsGet(KEY.articles, []);
+  arts = arts.filter(function(a) { return !['art1','art2','art3'].includes(a.id); });
+  lsSet(KEY.articles, arts);
+  // Usuń testowe keywords (kw1-kw5)
+  var kws = lsGet(KEY.keywords, []);
+  kws = kws.filter(function(k) { return !['kw1','kw2','kw3','kw4','kw5'].includes(k.id); });
+  lsSet(KEY.keywords, kws);
+  lsSet(PFX + 'cleaned_v2', true);
+  console.log('[MIGRACJA] Usunięto stare testowe artykuły i keywords');
 })();
 
 document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
