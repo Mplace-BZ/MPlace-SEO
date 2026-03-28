@@ -1860,8 +1860,8 @@ function getClientDomena(clientId) {
 
 function clientBtn(c, isActive, onclick) {
   const style = isActive
-    ? `background:${c.color};color:#fff;border-color:${c.color}`
-    : `background:transparent;color:${c.color};border-color:${c.color}44`;
+    ? `background:transparent;color:${c.color};border:2px solid ${c.color}`
+    : `background:transparent;color:${c.color}88;border:1px solid ${c.color}33`;
   return `<button class="btn" style="${style}" onclick="${onclick}">${c.label}</button>`;
 }
 
