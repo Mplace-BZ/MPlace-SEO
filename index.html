@@ -3263,7 +3263,9 @@ function countLinkProblems() {
   clientHubs.forEach(h => {
     if (h.urlPillar) {
       const hubArts = clientArts.filter(a => a.hubId === h.id);
-      const anyLinksToHub = hubArts.some(a => (a.linksWewnetrzne || []).some(l => l.url === h.urlPillar));
+      const hubTargetUrls = new Set([h.urlPillar]);
+      hubArts.forEach(a => { if (a.url) hubTargetUrls.add(a.url); });
+      const anyLinksToHub = hubArts.some(a => (a.linksWewnetrzne || []).some(l => hubTargetUrls.has(l.url)));
       if (hubArts.length > 0 && !anyLinksToHub) noHubLink++;
     }
   });
@@ -3481,7 +3483,10 @@ function renderSitemap() {
       ${hubArts.map(a => {
         const links = a.linksWewnetrzne || [];
         const backlinks = linksToMap[a.url] || [];
-        const linksToHub = h.urlPillar && links.some(l => l.url === h.urlPillar);
+        // Check: artykuł linkuje do pillar URL huba LUB do innego artykułu w tym samym hubie
+        const hubArtUrls = new Set(hubArts.filter(x => x.id !== a.id && x.url).map(x => x.url));
+        if (h.urlPillar) hubArtUrls.add(h.urlPillar);
+        const linksToHub = links.some(l => hubArtUrls.has(l.url));
         const borderColor = linksToHub ? 'var(--green)' : 'var(--red)';
         const titleShort = a.tytul.length > 40 ? a.tytul.substring(0, 37) + '...' : a.tytul;
         return `<div class="sitemap-art" data-artid="${a.id}" style="background:var(--bg-secondary);border:1px solid var(--border);border-left:3px solid ${borderColor};border-radius:4px;padding:8px 10px;cursor:pointer;transition:all 0.15s" onclick="openSitemapPanel('${a.id}')" onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)';this.style.borderLeftColor='${borderColor}'">
