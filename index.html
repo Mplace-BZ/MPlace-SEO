@@ -975,14 +975,14 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <div id="sitemapPanelContent"></div>
     </div>
 
-    <!-- Legenda -->
+    <!-- Legenda interaktywna -->
     <div style="margin-top:0.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 16px;font-size:10px;display:flex;gap:14px;flex-wrap:wrap">
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);vertical-align:middle;margin-right:4px"></span> Hub</span>
-      <span style="color:var(--accent)">— link hub→artykuł</span>
-      <span style="color:#00bcd4">⤍ link w klastrze (lewa)</span>
-      <span style="color:#a78bfa">⤍ link między hubami (prawa→lewa)</span>
-      <span><span style="display:inline-block;width:8px;height:8px;border:2px solid var(--green);border-radius:2px;vertical-align:middle;margin-right:4px"></span> linkuje w klastrze ✓</span>
-      <span><span style="display:inline-block;width:8px;height:8px;border:2px solid var(--red);border-radius:2px;vertical-align:middle;margin-right:4px"></span> izolowany ✗</span>
+      <span class="legend-btn" data-filter="hub" style="cursor:pointer;padding:3px 8px;border-radius:3px;transition:all 0.15s" onclick="toggleSitemapFilter('hub')"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);vertical-align:middle;margin-right:4px"></span> Hub</span>
+      <span class="legend-btn" data-filter="hub-art" style="cursor:pointer;padding:3px 8px;border-radius:3px;transition:all 0.15s;color:var(--accent)" onclick="toggleSitemapFilter('hub-art')">— link hub→artykuł</span>
+      <span class="legend-btn" data-filter="cluster" style="cursor:pointer;padding:3px 8px;border-radius:3px;transition:all 0.15s;color:#00bcd4" onclick="toggleSitemapFilter('cluster')">⤍ link w klastrze</span>
+      <span class="legend-btn" data-filter="crosshub" style="cursor:pointer;padding:3px 8px;border-radius:3px;transition:all 0.15s;color:#a78bfa" onclick="toggleSitemapFilter('crosshub')">⤍ link między hubami</span>
+      <span class="legend-btn" data-filter="linked" style="cursor:pointer;padding:3px 8px;border-radius:3px;transition:all 0.15s" onclick="toggleSitemapFilter('linked')"><span style="display:inline-block;width:8px;height:8px;border:2px solid var(--green);border-radius:2px;vertical-align:middle;margin-right:4px"></span> linkuje ✓</span>
+      <span class="legend-btn" data-filter="isolated" style="cursor:pointer;padding:3px 8px;border-radius:3px;transition:all 0.15s" onclick="toggleSitemapFilter('isolated')"><span style="display:inline-block;width:8px;height:8px;border:2px solid var(--red);border-radius:2px;vertical-align:middle;margin-right:4px"></span> izolowany ✗</span>
     </div>
   </div>
 
@@ -3718,7 +3718,75 @@ function closeSitemapPanel() {
   document.getElementById('sitemapPanel').style.display = 'none';
 }
 
-document.getElementById('sitemapHubFilter').addEventListener('change', () => renderSitemap());
+let _sitemapActiveFilter = null;
+
+function toggleSitemapFilter(filter) {
+  const svg = document.getElementById('sitemapSvg');
+  const btns = document.querySelectorAll('.legend-btn');
+
+  // Toggle off if same filter clicked
+  if (_sitemapActiveFilter === filter) {
+    _sitemapActiveFilter = null;
+    btns.forEach(b => b.style.background = 'transparent');
+    // Reset all
+    svg.querySelectorAll('line, path').forEach(el => { el.setAttribute('opacity', el.dataset.origOpacity || '0.25'); });
+    document.querySelectorAll('.sitemap-art').forEach(el => { el.style.opacity = '1'; });
+    document.querySelectorAll('[data-nodeid^="hub_"]').forEach(el => { el.style.opacity = '1'; });
+    return;
+  }
+
+  _sitemapActiveFilter = filter;
+  btns.forEach(b => {
+    b.style.background = b.dataset.filter === filter ? 'var(--bg-hover)' : 'transparent';
+  });
+
+  // Dim everything first
+  svg.querySelectorAll('line, path').forEach(el => {
+    if (!el.dataset.origOpacity) el.dataset.origOpacity = el.getAttribute('opacity') || '0.25';
+    el.setAttribute('opacity', '0.03');
+  });
+  document.querySelectorAll('.sitemap-art').forEach(el => { el.style.opacity = '0.2'; });
+  document.querySelectorAll('[data-nodeid^="hub_"]').forEach(el => { el.style.opacity = '0.2'; });
+  document.querySelectorAll('[data-nodeid="root"]').forEach(el => { el.style.opacity = '0.2'; });
+
+  if (filter === 'hub') {
+    document.querySelectorAll('[data-nodeid^="hub_"]').forEach(el => { el.style.opacity = '1'; });
+    document.querySelectorAll('[data-nodeid="root"]').forEach(el => { el.style.opacity = '1'; });
+    svg.querySelectorAll('line[marker-end="url(#ah)"]').forEach(el => { el.setAttribute('opacity', '0.5'); });
+  } else if (filter === 'hub-art') {
+    document.querySelectorAll('[data-nodeid^="hub_"]').forEach(el => { el.style.opacity = '1'; });
+    document.querySelectorAll('.sitemap-art').forEach(el => { el.style.opacity = '1'; });
+    svg.querySelectorAll('line:not([marker-end])').forEach(el => { el.setAttribute('opacity', '0.3'); });
+    svg.querySelectorAll('line[marker-end="url(#ah)"]').forEach(el => { el.setAttribute('opacity', '0.4'); });
+  } else if (filter === 'cluster') {
+    document.querySelectorAll('.sitemap-art').forEach(el => { el.style.opacity = '1'; });
+    svg.querySelectorAll('.crosslink').forEach(el => {
+      if (el.getAttribute('stroke') === '#00bcd4') el.setAttribute('opacity', '0.7');
+    });
+  } else if (filter === 'crosshub') {
+    document.querySelectorAll('.sitemap-art').forEach(el => { el.style.opacity = '1'; });
+    svg.querySelectorAll('.crosslink').forEach(el => {
+      if (el.getAttribute('stroke') === '#a78bfa') el.setAttribute('opacity', '0.7');
+    });
+  } else if (filter === 'linked') {
+    document.querySelectorAll('.sitemap-art').forEach(el => {
+      const bl = el.querySelector('div').parentElement.style.borderLeftColor;
+      el.style.opacity = bl === 'rgb(0, 200, 150)' || el.style.borderLeftColor === '#00c896' ? '1' : '0.1';
+    });
+    // Simpler: check border-left inline style
+    document.querySelectorAll('.sitemap-art').forEach(el => {
+      const style = el.getAttribute('style') || '';
+      el.style.opacity = style.includes('#00c896') ? '1' : '0.1';
+    });
+  } else if (filter === 'isolated') {
+    document.querySelectorAll('.sitemap-art').forEach(el => {
+      const style = el.getAttribute('style') || '';
+      el.style.opacity = style.includes('#e8445a') ? '1' : '0.1';
+    });
+  }
+}
+
+document.getElementById('sitemapHubFilter').addEventListener('change', () => { _sitemapActiveFilter = null; renderSitemap(); });
 
 document.getElementById('linkSuggestionsBtn').addEventListener('click', () => {
   const panel = document.getElementById('sitemapSuggestions');
