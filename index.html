@@ -1586,6 +1586,24 @@ document.getElementById('confirmModalAukcja').addEventListener('click', () => {
 });
 
 // ═══════════════════════════════════════════════════════
+// KLIENCI (globalne)
+// ═══════════════════════════════════════════════════════
+const GUIDELINES_CLIENTS = [
+  { id: 'luxsen', label: 'LUXSEN', domena: 'luxsen.pl', defaults: DEFAULT_GUIDELINES_SECTIONS },
+  { id: 'domglamour', label: 'DOM GLAMOUR', domena: 'domglamour.pl', defaults: {
+    sekcja1: { aktywna: true, tresc: '' },
+    sekcja2: { aktywna: true, tresc: '' },
+    sekcja3: { aktywna: true, tresc: '' },
+    sekcja4: { aktywna: false, tresc: '' }
+  }},
+];
+
+function getClientDomena(clientId) {
+  const c = GUIDELINES_CLIENTS.find(x => x.id === clientId);
+  return c ? c.domena : '';
+}
+
+// ═══════════════════════════════════════════════════════
 // 7. AGENT
 // ═══════════════════════════════════════════════════════
 async function callAgent(prompt, systemPrompt) {
@@ -1605,11 +1623,6 @@ async function callAgent(prompt, systemPrompt) {
 
 let agentResult = '';
 let selectedAgentClient = GUIDELINES_CLIENTS[0].id;
-
-function getClientDomena(clientId) {
-  const map = { luxsen: 'luxsen.pl', domglamour: 'domglamour.pl' };
-  return map[clientId] || '';
-}
 
 function renderAgentClientFilter() {
   const el = document.getElementById('agentClientFilter');
@@ -1926,15 +1939,6 @@ function csvEsc(s) { return '"' + String(s || '').replace(/"/g, '""') + '"'; }
 // ═══════════════════════════════════════════════════════
 // 9. WYTYCZNE (4 sekcje per klient)
 // ═══════════════════════════════════════════════════════
-const GUIDELINES_CLIENTS = [
-  { id: 'luxsen', label: 'LUXSEN', defaults: DEFAULT_GUIDELINES_SECTIONS },
-  { id: 'domglamour', label: 'DOM GLAMOUR', defaults: {
-    sekcja1: { aktywna: true, tresc: '' },
-    sekcja2: { aktywna: true, tresc: '' },
-    sekcja3: { aktywna: true, tresc: '' },
-    sekcja4: { aktywna: false, tresc: '' }
-  }},
-];
 let selectedGuidelinesClient = GUIDELINES_CLIENTS[0].id;
 
 function getAllGuidelines() {
