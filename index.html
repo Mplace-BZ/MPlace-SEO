@@ -742,23 +742,19 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
   <!-- ══ WYTYCZNE ══ -->
   <div class="tab-panel" id="tab-wytyczne">
     <div class="section-label">► WYTYCZNE</div>
-    <div class="section-title">Wytyczne SEO Allegro <span class="star">✦</span></div>
-    <div class="section-subtitle">Baza wytycznych używanych przez Agenta</div>
+    <div class="section-title">Baza wiedzy <span class="star">✦</span></div>
+    <div class="section-subtitle">Zasady i instrukcje używane przez Agenta przy generowaniu treści</div>
 
-    <div class="wytyczne-card">
-      <div class="form-group" style="margin-bottom:1.25rem">
-        <label class="form-label">Wytyczne SEO (edytowalne)</label>
-        <textarea class="form-textarea" id="guidelinesText" style="min-height:320px;font-family:var(--font-mono);font-size:0.8rem"></textarea>
-      </div>
-      <div class="gap-row">
-        <button class="btn btn-accent" id="saveGuidelinesBtn">ZAPISZ WYTYCZNE</button>
-        <button class="btn" id="resetGuidelinesBtn">PRZYWRÓĆ DOMYŚLNE</button>
-      </div>
+    <div style="background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:8px;padding:12px 16px;margin-bottom:1.5rem;font-size:12px;color:var(--text-secondary)">
+      ► Zaznaczone sekcje są automatycznie dołączane do promptu Agenta. Możesz edytować każdą sekcję osobno.
     </div>
 
-    <div class="wytyczne-info">
-      ► Wytyczne są używane przez Agenta gdy zaznaczysz opcję "Użyj wytycznych z zakładki WYTYCZNE" w zakładce AGENT.
+    <div style="display:flex;gap:8px;margin-bottom:1.5rem">
+      <button class="btn btn-accent" id="saveAllGuidelinesBtn">ZAPISZ WSZYSTKIE SEKCJE ►</button>
+      <button class="btn" id="resetAllGuidelinesBtn">PRZYWRÓĆ DOMYŚLNE</button>
     </div>
+
+    <div id="guidelinesSections"></div>
   </div>
 
   <!-- ══ HUBY ══ -->
@@ -987,14 +983,152 @@ const KEY = {
   keywords: PFX + 'keywords',
 };
 
-const DEFAULT_GUIDELINES = `1. Tytuł: 60-75 znaków, główne słowo kluczowe na początku
-2. Opis: minimum 1000 znaków, strukturyzowany nagłówkami
-3. Pierwsze 200 znaków: najważniejsze cechy produktu
-4. Używaj list punktowanych dla specyfikacji
-5. Unikaj caps lock i nadmiernych wykrzykników
-6. Dodaj sekcję: Co otrzymujesz w zestawie
-7. Dodaj sekcję: Dlaczego warto kupić
-8. Zakończ wezwaniem do działania`;
+const DEFAULT_GUIDELINES_SECTIONS = {
+  sekcja1: { aktywna: true, tresc: `KIM JEST LUXSEN
+Polski producent materacy i akcesoriów sypialnianych. Łączymy rzemieślniczą precyzję z nowoczesnymi technologiami (pianki Premium, systemy kieszeniowe). Kontrolujemy jakość na każdym etapie. Realizujemy zamówienia na niestandardowe rozmiary.
+
+MISJA: Edukacja i pomoc w doborze podłoża dopasowanego do wagi i pozycji snu — nie sprzedaż "na siłę". Doradzamy, nie diagnozujemy.
+
+TONE OF VOICE: Profesjonalny, edukacyjny, bez agresywnej sprzedaży. Piszemy do osoby dorosłej szukającej konkretnej informacji. Styl: pewny, pomocny, bez banałów i pustych superlatywów.
+
+OBIETNICE DOZWOLONE:
+- Poprawa komfortu snu
+- Stabilne podparcie kręgosłupa
+- Pomoc w utrzymaniu anatomicznej pozycji ciała
+- Wysoka higiena snu
+- Trwałość konstrukcji
+- Polska produkcja
+- Personalizacja (rozmiary na zamówienie)
+
+OBIETNICE ZAKAZANE (nigdy):
+- Leczenie chorób / dolegliwości
+- Gwarancja ustąpienia bólu
+- Zastępowanie terapii medycznej
+- "Idealny dla każdego"
+- "Najlepszy materac na rynku"
+- "Medycznie potwierdzony efekt leczniczy"
+- "Całkowicie eliminuje roztocza"
+- "Technologia NASA leczy plecy"
+
+SŁOWNIK STOP/START:
+STOP: leczy, uzdrawia, rehabilituje, usuwa ból, ortopedyczny (bez certyfikatu), terapeutyczny, medyczny, gwarantuje regenerację
+START: wspiera kręgosłup, może poprawić komfort, pomaga utrzymać anatomiczną pozycję, sprzyja regeneracji, idealny do profilaktyki zdrowego snu
+
+KLAUZULA BEZPIECZEŃSTWA (obowiązkowa przy tekstach o bólu):
+"Jeśli ból jest silny, przewlekły lub towarzyszą mu objawy alarmowe, należy skonsultować się z lekarzem lub fizjoterapeutą."
+
+ZASADA ANTI-HALUCYNACJA:
+- Jeśli fakt nie wynika ze źródeł → napisz "sprawdź w karcie produktu"
+- Nie wymyślaj parametrów technicznych (grubości warstw, gramatur, wysokości)
+- Nie podawaj danych liczbowych bez potwierdzenia w źródłach` },
+  sekcja2: { aktywna: true, tresc: `KANON TWARDOŚCI (używaj WYŁĄCZNIE tych widełek):
+H2 (średnio-miękki): do 70-80 kg
+H3 (średnio-twardy): 80-100 kg
+H4 (twardy): powyżej 100 kg
+Klauzula: "Dobór twardości zależy także od pozycji snu i indywidualnych preferencji."
+
+MODELE — FAKTY PEWNE:
+
+SILVER PRO: Hybrydowy kontynentalny, 32 cm. Technologie: sprężyny minipocket + multipocket 7-strefowe + VISCO + lateks. Twardość H3. Link: https://luxsen.pl/products/silver-pro
+
+SILVER: Hybrydowy kontynentalny, 32 cm. Technologie: pianki VISCO i lateksowe + sprężyny minipocket i multipocket 7-strefowe. Twardość H3, 7 stref komfortu. Link: https://luxsen.pl/products/materac-silver
+
+MINT: Multipocket 7 stref + kokos + lateks. Twardość H3/H4. Bestseller H3. Link: https://luxsen.pl/products/materac-mint
+
+ORRIS: Hybrydowy + podwójny lateks + minipocket. Twardość H3/H4. Wskazany dla H4 (>100 kg). Link: https://luxsen.pl/products/materac-orris
+
+BARNET: Pocketowy. Termopianka VISCO. Twardość H3.
+
+CARDAMON: Pocketowy. Podwójny lateks. Twardość H3.
+
+ANISE: Przykład dla H2 (do 70-80 kg). Pianka HR lub VISCO. Link: https://luxsen.pl/products/materac-anise
+
+MODELE BEZ POTWIERDZONYCH PARAMETRÓW (nie dopisuj nic — tylko "sprawdź w karcie produktu"):
+Chevril, Basil, Borage, Cayenne, Cinnamon, Clove, Costmary, Cumin, Fenell, Lavender, Melissa, Mint Light, Poppy, Savory, Sesame, Vanilla, File
+
+WOLNO MÓWIĆ O KAŻDYM MODELU:
+- Regularne obracanie o 180° co 3-6 miesięcy
+- Wszystkie modele mają pokrowiec z zamkiem rozdzielczym
+- Polska produkcja, materiały zgodne z normami europejskimi` },
+  sekcja3: { aktywna: true, tresc: `HUB #1 — Jak wybrać materac (filar zakupowy)
+URL: https://luxsen.pl/blogs/news/jaki-materac-wybrac-kompleksowy-przewodnik-luxsen
+Klastry: rozmiary (140x200, 160x200), dla kogo (dwoje, dzieci, alergia), technologie (piankowy vs sprężynowy, hybrydowy, kieszeniowy, kontynentalny), akcesoria (toppery, poduszka)
+
+HUB #2 — Oferta / modele Luxsen (brand + money)
+URL: https://luxsen.pl/blogs/news/materace-luxsen-przewodnik-po-ofercie-jak-wybrac-idealny-fundament-zdrowego-snu
+Klastry: modele (Silver Pro, Orris, Chervil, Mint, Lavender itd.), akcesoria Luxsen (toppery)
+
+HUB #3 — Sen i problemy (ruch info)
+Klastry: cykle snu/regeneracja (REM, kalkulator snu), hormony/neuro (melatonina, dopamina, kortyzol), problemy (ból pleców, drętwienie rąk), higiena snu/materaca
+
+ZASADY LINKOWANIA:
+- W górę (do huba): zawsze anchor + pełny URL https://luxsen.pl/...
+- W bok (rodzeństwo klastra): linkuj do podobnych artykułów w klastrze
+- W dół (money): karta produktu = cel końcowy
+- Max 1-2 linki na sekcję w treści, reszta w "Materiałach do pogłębienia"
+- Jedno CTA na artykuł — nie dubluj produktu w CTA i w Materiałach
+- Linki wewnętrzne zawsze pełne https://luxsen.pl/... bez parametrów
+
+BREADCRUMB (na górze artykułu):
+Poradniki → [Klaster] → [Tytuł artykułu]
+
+LINKI PRIORYTETOWE:
+HUB #1: https://luxsen.pl/blogs/news/jaki-materac-wybrac-kompleksowy-przewodnik-luxsen
+HUB #2: https://luxsen.pl/blogs/news/materace-luxsen-przewodnik-po-ofercie-jak-wybrac-idealny-fundament-zdrowego-snu
+Silver Pro art.: https://luxsen.pl/blogs/news/materac-luxsen-silver-pro-dlaczego-to-bestseller-wsrod-materacy-hybrydowych
+Kolekcja H2: https://luxsen.pl/collections/materace-h2-srednio-miekki
+Kolekcja H3: https://luxsen.pl/collections/materace-h3-srednio-twardy
+Kolekcja H4: https://luxsen.pl/collections/materace-h4-twardy
+Kolekcja wszystkie: https://luxsen.pl/collections/materace-luxsen` },
+  sekcja4: { aktywna: false, tresc: `STRUKTURA ARTYKUŁU (obowiązkowy układ):
+[Wstęp — 2-3 zdania, pogrubiona fraza kluczowa]
+[BOX: "W tym artykule:" — lista 5-7 punktów]
+[Link do HUB #1 lub #2 jako "Poradnik zbiorczy:"]
+[BOX: WAŻNA INFORMACJA — jeśli artykuł dotyczy bólu/zdrowia]
+[SPIS TREŚCI — ponumerowane kotwice H2]
+[H2 sekcje zgodnie z briefem]
+[CYTAT — eksperci Luxsen, w ramce z lewą listwą złotą]
+[H2 FAQ — 6 pytań i odpowiedzi]
+[BOX CTA — szare tło, złoty przycisk, jedno CTA]
+[Materiały do pogłębienia — dokładnie 4 linki]
+[Na końcu: lista użytych anchorów z URL]
+
+KOLORY I STYL:
+- Kolor akcentu (złoty): #bd9a6c
+- Przycisk CTA: background-color: #bd9a6c; color: white; padding: 18px 35px; font-weight: bold; border-radius: 6px; text-transform: uppercase
+
+BOX "W tym artykule":
+background: #f4f4f4; padding: 18px; border: 1px solid #eee; border-radius: 10px; margin: 18px 0
+
+BOX WAŻNA INFORMACJA:
+background-color: #f9f9f9; padding: 16px; border-left: 5px solid #bd9a6c; border-radius: 8px
+
+SPIS TREŚCI:
+background: #ffffff; border: 1px solid #eee; border-radius: 10px; padding: 18px — linki kolor #bd9a6c
+
+CYTAT:
+background: #f4f4f4; border-left: 5px solid #bd9a6c; border-radius: 10px; padding: 16px; font-style: italic
+
+BOX CTA:
+background-color: #f4f4f4; padding: 40px 20px; border-radius: 12px; text-align: center
+
+MATERIAŁY DO POGŁĘBIENIA:
+Zawsze dokładnie 4 linki: HUB #1 + HUB #2 + artykuł rodzeństwa klastra + kolekcja lub karta produktu
+
+ZASADY JAKOŚCI:
+- Zero parametrów z głowy — "sprawdź w karcie produktu"
+- Linki wewnętrzne BEZ target="_blank" (zewnętrzne mogą mieć)
+- Tabele: overflow-x: auto, min-width: 980px
+- Spis treści: kotwice id na nagłówkach H2
+- Na końcu artykułu: lista użytych anchorów + URL` }
+};
+
+const GUIDELINES_SECTION_META = [
+  { key: 'sekcja1', num: '01', title: 'KANON MARKI LUXSEN', subtitle: 'Compliance, tone of voice, słownik STOP/START' },
+  { key: 'sekcja2', num: '02', title: 'MODELE LUXSEN', subtitle: 'Fakty pewne per model + kanon twardości H2/H3/H4' },
+  { key: 'sekcja3', num: '03', title: 'STRUKTURA HUBÓW I LINKOWANIE', subtitle: 'Mapa HUB #1 / #2 / #3 z zasadami linkowania wewnętrznego' },
+  { key: 'sekcja4', num: '04', title: 'SZABLON HTML (SHOPIFY)', subtitle: 'Struktura artykułu + boxy + CTA + Materiały do pogłębienia' },
+];
 
 function lsGet(key, fallback = null) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
@@ -1026,7 +1160,7 @@ function seedTestData() {
       { id: 'a2', title: 'Mysz', url: '', photos: 1, desc: 'Mysz do komputera.', notes: 'Do poprawy — za krótki opis' },
     ]);
   }
-  if (!lsGet(KEY.guidelines)) lsSet(KEY.guidelines, DEFAULT_GUIDELINES);
+  if (!lsGet(KEY.guidelines)) lsSet(KEY.guidelines, JSON.parse(JSON.stringify(DEFAULT_GUIDELINES_SECTIONS)));
 
   // Huby
   if (lsGet(KEY.hubs, []).length === 0) {
@@ -1428,7 +1562,7 @@ document.getElementById('agentRunBtn').addEventListener('click', async () => {
   const category = document.getElementById('agentCategory').value.trim();
   const keywords = document.getElementById('agentKeywords').value.trim();
   const useGuidelines = document.getElementById('agentUseGuidelines').checked;
-  const guidelines = useGuidelines ? (lsGet(KEY.guidelines) || DEFAULT_GUIDELINES) : '';
+  const guidelines = useGuidelines ? getActiveGuidelinesText() : '';
 
   const scoreBefore = calcScore(title, oldDesc, 0);
   document.getElementById('scoreBefore').textContent = scoreBefore + '/10';
@@ -1448,7 +1582,7 @@ document.getElementById('agentRunBtn').addEventListener('click', async () => {
   document.getElementById('scoreAfter').style.color = 'var(--text-muted)';
 
   let systemPrompt = 'Jesteś ekspertem SEO platformy Allegro. Przepisujesz opisy aukcji aby maksymalizować widoczność w wyszukiwarce Allegro i konwersję. Używasz naturalnego języka polskiego, unikasz spamu słów kluczowych, strukturyzujesz opis w czytelne sekcje.';
-  if (guidelines) systemPrompt += '\n\nWYTYCZNE:\n' + guidelines;
+  if (guidelines) systemPrompt += guidelines;
 
   const userPrompt = `Przepisz poniższy opis aukcji.\n\nTytuł: ${title || '(brak)'}\nKategoria: ${category || '(brak)'}\nSłowa kluczowe do uwzględnienia: ${keywords || '(brak)'}\n\nSTARY OPIS:\n${oldDesc}\n\nZwróć TYLKO przepisany opis, bez komentarzy, bez wyjaśnień.`;
 
@@ -1597,27 +1731,80 @@ document.getElementById('exportCsvBtn').addEventListener('click', () => {
 function csvEsc(s) { return '"' + String(s || '').replace(/"/g, '""') + '"'; }
 
 // ═══════════════════════════════════════════════════════
-// 9. WYTYCZNE
+// 9. WYTYCZNE (4 sekcje)
 // ═══════════════════════════════════════════════════════
-function renderWytyczne() {
-  const val = lsGet(KEY.guidelines) || DEFAULT_GUIDELINES;
-  document.getElementById('guidelinesText').value = val;
+function getGuidelinesSections() {
+  return lsGet(KEY.guidelines) || JSON.parse(JSON.stringify(DEFAULT_GUIDELINES_SECTIONS));
 }
 
-document.getElementById('saveGuidelinesBtn').addEventListener('click', () => {
-  const val = document.getElementById('guidelinesText').value;
-  lsSet(KEY.guidelines, val);
+function renderWytyczne() {
+  const sections = getGuidelinesSections();
+  const container = document.getElementById('guidelinesSections');
+  container.innerHTML = GUIDELINES_SECTION_META.map(meta => {
+    const s = sections[meta.key] || { aktywna: false, tresc: '' };
+    return `<div style="border-left:3px solid var(--accent);background:var(--bg-card);border-radius:0 8px 8px 0;padding:1.25rem 1.5rem;margin-bottom:1rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--text-primary)">${meta.num} — ${meta.title}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${meta.subtitle}</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-mono);font-size:11px;color:${s.aktywna ? 'var(--green)' : 'var(--text-muted)'}">
+          <input type="checkbox" id="gCheck_${meta.key}" ${s.aktywna ? 'checked' : ''} style="accent-color:var(--accent);width:16px;height:16px">
+          ${s.aktywna ? 'ON' : 'OFF'}
+        </label>
+      </div>
+      <textarea class="form-textarea" id="gText_${meta.key}" style="min-height:300px;font-family:var(--font-mono);font-size:12px;line-height:1.5;margin-top:8px">${esc(s.tresc)}</textarea>
+    </div>`;
+  }).join('');
+
+  // Update ON/OFF label color on toggle
+  GUIDELINES_SECTION_META.forEach(meta => {
+    document.getElementById('gCheck_' + meta.key).addEventListener('change', function() {
+      const label = this.parentElement;
+      label.style.color = this.checked ? 'var(--green)' : 'var(--text-muted)';
+      label.querySelector('input').nextSibling.textContent = this.checked ? '\n          ON' : '\n          OFF';
+    });
+  });
+}
+
+function saveGuidelinesSections() {
+  const sections = {};
+  GUIDELINES_SECTION_META.forEach(meta => {
+    sections[meta.key] = {
+      aktywna: document.getElementById('gCheck_' + meta.key).checked,
+      tresc: document.getElementById('gText_' + meta.key).value
+    };
+  });
+  lsSet(KEY.guidelines, sections);
   saveAllWithSync();
-  const btn = document.getElementById('saveGuidelinesBtn');
+}
+
+function getActiveGuidelinesText() {
+  const sections = getGuidelinesSections();
+  const parts = [];
+  GUIDELINES_SECTION_META.forEach(meta => {
+    const s = sections[meta.key];
+    if (s && s.aktywna && s.tresc.trim()) {
+      parts.push(s.tresc.trim());
+    }
+  });
+  return parts.length ? '\n\n=== WYTYCZNE MARKI ===\n' + parts.join('\n\n---\n\n') + '\n=== KONIEC WYTYCZNYCH ===' : '';
+}
+
+document.getElementById('saveAllGuidelinesBtn').addEventListener('click', () => {
+  saveGuidelinesSections();
+  const btn = document.getElementById('saveAllGuidelinesBtn');
   btn.textContent = 'ZAPISANO ✓';
-  setTimeout(() => btn.textContent = 'ZAPISZ WYTYCZNE', 2000);
+  setTimeout(() => btn.textContent = 'ZAPISZ WSZYSTKIE SEKCJE ►', 2000);
 });
 
-document.getElementById('resetGuidelinesBtn').addEventListener('click', () => {
-  if (!confirm('Przywrócić domyślne wytyczne?')) return;
-  document.getElementById('guidelinesText').value = DEFAULT_GUIDELINES;
-  lsSet(KEY.guidelines, DEFAULT_GUIDELINES);
-  saveAllWithSync();
+document.getElementById('resetAllGuidelinesBtn').addEventListener('click', () => {
+  if (!confirm('Przywrócić domyślne wytyczne we wszystkich sekcjach?')) return;
+  GUIDELINES_SECTION_META.forEach(meta => {
+    const def = DEFAULT_GUIDELINES_SECTIONS[meta.key];
+    document.getElementById('gText_' + meta.key).value = def.tresc;
+    document.getElementById('gCheck_' + meta.key).checked = def.aktywna;
+  });
 });
 
 // ═══════════════════════════════════════════════════════
@@ -2164,6 +2351,15 @@ seedTestData();
   }
   lsSet(KEY.hubs, hubs);
   console.log('[MIGRACJA] Huby po:', hubs.map(function(h){return h.id;}));
+})();
+
+// Migracja: stare wytyczne (string) → nowa struktura (4 sekcje)
+(function() {
+  var g = lsGet(KEY.guidelines);
+  if (typeof g === 'string' || g === null) {
+    lsSet(KEY.guidelines, JSON.parse(JSON.stringify(DEFAULT_GUIDELINES_SECTIONS)));
+    console.log('[MIGRACJA] Wytyczne: string → 4 sekcje');
+  }
 })();
 
 document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
