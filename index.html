@@ -2777,11 +2777,33 @@ function editArticle(id) {
 }
 
 function deleteArticle(id) {
-  if (!confirm('Usunąć artykuł?')) return;
+  if (!confirm('Usunąć artykuł i powiązane słowa kluczowe?')) return;
   let articles = lsGet(KEY.articles, []);
+  const art = articles.find(x => x.id === id);
   articles = articles.filter(x => x.id !== id);
-  lsSet(KEY.articles, articles); saveAllWithSync();
+  lsSet(KEY.articles, articles);
+
+  // Usuń keywords powiązane z tym artykułem
+  if (art && art.keywords && art.keywords.length > 0) {
+    const artKws = new Set(art.keywords.map(k => k.toLowerCase()));
+    let kws = lsGet(KEY.keywords, []);
+    kws = kws.filter(k => !artKws.has(k.fraza.toLowerCase()));
+    lsSet(KEY.keywords, kws);
+  }
+
+  // Usuń satelitę z huba jeśli istnieje
+  if (art && art.hubId && art.url) {
+    const hubs = lsGet(KEY.hubs, []);
+    const hub = hubs.find(h => h.id === art.hubId);
+    if (hub && hub.artykuly) {
+      hub.artykuly = hub.artykuly.filter(a => a.url !== art.url);
+      lsSet(KEY.hubs, hubs);
+    }
+  }
+
+  saveAllWithSync();
   renderArtykuly();
+  updateLinkiBadge();
 }
 
 window._editArticleId = null;
@@ -3418,12 +3440,12 @@ seedTestData();
   console.log('[MIGRACJA v3] Usunięto stare testowe dane: artykuły, keywords, huby, satelity');
 })();
 
-// Migracja v4: wyczyść wszystkie śmieciowe keywords z parserów
+// Migracja v5: wyczyść WSZYSTKIE keywords — fresh start
 (function() {
-  if (lsGet(PFX + 'cleaned_v4')) return;
+  if (lsGet(PFX + 'cleaned_v5')) return;
   lsSet(KEY.keywords, []);
-  lsSet(PFX + 'cleaned_v4', true);
-  console.log('[MIGRACJA v4] Wyczyszczono keywords — rebuild z importów');
+  lsSet(PFX + 'cleaned_v5', true);
+  console.log('[MIGRACJA v5] Wyczyszczono keywords — rebuild z importów');
 })();
 
 document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
