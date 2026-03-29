@@ -4756,6 +4756,72 @@ function generateLinkSuggestions() {
     </tbody></table></div></div>`;
 }
 
+async function generateBriefForGap(topic, hubId, missingUrl) {
+  const articles = lsGet(KEY.articles, []);
+  const hubs = lsGet(KEY.hubs, []);
+  const hub = hubs.find(h => h.id === hubId);
+  const hubArts = articles.filter(a => a.hubId === hubId && a.url);
+
+  // Switch to Agent
+  window._skipRestore = true;
+  switchTab('agent');
+  await new Promise(r => setTimeout(r, 300));
+
+  populateAgentHubSelect();
+  document.getElementById('agentDomena').value = getClientDomena(selectedGapClient || 'luxsen');
+  document.getElementById('agentHub').value = hubId;
+  document.getElementById('agentTitle').value = '⏳ AI generuje brief dla: ' + topic + '...';
+  document.getElementById('agentKeyword').value = '';
+  document.getElementById('agentLSI').value = '';
+  document.getElementById('agentPlan').value = '';
+  document.getElementById('agentLinks').value = hubArts.map(a => a.tytul + ' | ' + a.url).join('\n');
+  window._skipRestore = false;
+
+  // Find which articles link to this missing URL (context for AI)
+  const linkers = articles.filter(a => (a.linksWewnetrzne || []).some(l => l.url === missingUrl));
+  const linkersContext = linkers.map(a => '- ' + a.tytul + ' (keyword: ' + (a.keyword || '—') + ')').join('\n');
+
+  const briefPrompt = `Jako strateg SEO, zaproponuj brief NOWEGO artykułu blogowego.
+
+KONTEKST: W bazie mamy ${hubArts.length} artykułów w hubie "${hub ? hub.nazwa : '?'}".
+${linkers.length} artykułów linkuje do brakującego URL: ${missingUrl}
+Temat/anchor używany w linkach: "${topic}"
+
+ARTYKUŁY KTÓRE LINKUJĄ DO TEGO TEMATU:
+${linkersContext || 'brak danych'}
+
+ISTNIEJĄCE ARTYKUŁY W HUBIE (NIE powtarzaj):
+${hubArts.map(a => '- ' + a.tytul).join('\n')}
+
+ZADANIE: Zaproponuj brief artykułu o temacie "${topic}" który:
+- Pasuje do intencji wyszukiwania (informacyjna/zakupowa)
+- Ma H2 ściśle wspierające H1
+- Naturalnie linkuje do artykułów z huba
+- Wypełnia lukę w klastrze
+
+Zwróć WYŁĄCZNIE JSON (bez markdown):
+{"title":"Tytuł SEO 60-75 znaków","keyword":"główna fraza 2-4 słowa","lsi":["fraza 1","fraza 2","fraza 3","fraza 4","fraza 5","fraza 6"],"h2plan":["H2 1","H2 2","H2 3","H2 4","H2 5","H2 FAQ","H2 Podsumowanie"]}`;
+
+  try {
+    const brief = await generateBriefWithRetry(briefPrompt, 'Jesteś strategiem SEO. Zwracasz WYŁĄCZNIE JSON.', 3);
+
+    document.getElementById('agentTitle').value = brief.title;
+    document.getElementById('agentKeyword').value = brief.keyword;
+    document.getElementById('agentLSI').value = Array.isArray(brief.lsi) ? brief.lsi.join('\n') : brief.lsi;
+    document.getElementById('agentPlan').value = Array.isArray(brief.h2plan) ? brief.h2plan.join('\n') : brief.h2plan;
+    saveAgentForm();
+    updateAgentTemplateInfo();
+    showToast('✦ Brief wygenerowany z kontekstem gap — sprawdź i generuj', 'success');
+  } catch(e) {
+    console.error('[GAP BRIEF]', e);
+    // Fallback: fill with topic
+    document.getElementById('agentTitle').value = topic.charAt(0).toUpperCase() + topic.slice(1);
+    document.getElementById('agentKeyword').value = topic;
+    saveAgentForm();
+    showToast('Brief fallback — wypełnij ręcznie: ' + e.message, 'warning');
+  }
+}
+
 function slugToName(url) {
   let s = url.split('/').pop().replace(/-/g, ' ').replace(/\bluxsen\b/gi, '').trim();
   s = s.charAt(0).toUpperCase() + s.slice(1);
@@ -4812,7 +4878,7 @@ function renderSuggestionsEngine() {
           <div style="font-size:10px;color:var(--accent)">${m.linkedBy.length} artykułów linkuje tutaj</div>
           <div style="display:flex;gap:6px;margin-top:6px">
             <button class="btn" style="font-size:8px;padding:2px 8px" onclick="switchTab('artykuly');setTimeout(()=>document.getElementById('importArticleBtn')?.click(),300)">IMPORTUJ</button>
-            <button class="btn" style="font-size:8px;padding:2px 8px;color:var(--accent);border-color:var(--accent)44" onclick="agentUsePhrase('${esc(m.anchor || slug).replace(/'/g,"\\'")}');document.getElementById('agentHub').value='${h.id}';switchTab('agent')">GENERUJ NOWY ►</button>
+            <button class="btn" style="font-size:8px;padding:2px 8px;color:var(--accent);border-color:var(--accent)44" onclick="generateBriefForGap('${esc(m.anchor || slug).replace(/'/g,"\\'")}','${h.id}','${esc(m.url).replace(/'/g,"\\'")}')">GENERUJ NOWY ►</button>
           </div>
         </div>`;
       }).join('') + `</div></div>`;
@@ -4838,7 +4904,7 @@ function renderSuggestionsEngine() {
         <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">${hub ? hub.nazwa : '—'} · ${m.linkedBy.length} artykułów linkuje tutaj</div>
         <div style="display:flex;gap:8px;margin-top:6px">
           <button class="btn" style="font-size:8px;padding:2px 8px" onclick="switchTab('artykuly');setTimeout(()=>document.getElementById('importArticleBtn')?.click(),300)">IMPORTUJ</button>
-          <button class="btn btn-accent" style="font-size:9px;padding:3px 10px" onclick="agentUsePhrase('${esc(m.anchor || slug).replace(/'/g,"\\'")}');document.getElementById('agentHub').value='${m.hubId}';switchTab('agent')">GENERUJ NOWY ►</button>
+          <button class="btn btn-accent" style="font-size:9px;padding:3px 10px" onclick="generateBriefForGap('${esc(m.anchor || slug).replace(/'/g,"\\'")}','${m.hubId}','${esc(m.url).replace(/'/g,"\\'")}')">GENERUJ NOWY ►</button>
         </div>
       </div>`;
     }).join('');
