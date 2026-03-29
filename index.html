@@ -2417,9 +2417,16 @@ WYMAGANIA OBOWIĄZKOWE:
 5. Dodaj cytat eksperta marki w odpowiednim miejscu
 6. FAQ: dokładnie 6 pytań, każda odpowiedź min 3 zdania
 7. Na końcu: box CTA + Materiały do pogłębienia (4 linki) + tabela anchorów
-8. Łącznie minimum 2500 słów
-9. Min. 3-5 linków do artykułów z huba + 1 link do pillar page + min. 1 link cross-hub
-10. URL-e: używaj WYŁĄCZNIE podanych powyżej — NIE wymyślaj, NIE modyfikuj${extraContext}`;
+8. Min. 3-5 linków do artykułów z huba + 1 link do pillar page + min. 1 link cross-hub
+9. URL-e: używaj WYŁĄCZNIE podanych powyżej — NIE wymyślaj, NIE modyfikuj
+
+WAŻNE — PODZIAŁ NA CZĘŚCI:
+Ta wiadomość generuje wyłącznie CZĘŚĆ 1 artykułu (1800-2200 słów).
+Część 1 obejmuje: wstęp, box "W tym artykule", spis treści, sekcje H2, cytat eksperta.
+NIE pisz FAQ, NIE pisz CTA, NIE pisz "Materiały do pogłębienia" — to będzie Część 2.
+Zakończ Część 1 KOMPLETNYM, zamkniętym akapitem — NIGDY w połowie zdania.
+Jeśli zbliżasz się do końca — zakończ bieżący akapit i dodaj:
+<!-- KONIEC CZĘŚCI 1 -->${extraContext}`;
 
   try {
     outputEl.textContent = '';
@@ -2476,19 +2483,33 @@ async function generateArticlePart2() {
   let systemPrompt = 'Jesteś ekspertem SEO i copywriterem. Kontynuujesz pisanie artykułu blogowego. Pisz w języku polskim, profesjonalnie. Zachowaj styl HTML z Części 1.';
   if (guidelines) systemPrompt += guidelines;
 
+  // Detect if Part 1 was cut mid-sentence
+  const part1Text = window._agentPart1Content;
+  const hasEndMarker = part1Text.includes('<!-- KONIEC CZĘŚCI 1 -->');
+  const plainText = part1Text.replace(/<[^>]+>/g, '').trim();
+  const endsCleanly = /[.?!»"]\s*$/.test(plainText);
+  const needsCompletion = !hasEndMarker && !endsCleanly;
+
+  const completionInstruction = needsCompletion
+    ? `UWAGA: Część 1 została URWANA w połowie zdania.
+Ostatnie słowa Części 1: "...${plainText.slice(-200)}"
+ZACZNIJ od DOKOŃCZENIA tego urwanego zdania/akapitu (bez powtarzania początku), a następnie przejdź do FAQ.`
+    : `Część 1 zakończona poprawnie. Zacznij bezpośrednio od <h2 id="faq">.`;
+
   const part2Prompt = `Kontynuujesz pisanie artykułu SEO dla ${domena}.
 Tytuł: "${title}"
 Główne słowo kluczowe: ${keyword}
 
-CZĘŚĆ 1 ARTYKUŁU (już napisana — NIE powtarzaj):
-${window._agentPart1Content.substring(0, 4000)}
-[...]
+${completionInstruction}
+
+CZĘŚĆ 1 (ostatnie 800 znaków dla kontekstu):
+...${window._agentPart1Content.slice(-800)}
 
 ARTYKUŁY W HUBIE "${hub ? hub.nazwa : ''}" (do linkowania):
 ${hubLinksStr || '(brak)'}
 
-ZADANIE — napisz WYŁĄCZNIE Część 2 zawierającą:
-
+ZADANIE — napisz brakującą Część 2:
+${needsCompletion ? '0. Najpierw DOKOŃCZ urwany akapit z Części 1\n' : ''}
 1. <h2 id="faq">FAQ – najczęściej zadawane pytania</h2>
 Dokładnie 6 pytań i odpowiedzi (h3 + p). Pytania realne, konkretne.
 
