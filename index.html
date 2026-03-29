@@ -2602,12 +2602,21 @@ document.getElementById('saveArticleHistoryBtn').addEventListener('click', () =>
 });
 
 function showLinkDebt(newTitle, newKeyword) {
-  const hubId = document.getElementById('agentHub').value;
-  if (!hubId) return;
   const articles = lsGet(KEY.articles, []);
   const hubs = lsGet(KEY.hubs, []);
+  const domena = getClientDomena(selectedAgentClient || GUIDELINES_CLIENTS[0].id);
+  const clientArts = domena ? articles.filter(a => a.domena === domena) : articles;
+
+  // Try to find hub from agentHub dropdown, or find matching hub by keyword
+  let hubId = document.getElementById('agentHub').value;
+  if (!hubId && newKeyword) {
+    const matchArt = clientArts.find(a => a.keyword && a.keyword.toLowerCase().includes(newKeyword.toLowerCase().split(' ')[0]));
+    if (matchArt) hubId = matchArt.hubId;
+  }
+  if (!hubId && hubs.length > 0) hubId = hubs[0].id;
+
   const hub = hubs.find(h => h.id === hubId);
-  const hubArts = articles.filter(a => a.hubId === hubId);
+  const hubArts = hubId ? clientArts.filter(a => a.hubId === hubId) : clientArts;
 
   // Find articles that should link to the new one (same hub, topically related)
   const suggestions = hubArts.map(a => {
