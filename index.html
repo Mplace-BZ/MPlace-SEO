@@ -4341,48 +4341,50 @@ async function generateRelatedArticle(sourceArtId) {
   const hubArts = articles.filter(a => a.hubId === sourceArt.hubId && a.url);
   const hubKws = keywords.filter(k => k.hubId === sourceArt.hubId);
   const uncovered = hubKws.filter(k => !k.pokryta);
-  const domena = sourceArt.domena || '';
 
-  // Pre-fill basics and switch to Agent tab
-  document.getElementById('agentDomena').value = domena;
+  // Switch to Agent tab first, then populate
+  switchTab('agent');
+
+  // Wait for DOM to update
+  await new Promise(r => setTimeout(r, 200));
+
+  // Set hub and domena
+  populateAgentHubSelect();
+  document.getElementById('agentDomena').value = sourceArt.domena || '';
   if (sourceArt.hubId) document.getElementById('agentHub').value = sourceArt.hubId;
-  document.getElementById('agentTitle').value = 'Generuję brief...';
+
+  // Show loading state
+  document.getElementById('agentTitle').value = '⏳ AI generuje brief — proszę czekać...';
   document.getElementById('agentKeyword').value = '';
   document.getElementById('agentLSI').value = '';
   document.getElementById('agentPlan').value = '';
-  document.getElementById('agentLinks').value = '';
-  switchTab('agent');
+  document.getElementById('agentLinks').value = hubArts.map(a => a.tytul + ' | ' + a.url).join('\n');
 
-  // Build context for AI brief generation
-  const existingTitles = hubArts.map(a => a.tytul).join('\n');
+  // Build AI brief request
+  const existingTitles = hubArts.map(a => '- ' + a.tytul).join('\n');
   const existingKws = hubKws.map(k => k.fraza + ' (' + k.typ + ')').join(', ');
   const uncoveredStr = uncovered.map(k => k.fraza).join(', ');
-  const sourceTitle = sourceArt.tytul;
-  const sourceKeyword = sourceArt.keyword || '';
 
-  const briefPrompt = `Jesteś strategiem SEO. Na podstawie analizy istniejących artykułów w hubie "${hub ? hub.nazwa : ''}" zaproponuj brief dla NOWEGO artykułu blogowego.
+  const briefPrompt = `Jesteś strategiem SEO. Zaproponuj brief dla NOWEGO artykułu blogowego w hubie "${hub ? hub.nazwa : ''}".
 
-ISTNIEJĄCE ARTYKUŁY W HUBIE (NIE powtarzaj tych tematów):
+ISTNIEJĄCE ARTYKUŁY (NIE powtarzaj tych tematów):
 ${existingTitles}
 
-ISTNIEJĄCE SŁOWA KLUCZOWE W HUBIE:
-${existingKws}
+SŁOWA KLUCZOWE W HUBIE: ${existingKws}
 
-FRAZY BEZ POKRYCIA (content gap):
-${uncoveredStr || 'brak'}
+FRAZY BEZ POKRYCIA (content gap): ${uncoveredStr || 'brak'}
 
-ARTYKUŁ ŹRÓDŁOWY (z którego wynika potrzeba nowego):
-"${sourceTitle}" — keyword: "${sourceKeyword}"
+ARTYKUŁ ŹRÓDŁOWY: "${sourceArt.tytul}" — keyword: "${sourceArt.keyword || ''}"
 
-ZADANIE: Zaproponuj brief nowego artykułu który:
-1. NIE powtarza tematów istniejących artykułów
-2. Wypełnia content gap (jeśli są frazy bez pokrycia)
-3. Naturalnie linkuje do artykułu źródłowego i 3-4 innych z huba
-4. Ma H2 ściśle powiązane z H1 (tytuł wspiera pozycjonowanie)
+Zaproponuj brief NOWEGO artykułu:
+- NIE powtarzaj istniejących tematów
+- H2 muszą ściśle wspierać H1 (tytuł)
+- LSI dopasowane do NOWEGO tematu
+- Wypełnij content gap jeśli możliwe
 
-Odpowiedz DOKŁADNIE w tym formacie (bez komentarzy, bez wyjaśnień):
-TYTUŁ: [tytuł SEO artykułu 60-75 znaków]
-KEYWORD: [główna fraza kluczowa 2-4 słowa]
+ODPOWIEDZ DOKŁADNIE w tym formacie:
+TYTUŁ: [tytuł SEO 60-75 znaków]
+KEYWORD: [główna fraza 2-4 słowa]
 LSI:
 [fraza 1]
 [fraza 2]
@@ -4391,49 +4393,52 @@ LSI:
 [fraza 5]
 [fraza 6]
 PLAN H2:
-[H2 sekcja 1 — ściśle powiązana z tytułem]
-[H2 sekcja 2]
-[H2 sekcja 3]
-[H2 sekcja 4]
-[H2 sekcja 5]
-[H2 sekcja 6 — FAQ]
-[H2 sekcja 7 — Podsumowanie]
-LINKI:
-${hubArts.map(a => a.tytul + ' | ' + a.url).join('\n')}`;
+[H2 1 — ściśle powiązana z tytułem]
+[H2 2]
+[H2 3]
+[H2 4]
+[H2 5]
+[H2 6 — FAQ]
+[H2 7 — Podsumowanie]`;
 
   try {
-    const result = await callAgent(briefPrompt, 'Jesteś strategiem SEO. Odpowiadaj krótko, konkretnie, w podanym formacie.');
+    const result = await callAgent(briefPrompt, 'Jesteś strategiem SEO. Odpowiadaj krótko w podanym formacie. Bez komentarzy.');
 
-    // Parse AI response
+    // Parse response
     const titleMatch = result.match(/TYTUŁ:\s*(.+)/i);
     const kwMatch = result.match(/KEYWORD:\s*(.+)/i);
     const lsiMatch = result.match(/LSI:\s*\n([\s\S]*?)(?=PLAN H2:|$)/i);
-    const planMatch = result.match(/PLAN H2:\s*\n([\s\S]*?)(?=LINKI:|$)/i);
-    const linksMatch = result.match(/LINKI:\s*\n([\s\S]*?)$/i);
+    const planMatch = result.match(/PLAN H2:\s*\n([\s\S]*?)$/i);
 
-    document.getElementById('agentTitle').value = titleMatch ? titleMatch[1].trim() : 'Nowy artykuł SEO';
+    document.getElementById('agentTitle').value = titleMatch ? titleMatch[1].trim() : 'Nowy artykuł — sprawdź tytuł';
     document.getElementById('agentKeyword').value = kwMatch ? kwMatch[1].trim() : '';
     document.getElementById('agentLSI').value = lsiMatch ? lsiMatch[1].trim() : '';
     document.getElementById('agentPlan').value = planMatch ? planMatch[1].trim() : '';
-    document.getElementById('agentLinks').value = linksMatch ? linksMatch[1].trim() : hubArts.map(a => a.tytul + ' | ' + a.url).join('\n');
 
     saveAgentForm();
+    updateAgentSuggestions();
+    updateAgentTemplateInfo();
 
-    // Toast
     const toast = document.createElement('div');
-    toast.textContent = '✦ Brief wygenerowany przez AI — sprawdź i edytuj przed generowaniem';
-    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--accent);color:#fff;padding:12px 24px;border-radius:8px;font-family:var(--font-mono);font-size:12px;z-index:99999';
+    toast.textContent = '✦ Brief wygenerowany — sprawdź i edytuj przed GENERUJ ARTYKUŁ';
+    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 24px;border-radius:8px;font-family:var(--font-mono);font-size:12px;z-index:99999';
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 4000);
+    setTimeout(() => toast.remove(), 5000);
+
   } catch(e) {
-    // Fallback — fill manually if AI fails
+    console.error('Brief generation failed:', e);
     document.getElementById('agentTitle').value = uncovered.length > 0
-      ? uncovered[0].fraza.charAt(0).toUpperCase() + uncovered[0].fraza.slice(1)
-      : 'Nowy artykuł powiązany z: ' + sourceArt.keyword;
-    document.getElementById('agentKeyword').value = uncovered.length > 0 ? uncovered[0].fraza : sourceArt.keyword;
-    document.getElementById('agentLinks').value = hubArts.map(a => a.tytul + ' | ' + a.url).join('\n');
-    saveAgentForm();
+      ? uncovered[0].fraza.charAt(0).toUpperCase() + uncovered[0].fraza.slice(1) + ' — poradnik'
+      : 'Nowy artykuł powiązany';
+    document.getElementById('agentKeyword').value = uncovered.length > 0 ? uncovered[0].fraza : '';
+
+    const toast = document.createElement('div');
+    toast.textContent = '⚠ AI brief nie zadziałał — wypełnij ręcznie. Błąd: ' + e.message;
+    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--red);color:#fff;padding:12px 24px;border-radius:8px;font-family:var(--font-mono);font-size:12px;z-index:99999';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 6000);
   }
+  saveAgentForm();
 }
 
 function closeSitemapPanel() {
