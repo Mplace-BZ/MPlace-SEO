@@ -2512,6 +2512,8 @@ WAŻNE: Zacznij od <h2 id="faq"> — bez wstępu. Min 600 słów.`;
     dot.classList.add('inactive');
     document.getElementById('agentPart2Bar').style.display = 'none';
     processAgentResult();
+    // Auto-save to history
+    document.getElementById('saveArticleHistoryBtn').click();
   } catch(e) {
     outputEl.textContent += '\n\nBłąd generowania Części 2: ' + e.message;
     dot.classList.add('inactive');
