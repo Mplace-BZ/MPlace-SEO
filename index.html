@@ -5137,18 +5137,19 @@ SZUKAJ: [...]
 ZAMIEŃ: [...]
 POWÓD: [...]
 
-SZUKAJ tylko tych problemów:
-1. Urwane zdania (zdanie kończy się w połowie bez kropki)
-2. Brakujące tagi zamykające
-3. Duplikaty treści
+SZUKAJ WYŁĄCZNIE tych problemów:
+1. Zdanie które się URYWA w połowie (np. "Materac jest" i nic dalej — brak dokończenia)
+2. Tekst który pojawia się IDENTYCZNIE dwa razy (duplikat akapitu)
 
-ZASADY:
-- NIE zmieniaj stylów inline (style="...")
-- NIE zmieniaj URL-i
-- NIE zmieniaj struktury artykułu
-- NIE usuwaj sekcji
-- SZUKAJ musi być DOKŁADNYM cytatem z artykułu (kopiuj znak po znaku)
-- Jeśli brak błędów → odpowiedz: BRAK BŁĘDÓW
+TO NIE SĄ BŁĘDY — NIE ZGŁASZAJ:
+- Tagi HTML z atrybutem style (np. <p style="margin: 0;"> to jest POPRAWNE)
+- Niekompletne tagi na końcu tekstu (to jest ucięcie podglądu, nie błąd)
+- Brak zamknięcia tagu jeśli jest on zamknięty dalej w tekście
+- Inline style (style="...") — NIGDY nie zmieniaj
+- URL-e, linki, kolory — NIGDY nie zmieniaj
+
+Jeśli nie ma urwanych zdań ani duplikatów → odpowiedz: BRAK BŁĘDÓW
+W 90% przypadków artykuł jest poprawny. Zgłaszaj TYLKO pewne błędy.
 
 ARTYKUŁ DO SKANOWANIA:
 ${originalHtml.substring(0, 12000)}`;
