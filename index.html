@@ -1031,8 +1031,14 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
           <button class="btn" style="font-size:9px;padding:3px 8px" onclick="document.getElementById('ahEditor').style.display='none'">ZAMKNIJ ✕</button>
         </div>
         <div class="form-group"><label class="form-label">Tytuł</label><input class="form-input" id="ahEditTitle"></div>
-        <div class="form-group"><label class="form-label">Treść artykułu</label><textarea class="form-textarea" id="ahEditContent" style="min-height:400px;font-family:var(--font-mono);font-size:12px;line-height:1.5"></textarea></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
+        <div class="form-group">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <label class="form-label" style="margin:0">Treść artykułu</label>
+            <button class="btn" id="ahEditToggleBtn" onclick="toggleAhEdit()" style="font-size:9px;padding:3px 10px;color:var(--accent);border-color:var(--accent)44">✎ EDYTUJ HTML</button>
+          </div>
+          <textarea class="form-textarea" id="ahEditContent" readonly style="min-height:400px;font-family:var(--font-mono);font-size:12px;line-height:1.5"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
           <button class="btn" id="ahFixBtn" onclick="fixEditArticle()" style="color:#f5a623;border-color:#f5a62344">▲ SPRAWDŹ I POPRAW HTML</button>
           <button class="btn btn-accent" id="ahSaveBtn">ZAPISZ ZMIANY ►</button>
           <button class="btn" id="ahCopyTextBtn">KOPIUJ TEKST</button>
@@ -5082,6 +5088,27 @@ function deleteAh(id) {
   lsSet(KEY.blogHistoria, historia); saveAllWithSync();
   if (_ahEditId === id) { _ahEditId = null; document.getElementById('ahEditor').style.display = 'none'; }
   renderAgentHistoria();
+}
+
+function toggleAhEdit() {
+  const ta = document.getElementById('ahEditContent');
+  const btn = document.getElementById('ahEditToggleBtn');
+  if (ta.hasAttribute('readonly')) {
+    ta.removeAttribute('readonly');
+    ta.style.background = 'var(--bg-primary)';
+    ta.style.borderColor = 'var(--accent)';
+    ta.focus();
+    btn.textContent = '✓ TRYB EDYCJI — kliknij ZAPISZ po zmianach';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+  } else {
+    ta.setAttribute('readonly', true);
+    ta.style.background = '';
+    ta.style.borderColor = '';
+    btn.textContent = '✎ EDYTUJ HTML';
+    btn.style.color = 'var(--accent)';
+    btn.style.borderColor = 'var(--accent)44';
+  }
 }
 
 async function fixEditArticle() {
