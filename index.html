@@ -5095,33 +5095,38 @@ async function fixEditArticle() {
 
   const originalHtml = contentEl.value;
 
-  const fixPrompt = `Jesteś korektorem HTML. Przeskanuj artykuł i wypisz TYLKO poprawki.
+  const fixPrompt = `ROLA: skaner błędów HTML. NIE przepisuj artykułu. Zwróć TYLKO listę błędów.
 
-NIE PRZEPISUJ CAŁEGO ARTYKUŁU. Zwróć WYŁĄCZNIE listę poprawek w formacie:
+FORMAT ODPOWIEDZI (ściśle tego się trzymaj):
 
 POPRAWKA 1:
-SZUKAJ: [dokładny fragment do zamiany — 20-80 znaków z oryginalnego tekstu]
-ZAMIEŃ: [poprawiony fragment]
-POWÓD: [krótki opis co było źle]
+SZUKAJ: [DOKŁADNY fragment z artykułu — kopiuj znak po znaku, 30-100 znaków]
+ZAMIEŃ: [poprawiony fragment — TYLKO ta jedna zmiana, reszta bez zmian]
+POWÓD: [1 zdanie]
 
 POPRAWKA 2:
 SZUKAJ: [...]
 ZAMIEŃ: [...]
 POWÓD: [...]
 
-Sprawdź:
-1. Urwane zdania (brak kropki, zdanie kończy się w połowie)
-2. Brakujące tagi zamykające (</p>, </div>, </ul>)
-3. Duplikaty akapitów/sekcji
-4. Błędy w tagach HTML
+SZUKAJ tylko tych problemów:
+1. Urwane zdania (zdanie kończy się w połowie bez kropki)
+2. Brakujące tagi zamykające
+3. Duplikaty treści
 
-Jeśli artykuł jest poprawny — odpowiedz: BRAK BŁĘDÓW
+ZASADY:
+- NIE zmieniaj stylów inline (style="...")
+- NIE zmieniaj URL-i
+- NIE zmieniaj struktury artykułu
+- NIE usuwaj sekcji
+- SZUKAJ musi być DOKŁADNYM cytatem z artykułu (kopiuj znak po znaku)
+- Jeśli brak błędów → odpowiedz: BRAK BŁĘDÓW
 
-ARTYKUŁ:
-${originalHtml.substring(0, 15000)}`;
+ARTYKUŁ DO SKANOWANIA:
+${originalHtml.substring(0, 12000)}`;
 
   try {
-    const result = await callAgent(fixPrompt, 'Jesteś korektorem HTML. Zwracaj tylko listę poprawek, nie cały artykuł.', null);
+    const result = await callAgent(fixPrompt, 'Zwracasz TYLKO listę SZUKAJ/ZAMIEŃ. Nigdy nie przepisujesz artykułu. Max 5 poprawek.', null);
 
     if (result.includes('BRAK BŁĘDÓW') || result.includes('brak błędów')) {
       btn.style.color = 'var(--green)';
