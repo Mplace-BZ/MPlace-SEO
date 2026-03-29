@@ -4887,6 +4887,7 @@ function renderAgentHistoria() {
       <td><div class="gap-row">
         <button class="btn" style="font-size:8px;padding:2px 6px" onclick="openAhEditor('${h.id}')">EDYTUJ</button>
         <button class="btn" style="font-size:8px;padding:2px 6px" onclick="navigator.clipboard.writeText(lsGet(KEY.blogHistoria,[]).find(x=>x.id==='${h.id}')?.tresc||'')">KOPIUJ</button>
+        <button class="btn" style="font-size:8px;padding:2px 6px;color:var(--yellow)" onclick="showLinkDebt('${esc(h.tytul).replace(/'/g,"\\'")}','${esc(h.keyword || '').replace(/'/g,"\\'")}')">DŁUG</button>
         <button class="btn btn-red" style="font-size:8px;padding:2px 6px" onclick="deleteAh('${h.id}')">USUŃ</button>
       </div></td>
     </tr>`;
