@@ -4403,7 +4403,11 @@ PLAN H2:
 [H2 7 — Podsumowanie]`;
 
   try {
-    const result = await callAgent(briefPrompt, 'Jesteś strategiem SEO. Odpowiadaj krótko w podanym formacie. Bez komentarzy.');
+    console.log('[BRIEF] Wysyłam request do AI...');
+    const result = await callAgent(briefPrompt, 'Jesteś strategiem SEO. Odpowiadaj krótko w podanym formacie. Bez komentarzy.', null);
+    console.log('[BRIEF] Odpowiedź AI:', result.substring(0, 300));
+
+    if (!result || result.length < 20) throw new Error('Pusta odpowiedź od AI');
 
     // Parse response
     const titleMatch = result.match(/TYTUŁ:\s*(.+)/i);
@@ -4411,7 +4415,9 @@ PLAN H2:
     const lsiMatch = result.match(/LSI:\s*\n([\s\S]*?)(?=PLAN H2:|$)/i);
     const planMatch = result.match(/PLAN H2:\s*\n([\s\S]*?)$/i);
 
-    document.getElementById('agentTitle').value = titleMatch ? titleMatch[1].trim() : 'Nowy artykuł — sprawdź tytuł';
+    console.log('[BRIEF] Parsed:', { title: titleMatch?.[1], kw: kwMatch?.[1] });
+
+    document.getElementById('agentTitle').value = titleMatch ? titleMatch[1].trim() : result.split('\n')[0];
     document.getElementById('agentKeyword').value = kwMatch ? kwMatch[1].trim() : '';
     document.getElementById('agentLSI').value = lsiMatch ? lsiMatch[1].trim() : '';
     document.getElementById('agentPlan').value = planMatch ? planMatch[1].trim() : '';
@@ -4427,7 +4433,7 @@ PLAN H2:
     setTimeout(() => toast.remove(), 5000);
 
   } catch(e) {
-    console.error('Brief generation failed:', e);
+    console.error('[BRIEF] Failed:', e);
     document.getElementById('agentTitle').value = uncovered.length > 0
       ? uncovered[0].fraza.charAt(0).toUpperCase() + uncovered[0].fraza.slice(1) + ' — poradnik'
       : 'Nowy artykuł powiązany';
