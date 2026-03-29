@@ -2414,9 +2414,10 @@ Jeśli zbliżasz się do końca — zakończ bieżący akapit i dodaj:
     const wc = countWords(result);
     wordCountEl.textContent = `► ${wc} słów`;
     processAgentResult();
-    // Show Part 2 button
+    // Auto-start Part 2
     document.getElementById('agentPart1WordCount').textContent = wc + ' słów w Części 1';
     document.getElementById('agentPart2Bar').style.display = 'flex';
+    setTimeout(() => generateArticlePart2(), 1000);
   } catch (err) {
     agentResult = '';
     outputEl.textContent = 'Błąd połączenia z agentem. Sprawdź połączenie internetowe i spróbuj ponownie.';
