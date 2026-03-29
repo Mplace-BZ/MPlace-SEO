@@ -2313,8 +2313,22 @@ OBOWIĄZKOWA STRUKTURA KAŻDEGO ARTYKUŁU:
 6. 6-7 sekcji H2 (każda minimum 250-300 słów)
 7. Cytat eksperta w ramce (format: 'cytat' — eksperci [marka])
 8. H2 FAQ — dokładnie 6 pytań z rozbudowanymi odpowiedziami (min 3 zdania każda)
-9. BOX CTA — nagłówek + opis + przycisk z URL produktu
-10. Materiały do pogłębienia — dokładnie 4 linki
+9. BOX CTA — użyj DOKŁADNIE tego szablonu HTML:
+<div style="background: #1a1a1a; border: 2px solid #bd9a6c; border-radius: 10px; padding: 32px 24px; margin: 32px 0; text-align: center;">
+<p style="font-size: 22px; font-weight: bold; color: #bd9a6c; margin: 0 0 12px 0;">[NAGŁÓWEK CTA — max 8 słów]</p>
+<p style="color: #cccccc; margin: 0 0 24px 0; font-size: 15px; line-height: 1.6;">[1-2 ZDANIA ZACHĘTY]</p>
+<a style="display: inline-block; background: #bd9a6c; color: #ffffff; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 15px; letter-spacing: 0.05em;" href="https://luxsen.pl/collections/materace-luxsen">SPRAWDŹ OFERTĘ LUXSEN →</a>
+</div>
+10. Materiały do pogłębienia — użyj DOKŁADNIE tego szablonu:
+<div style="background: #f4f4f4; border-radius: 10px; padding: 22px 24px; margin: 34px 0; border: 1px solid #eee;">
+<p style="margin: 0 0 14px 0; font-weight: bold; font-size: 17px;">📚 Materiały do pogłębienia</p>
+<ul style="margin: 0; padding-left: 18px; line-height: 2.0;">
+<li><a style="color: #bd9a6c; text-decoration: none; font-weight: bold;" href="[URL 1]">[Tytuł 1]</a> — [jedno zdanie co tam znajdzie czytelnik]</li>
+<li><a style="color: #bd9a6c; text-decoration: none; font-weight: bold;" href="[URL 2]">[Tytuł 2]</a> — [jedno zdanie co tam znajdzie czytelnik]</li>
+<li><a style="color: #bd9a6c; text-decoration: none; font-weight: bold;" href="[URL 3]">[Tytuł 3]</a> — [jedno zdanie co tam znajdzie czytelnik]</li>
+<li><a style="color: #bd9a6c; text-decoration: none; font-weight: bold;" href="[URL 4]">[Tytuł 4]</a> — [jedno zdanie co tam znajdzie czytelnik]</li>
+</ul>
+</div>
 11. Na końcu: tabela użytych anchorów z URL
 
 ZASADY PISANIA:
@@ -2325,7 +2339,15 @@ ZASADY PISANIA:
 - Naturalnie wplataj linki jako anchor texty
 - Ton: profesjonalny, edukacyjny, bez agresywnej sprzedaży
 - Zero obietnic medycznych (nie 'leczy', nie 'usuwa ból')
-- Jeśli brak danych technicznych produktu → 'sprawdź w karcie produktu'`;
+- Jeśli brak danych technicznych produktu → 'sprawdź w karcie produktu'
+
+KRYTYCZNE — URL-E LINKÓW:
+- Używaj WYŁĄCZNIE URL-i które zostały Ci podane na liście artykułów hubów.
+- NIE modyfikuj URL-i — kopiuj je dosłownie, znak po znaku.
+- NIE wymyślaj URL-i na podstawie tytułu artykułu.
+- NIE skracaj ani nie zmieniaj slugów URL.
+- Jeśli nie masz URL-a do konkretnego tematu — po prostu nie dodawaj tego linku.
+- Lepiej mniej linków z prawdziwymi URL-ami niż więcej z wymyślonymi.`;
   if (guidelines) systemPrompt += guidelines;
 
   const userPrompt = `Napisz kompletny artykuł blogowy SEO po polsku. MINIMUM 2500 SŁÓW.
@@ -2365,10 +2387,12 @@ ${hubId ? (function() {
       section += '\n\n';
     }
 
-    // Cross-hub — opcjonalne
+    // Cross-hub — OBOWIĄZKOWE min 1
     if (otherHubArts.length > 0) {
-      section += '=== ARTYKUŁY Z INNYCH HUBÓW (dodaj 1-2 jeśli pasują kontekstowo) ===\n';
-      section += otherHubArts.slice(0, 6).map(a => '• ' + a.tytul + ' → ' + a.url).join('\n');
+      section += '=== LINKI CROSS-HUB (OBOWIĄZKOWE — min. 1, idealnie 2) ===\n';
+      section += 'Artykuł MUSI zawierać co najmniej 1 link do artykułu z INNEGO huba.\n';
+      section += 'Wplataj naturalnie w treść — nie na siłę. Użyj WYŁĄCZNIE tych URL-i:\n';
+      section += otherHubArts.slice(0, 8).map(a => '• ' + a.tytul + '\n  URL: ' + a.url).join('\n');
       section += '\n\n';
     }
 
@@ -2394,7 +2418,8 @@ WYMAGANIA OBOWIĄZKOWE:
 6. FAQ: dokładnie 6 pytań, każda odpowiedź min 3 zdania
 7. Na końcu: box CTA + Materiały do pogłębienia (4 linki) + tabela anchorów
 8. Łącznie minimum 2500 słów
-9. KRYTYCZNE: Użyj WYŁĄCZNIE URL-i podanych powyżej w sekcjach "ARTYKUŁY W HUBIE" i "LINK DO PILLAR PAGE". NIE wymyślaj URL-i. Każdy link musi być <a href="URL"> z naturalnym anchor textem. Min. 3-5 linków do artykułów z huba + 1 link do pillar page.${extraContext}`;
+9. Min. 3-5 linków do artykułów z huba + 1 link do pillar page + min. 1 link cross-hub
+10. URL-e: używaj WYŁĄCZNIE podanych powyżej — NIE wymyślaj, NIE modyfikuj${extraContext}`;
 
   try {
     outputEl.textContent = '';
