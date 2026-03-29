@@ -5020,6 +5020,7 @@ function renderAgentHistoria() {
       <td style="font-family:var(--font-mono);font-size:12px;color:${debtColor};cursor:pointer" onclick="showLinkDebt('${esc(h.tytul).replace(/'/g,"\\'")}','${esc(h.keyword || '').replace(/'/g,"\\'")}')">${debtCount > 0 ? debtCount + ' art.' : '✓'}</td>
       <td class="mono" style="font-size:11px">${d.toLocaleDateString('pl')} ${d.toLocaleTimeString('pl',{hour:'2-digit',minute:'2-digit'})}</td>
       <td><div class="gap-row">
+        <button class="btn" style="font-size:8px;padding:2px 6px;color:var(--green);border-color:var(--green)44" onclick="showAhAnchors('${h.id}')">ANCHORS</button>
         <button class="btn" style="font-size:8px;padding:2px 6px" onclick="openAhEditor('${h.id}')">EDYTUJ</button>
         <button class="btn" style="font-size:8px;padding:2px 6px" onclick="navigator.clipboard.writeText(lsGet(KEY.blogHistoria,[]).find(x=>x.id==='${h.id}')?.tresc||'')">KOPIUJ</button>
         <button class="btn" style="font-size:8px;padding:2px 6px;color:var(--yellow)" onclick="showLinkDebt('${esc(h.tytul).replace(/'/g,"\\'")}','${esc(h.keyword || '').replace(/'/g,"\\'")}')">DŁUG</button>
@@ -5088,6 +5089,55 @@ function deleteAh(id) {
   lsSet(KEY.blogHistoria, historia); saveAllWithSync();
   if (_ahEditId === id) { _ahEditId = null; document.getElementById('ahEditor').style.display = 'none'; }
   renderAgentHistoria();
+}
+
+function showAhAnchors(id) {
+  const historia = lsGet(KEY.blogHistoria, []);
+  const h = historia.find(x => x.id === id);
+  if (!h || !h.tresc) return;
+
+  // Parse HTML to extract all <a> links
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(h.tresc, 'text/html');
+  const allLinks = [...doc.querySelectorAll('a[href]')];
+
+  const links = allLinks.filter(a => {
+    const href = a.getAttribute('href') || '';
+    return href.startsWith('http') || href.startsWith('/');
+  }).map(a => {
+    const href = a.getAttribute('href') || '';
+    const anchor = a.textContent.trim();
+    let typ = 'link';
+    if (/\/blogs\/|\/news\//.test(href)) typ = 'artykuł';
+    else if (/\/products\//.test(href)) typ = 'produkt';
+    else if (/\/collections\//.test(href)) typ = 'kolekcja';
+    else if (/\/pages\//.test(href)) typ = 'strona';
+    return { anchor, href, typ };
+  });
+
+  const typColor = t => t === 'artykuł' ? '#00bcd4' : t === 'produkt' ? '#00c896' : t === 'kolekcja' ? '#fbbf24' : t === 'strona' ? '#a78bfa' : 'var(--text-muted)';
+
+  let html = `<div style="font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:8px">${esc(h.tytul)}</div>`;
+  html += `<div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);text-transform:uppercase;margin-bottom:10px">► TABELA ANCHORÓW (${links.length} linków)</div>`;
+
+  if (links.length === 0) {
+    html += '<div style="color:var(--text-muted);font-size:12px">Brak linków w artykule</div>';
+  } else {
+    html += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:6px;color:var(--text-muted);font-size:10px">ANCHOR</th><th style="text-align:left;padding:6px;color:var(--text-muted);font-size:10px">URL</th><th style="text-align:left;padding:6px;color:var(--text-muted);font-size:10px">TYP</th></tr></thead><tbody>';
+    links.forEach(l => {
+      html += `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px;color:var(--text-primary)">${esc(l.anchor.substring(0, 50))}</td>
+        <td style="padding:6px"><a href="${esc(l.href)}" target="_blank" style="color:var(--text-secondary);text-decoration:none;font-size:11px;word-break:break-all" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'">${esc(l.href.substring(0, 50))}...</a></td>
+        <td style="padding:6px"><span style="color:${typColor(l.typ)};font-family:var(--font-mono);font-size:10px">${l.typ}</span></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  document.getElementById('sitemapPanelContent').innerHTML = html;
+  document.getElementById('sitemapPanel').style.display = 'block';
+  document.getElementById('sitemapPanel').scrollTop = 0;
 }
 
 function toggleAhEdit() {
