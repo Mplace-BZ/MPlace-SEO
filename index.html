@@ -3729,6 +3729,58 @@ function openSitemapPanel(artId) {
     </div>`;
     }).join('') || '<div style="color:var(--red);font-size:12px">Nikt nie linkuje</div>'}
 
+    ${(() => {
+      // Missing links suggestions for this article
+      const linkedUrls = new Set(links.map(l => l.url));
+      const hubArts = hub ? articles.filter(x => x.hubId === hub.id && x.id !== a.id) : [];
+      const missingInCluster = hubArts.filter(x => x.url && !linkedUrls.has(x.url));
+      const otherHubs = hubs.filter(h => h.id !== (hub ? hub.id : ''));
+      const missingCrossHub = [];
+      otherHubs.forEach(oh => {
+        const ohArts = articles.filter(x => x.hubId === oh.id);
+        const hasLinkToHub = ohArts.some(x => x.url && linkedUrls.has(x.url));
+        if (!hasLinkToHub && ohArts.length > 0) {
+          missingCrossHub.push({ hub: oh, arts: ohArts.slice(0, 2) });
+        }
+      });
+      const hasLinksToHub = hub && hub.urlPillar && linkedUrls.has(hub.urlPillar);
+
+      if (missingInCluster.length === 0 && missingCrossHub.length === 0 && hasLinksToHub) {
+        return '<div style="margin:18px 0 8px;padding:10px;background:var(--green-dim);border:1px solid var(--green);border-radius:6px;font-size:12px;color:var(--green)">✓ Ten artykuł jest dobrze połączony</div>';
+      }
+
+      let html = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--red);text-transform:uppercase;margin:18px 0 8px">⚠ BRAKUJĄCE LINKI — DODAJ:</div>';
+
+      if (hub && hub.urlPillar && !hasLinksToHub) {
+        html += '<div style="padding:5px 0;font-size:12px;border-bottom:1px solid var(--border)"><span style="color:var(--red);font-family:var(--font-mono);font-size:9px;margin-right:6px">PILLAR</span>Dodaj link do: <strong style="color:var(--accent)">' + esc(hub.nazwa) + '</strong><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px">' + esc(hub.urlPillar) + '</div></div>';
+      }
+
+      if (missingInCluster.length > 0) {
+        html += '<div style="font-size:11px;color:var(--text-muted);margin:8px 0 4px">W klastrze "' + esc(hub.nazwa) + '" — brak linku do:</div>';
+        html += missingInCluster.map(t =>
+          '<div style="display:flex;gap:6px;padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);align-items:center">' +
+          '<span style="color:#00bcd4;font-family:var(--font-mono);font-size:9px">KLASTER</span>' +
+          (t.url ? '<a href="' + esc(t.url) + '" target="_blank" rel="noopener" style="color:var(--text-secondary);text-decoration:none;flex:1" onmouseenter="this.style.color=\'var(--accent)\'" onmouseleave="this.style.color=\'var(--text-secondary)\'">' + esc(t.tytul) + '</a>' : '<span style="color:var(--text-secondary);flex:1">' + esc(t.tytul) + '</span>') +
+          '</div>'
+        ).join('');
+      }
+
+      if (missingCrossHub.length > 0) {
+        html += '<div style="font-size:11px;color:var(--text-muted);margin:8px 0 4px">Brak linku do innych hubów:</div>';
+        missingCrossHub.forEach(mch => {
+          html += '<div style="font-size:11px;color:#a78bfa;margin:4px 0 2px">Hub: ' + esc(mch.hub.nazwa) + '</div>';
+          html += mch.arts.map(t =>
+            '<div style="display:flex;gap:6px;padding:3px 0;font-size:12px;border-bottom:1px solid var(--border);align-items:center">' +
+            '<span style="color:#a78bfa;font-family:var(--font-mono);font-size:9px">CROSS</span>' +
+            (t.url ? '<a href="' + esc(t.url) + '" target="_blank" rel="noopener" style="color:var(--text-secondary);text-decoration:none;flex:1" onmouseenter="this.style.color=\'var(--accent)\'" onmouseleave="this.style.color=\'var(--text-secondary)\'">' + esc(t.tytul) + '</a>' : '<span style="color:var(--text-secondary);flex:1">' + esc(t.tytul) + '</span>') +
+            '</div>'
+          ).join('');
+        });
+      }
+
+      return html;
+    })()}
+
     <button class="btn btn-accent" style="margin-top:1.5rem;width:100%" onclick="articleToAgent('${a.id}');closeSitemapPanel()">GENERUJ ARTYKUŁ POWIĄZANY ►</button>
   `;
   const panel = document.getElementById('sitemapPanel');
