@@ -5193,19 +5193,21 @@ SZUKAJ: [...]
 ZAMIEŃ: [...]
 POWÓD: [...]
 
-SZUKAJ WYŁĄCZNIE tych problemów:
-1. Zdanie które się URYWA w połowie (np. "Materac jest" i nic dalej — brak dokończenia)
-2. Tekst który pojawia się IDENTYCZNIE dwa razy (duplikat akapitu)
+SZUKAJ tych problemów:
+1. Zdanie/akapit który URYWA się w połowie (brak dokończenia, brak kropki na końcu)
+2. Tag HTML który się URYWA — np. <a style="color: #bd9a6c; text-decoration: none;" i NIE MA href ani tekstu ani zamknięcia </a> — to jest URWANY link, trzeba go dokończyć lub usunąć
+3. Tekst który pojawia się IDENTYCZNIE dwa razy (duplikat)
 
-TO NIE SĄ BŁĘDY — NIE ZGŁASZAJ:
-- Tagi HTML z atrybutem style (np. <p style="margin: 0;"> to jest POPRAWNE)
-- Niekompletne tagi na końcu tekstu (to jest ucięcie podglądu, nie błąd)
-- Brak zamknięcia tagu jeśli jest on zamknięty dalej w tekście
-- Inline style (style="...") — NIGDY nie zmieniaj
-- URL-e, linki, kolory — NIGDY nie zmieniaj
+WAŻNE — urwany tag <a> to POWAŻNY BŁĄD:
+- Jeśli widzisz <a style="..."> bez href="..." i bez </a> — to jest urwany link
+- Napraw: dokończ tag (dodaj href i tekst i </a>) LUB usuń urwany fragment
 
-Jeśli nie ma urwanych zdań ani duplikatów → odpowiedz: BRAK BŁĘDÓW
-W 90% przypadków artykuł jest poprawny. Zgłaszaj TYLKO pewne błędy.
+NIE ZMIENIAJ:
+- Kompletnych tagów z atrybutem style — to jest poprawne
+- URL-i, kolorów — nie dotykaj
+- Struktury artykułu — nie przerabiaj
+
+Jeśli brak błędów → odpowiedz: BRAK BŁĘDÓW
 
 ARTYKUŁ DO SKANOWANIA:
 ${originalHtml.substring(0, 12000)}`;
