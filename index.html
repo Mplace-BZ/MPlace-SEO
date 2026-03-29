@@ -735,6 +735,11 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
             <span>Użyj wytycznych z zakładki WYTYCZNE</span>
           </label>
         </div>
+        <div id="agentTemplateInfo" style="display:none;margin-bottom:12px;padding:10px 14px;border:1px solid var(--accent-border);border-left:3px solid var(--accent);border-radius:4px;font-size:12px">
+          <span style="color:var(--accent);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em">✦ WZORZEC STYLU</span>
+          <div id="agentTemplateTitle" style="color:var(--text-primary);margin-top:4px"></div>
+          <div id="agentTemplateMeta" style="color:var(--text-muted);margin-top:2px;font-size:11px"></div>
+        </div>
         <button class="btn btn-lg" id="agentRunBtn">GENERUJ ARTYKUŁ ►</button>
         <div style="font-size:11px;color:var(--text-muted);margin-top:8px">▸ Pełny artykuł 2500+ słów — generowanie może potrwać chwilę</div>
       </div>
@@ -1605,7 +1610,7 @@ function switchTab(name) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'audyt') renderAudyt();
   if (name === 'historia') { renderHistoriaClientFilter(); renderBlogHistoria(); renderHistoria(); }
-  if (name === 'agent') { renderAgentClientFilter(); populateAgentHubSelect(); restoreAgentForm(); loadAgentHtmlTemplate(); updateAgentSuggestions(); }
+  if (name === 'agent') { renderAgentClientFilter(); populateAgentHubSelect(); restoreAgentForm(); loadAgentHtmlTemplate(); updateAgentSuggestions(); updateAgentTemplateInfo(); }
   if (name === 'htmlgen') { loadHtmlgenTab(); }
   if (name === 'wytyczne') renderWytyczne();
   if (name === 'huby') renderHuby();
@@ -2090,6 +2095,30 @@ function agentUseSuggestion(phrase, hubId) {
   saveAgentForm();
 }
 
+// Auto-select style template from articles with rawHtml
+function getStyleTemplate(hubId) {
+  const domena = getClientDomena(selectedAgentClient);
+  const articles = lsGet(KEY.articles, []).filter(a => !domena || a.domena === domena);
+  const withHtml = articles.filter(a => a.rawHtml && a.rawHtml.length > 500);
+  if (withHtml.length === 0) return null;
+  const sameHub = withHtml.filter(a => a.hubId === hubId);
+  if (sameHub.length > 0) return sameHub.sort((a, b) => b.rawHtml.length - a.rawHtml.length)[0];
+  return withHtml.sort((a, b) => b.rawHtml.length - a.rawHtml.length)[0];
+}
+
+function updateAgentTemplateInfo() {
+  const hubId = document.getElementById('agentHub').value;
+  const tmpl = hubId ? getStyleTemplate(hubId) : null;
+  const info = document.getElementById('agentTemplateInfo');
+  if (tmpl) {
+    info.style.display = 'block';
+    document.getElementById('agentTemplateTitle').textContent = tmpl.tytul || tmpl.url || '—';
+    document.getElementById('agentTemplateMeta').textContent = 'Hub: ' + (tmpl.hubId || '—') + ' · ' + Math.round(tmpl.rawHtml.length / 1000) + 'k znaków HTML · użyty jako wzorzec stylu';
+  } else {
+    info.style.display = 'none';
+  }
+}
+
 // Agent HTML template autosave
 document.getElementById('agentHtmlTemplate').addEventListener('input', function() {
   const val = this.value;
@@ -2153,8 +2182,11 @@ AGENT_FORM_FIELDS.forEach(f => {
   if (el) el.addEventListener(f.type === 'checkbox' ? 'change' : 'input', saveAgentForm);
 });
 
-// Update suggestions when hub changes
-document.getElementById('agentHub').addEventListener('change', updateAgentSuggestions);
+// Update suggestions + template info when hub changes
+document.getElementById('agentHub').addEventListener('change', () => {
+  updateAgentSuggestions();
+  updateAgentTemplateInfo();
+});
 
 document.getElementById('agentRunBtn').addEventListener('click', async () => {
   const title = document.getElementById('agentTitle').value.trim();
@@ -2200,11 +2232,21 @@ document.getElementById('agentRunBtn').addEventListener('click', async () => {
     }
   }
 
-  // HTML template
-  if (htmlTemplate.length > 100) {
-    extraContext += '\n=== WZORZEC HTML — NAŚLADUJ DOKŁADNIE TEN STYL ===\n' +
-      'Skopiuj strukturę boxów, CTA, kolorów i formatowania ze wzorca.\n' +
-      'WZORZEC (pierwsze 3000 znaków):\n' + htmlTemplate.substring(0, 3000) + '\n';
+  // HTML template — manual or auto from rawHtml
+  let templateHtml = htmlTemplate;
+  let templateSource = 'ręczny';
+  if (!templateHtml || templateHtml.length < 100) {
+    const autoTmpl = hubId ? getStyleTemplate(hubId) : null;
+    if (autoTmpl && autoTmpl.rawHtml) {
+      templateHtml = autoTmpl.rawHtml;
+      templateSource = autoTmpl.tytul || 'auto';
+    }
+  }
+  if (templateHtml && templateHtml.length > 100) {
+    extraContext += '\n=== WZORZEC STYLU HTML — NAŚLADUJ DOKŁADNIE ===\n' +
+      'Źródło wzorca: "' + templateSource + '"\n' +
+      'Skopiuj: boxy (W tym artykule, Ważna informacja), kolory inline, CTA box, Materiały do pogłębienia, tabelę anchorów.\n' +
+      'WZORZEC (pierwsze 3000 znaków):\n' + templateHtml.substring(0, 3000) + '\n=== KONIEC WZORCA ===\n';
   }
 
   // UI: loading
@@ -3067,10 +3109,16 @@ function articleToAgent(id) {
   document.getElementById('agentTitle').value = a.tytul || '';
   document.getElementById('agentKeyword').value = a.keyword || '';
   document.getElementById('agentDomena').value = a.domena || '';
-  if (a.hubId) document.getElementById('agentHub').value = a.hubId;
+  if (a.hubId) {
+    document.getElementById('agentHub').value = a.hubId;
+    // Fill links from hub articles
+    const hubArts = articles.filter(x => x.hubId === a.hubId && x.url && x.id !== id);
+    document.getElementById('agentLinks').value = hubArts.map(x => x.tytul + ' | ' + x.url).join('\n');
+  }
   if (a.keywords && a.keywords.length > 0) {
     document.getElementById('agentLSI').value = a.keywords.join(', ');
   }
+  saveAgentForm();
   switchTab('agent');
 }
 
@@ -3322,7 +3370,7 @@ document.getElementById('parseHtmlBtn').addEventListener('click', () => {
   const firstLink = allLinks.find(a => /luxsen\.pl|domglamour\.pl/.test(a.getAttribute('href')));
   if (firstLink) { try { domena = new URL(firstLink.getAttribute('href')).hostname; } catch(e) {} }
 
-  _importedData = { tytul, url: '', domena, hub: '', autor: '', data: '', keywords, maH1, maSpis, maFAQ, maCTA, links, h2Sections: h2s, zrodlo: 'import_html' };
+  _importedData = { tytul, url: '', domena, hub: '', autor: '', data: '', keywords, maH1, maSpis, maFAQ, maCTA, links, h2Sections: h2s, rawHtml: html.trim(), zrodlo: 'import_html' };
   showImportPreview();
 });
 
@@ -3402,6 +3450,7 @@ document.getElementById('importSaveBtn').addEventListener('click', () => {
     h2Sections: _importedData ? _importedData.h2Sections : [],
     linksWewnetrzne: checkedLinks,
     linki: checkedLinks.length,
+    rawHtml: _importedData ? (_importedData.rawHtml || '') : '',
     zrodlo: _importedData ? _importedData.zrodlo : 'reczny',
   };
 
