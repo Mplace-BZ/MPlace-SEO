@@ -5115,9 +5115,10 @@ async function fixEditArticle() {
   const btn = document.getElementById('ahFixBtn');
   const contentEl = document.getElementById('ahEditContent');
   if (!contentEl || !contentEl.value.trim()) { alert('Brak treści do sprawdzenia.'); return; }
+  if (!window._fixRetry) window._fixRetry = 0;
 
   btn.disabled = true;
-  btn.textContent = 'SKANUJĘ...';
+  btn.textContent = window._fixRetry > 0 ? `⟳ PRÓBA ${window._fixRetry + 1}/3...` : 'SKANUJĘ...';
   btn.style.color = 'var(--accent)';
 
   const originalHtml = contentEl.value;
@@ -5212,10 +5213,20 @@ ${originalHtml.substring(0, 12000)}`;
       document.getElementById('sitemapPanel').style.display = 'block';
       document.getElementById('sitemapPanel').scrollTop = 0;
     } else {
-      btn.style.color = 'var(--yellow)';
-      btn.textContent = '⚠ NIE UDAŁO SIĘ DOPASOWAĆ POPRAWEK';
+      // Auto-retry up to 3 times
+      window._fixRetry = (window._fixRetry || 0) + 1;
+      if (window._fixRetry < 3) {
+        btn.textContent = `⟳ PRÓBA ${window._fixRetry + 1}/3...`;
+        btn.disabled = false;
+        setTimeout(() => fixEditArticle(), 500);
+        return;
+      }
+      window._fixRetry = 0;
+      btn.style.color = 'var(--green)';
+      btn.textContent = '✓ ARTYKUŁ WYGLĄDA POPRAWNIE';
     }
 
+    window._fixRetry = 0;
     setTimeout(() => { btn.style.color = '#f5a623'; btn.style.borderColor = '#f5a62344'; btn.textContent = '▲ SPRAWDŹ I POPRAW HTML'; }, 6000);
   } catch(e) {
     console.error('fixEditArticle:', e);
