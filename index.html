@@ -775,6 +775,10 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
           <button class="btn btn-accent" id="copyHtmlBtn">KOPIUJ HTML</button>
           <button class="btn btn-green" id="saveArticleHistoryBtn">ZAPISZ DO HISTORII</button>
         </div>
+        <div id="agentAnchorTable" style="display:none;margin-top:16px">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);letter-spacing:0.08em;margin-bottom:8px">► LINKI UŻYTE W ARTYKULE (tylko podgląd — nie wchodzą do HTML)</div>
+          <div id="agentAnchorTableContent" style="font-size:12px;overflow-x:auto;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:12px;color:var(--text-secondary)"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -2421,6 +2425,7 @@ WYMAGANIA OBOWIĄZKOWE:
     actionsEl.style.display = 'flex';
     const wc = countWords(result);
     wordCountEl.textContent = `► ${wc} słów`;
+    processAgentResult();
     // Show Part 2 button
     document.getElementById('agentPart1WordCount').textContent = wc + ' słów w Części 1';
     document.getElementById('agentPart2Bar').style.display = 'flex';
@@ -2503,12 +2508,58 @@ WAŻNE: Zacznij od <h2 id="faq"> — bez wstępu. Min 600 słów.`;
     wordCountEl.textContent = `► ${wc} słów (Część 1 + 2)`;
     dot.classList.add('inactive');
     document.getElementById('agentPart2Bar').style.display = 'none';
+    processAgentResult();
   } catch(e) {
     outputEl.textContent += '\n\nBłąd generowania Części 2: ' + e.message;
     dot.classList.add('inactive');
   }
   btn.disabled = false;
   btn.textContent = 'GENERUJ CZĘŚĆ 2 (FAQ + CTA + ZAKOŃCZENIE) ►';
+}
+
+// Separate anchor table from article
+function separateAnchorTable(content) {
+  // Patterns to detect anchor table
+  const patterns = [
+    /(<(?:h2|h3|div|p)[^>]*>(?:.*?(?:Zestawienie|Tabela|Lista).*?(?:link|anchor|kotwic).*?)<\/(?:h2|h3|div|p)>\s*<table[\s\S]*?<\/table>)/i,
+    /(<table[^>]*>[\s\S]*?(?:Anchor|Kotwic|Tekst kotwicy|anchor text)[\s\S]*?<\/table>)/i,
+    /(<h2[^>]*>[\s\S]*?(?:anchorów|Zestawienie linków)[\s\S]*?<\/h2>[\s\S]*?<table[\s\S]*?<\/table>)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = content.match(pattern);
+    if (match) {
+      const articleHtml = content.replace(match[0], '').replace(/\n{3,}/g, '\n\n').trim();
+      return { article: articleHtml, anchorTable: match[0] };
+    }
+  }
+
+  // Fallback: look for last <table> that has Anchor/URL columns
+  const lastTableMatch = content.match(/(<table[\s\S]*?<\/table>)\s*$/i);
+  if (lastTableMatch) {
+    const tableHtml = lastTableMatch[1];
+    if (/anchor|kotwic|url|typ link/i.test(tableHtml)) {
+      const articleHtml = content.replace(lastTableMatch[0], '').trim();
+      return { article: articleHtml, anchorTable: tableHtml };
+    }
+  }
+
+  return { article: content, anchorTable: null };
+}
+
+function processAgentResult() {
+  const { article, anchorTable } = separateAnchorTable(agentResult);
+  // Store clean article (without anchor table) for copy/save
+  window._agentCleanArticle = article;
+
+  const anchorDiv = document.getElementById('agentAnchorTable');
+  const anchorContent = document.getElementById('agentAnchorTableContent');
+  if (anchorTable) {
+    anchorContent.innerHTML = anchorTable;
+    anchorDiv.style.display = 'block';
+  } else {
+    anchorDiv.style.display = 'none';
+  }
 }
 
 document.getElementById('copyTextBtn').addEventListener('click', () => {
@@ -2521,8 +2572,9 @@ document.getElementById('copyTextBtn').addEventListener('click', () => {
 });
 
 document.getElementById('copyHtmlBtn').addEventListener('click', () => {
-  if (!agentResult) return;
-  navigator.clipboard.writeText(agentResult).then(() => {
+  const clean = window._agentCleanArticle || agentResult;
+  if (!clean) return;
+  navigator.clipboard.writeText(clean).then(() => {
     const btn = document.getElementById('copyHtmlBtn');
     btn.textContent = 'SKOPIOWANO ✓';
     setTimeout(() => btn.textContent = 'KOPIUJ HTML', 2000);
@@ -2530,11 +2582,12 @@ document.getElementById('copyHtmlBtn').addEventListener('click', () => {
 });
 
 document.getElementById('saveArticleHistoryBtn').addEventListener('click', () => {
-  if (!agentResult) return;
+  const cleanArticle = window._agentCleanArticle || agentResult;
+  if (!cleanArticle) return;
   const title = document.getElementById('agentTitle').value.trim() || 'Bez tytułu';
   const domena = document.getElementById('agentDomena').value.trim();
   const keyword = document.getElementById('agentKeyword').value.trim();
-  const wc = countWords(agentResult);
+  const wc = countWords(cleanArticle);
 
   const historia = lsGet(KEY.blogHistoria, []);
   historia.unshift({
@@ -2543,7 +2596,7 @@ document.getElementById('saveArticleHistoryBtn').addEventListener('click', () =>
     domena,
     keyword,
     clientId: selectedAgentClient,
-    tresc: agentResult,
+    tresc: cleanArticle,
     liczbaSlow: wc,
     createdAt: new Date().toISOString()
   });
