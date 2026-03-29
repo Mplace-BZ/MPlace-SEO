@@ -591,6 +591,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <button class="tab-btn" data-tab="sitemap" style="color:#f472b6;border-color:#f472b644">Sitemap</button>
       <button class="tab-btn tab-color-orange" data-tab="artykuly">Artykuły</button>
       <button class="tab-btn tab-color-blue" data-tab="linki" id="tabBtnLinki">Linki</button>
+      <button class="tab-btn" data-tab="suggestions" style="color:#fbbf24;border-color:#fbbf2444">Suggestions</button>
       <button class="tab-btn tab-color-yellow" data-tab="keywords">Słowa kluczowe</button>
       <span style="color:var(--border);font-size:14px;display:flex;align-items:center;margin:0 4px">│</span>
       <button class="tab-btn tab-color-green" data-tab="agent">Agent</button>
@@ -947,7 +948,6 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <div id="sitemapClientFilter" style="display:flex;gap:8px"></div>
       <select class="form-input" id="sitemapHubFilter" style="max-width:220px"><option value="">Wszystkie huby</option></select>
       <button class="btn btn-accent" id="exportSitemapBtn">EKSPORTUJ RAPORT ►</button>
-      <button class="btn" id="linkSuggestionsBtn" style="color:#fbbf24;border-color:#fbbf2444">LINK SUGGESTIONS ►</button>
     </div>
 
     <div id="sitemapEmpty" style="display:none" class="empty-state">
@@ -969,11 +969,6 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <div id="sitemapPanelContent"></div>
     </div>
 
-    <!-- MUST FIX + SUGGESTIONS panel -->
-    <div id="sitemapSuggestions" style="display:none;margin-top:1.5rem">
-      <div id="sugMustFix"></div>
-      <div id="sugPerArticle" style="margin-top:1rem"></div>
-    </div>
 
     <!-- Legenda interaktywna -->
     <div style="margin-top:0.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 16px;font-size:10px;display:flex;gap:14px;flex-wrap:wrap">
@@ -984,6 +979,18 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <span class="legend-btn" data-filter="linked" style="cursor:pointer;padding:3px 8px;border-radius:3px;transition:all 0.15s" onclick="toggleSitemapFilter('linked')"><span style="display:inline-block;width:8px;height:8px;border:2px solid var(--green);border-radius:2px;vertical-align:middle;margin-right:4px"></span> linkuje ✓</span>
       <span class="legend-btn" data-filter="isolated" style="cursor:pointer;padding:3px 8px;border-radius:3px;transition:all 0.15s" onclick="toggleSitemapFilter('isolated')"><span style="display:inline-block;width:8px;height:8px;border:2px solid var(--red);border-radius:2px;vertical-align:middle;margin-right:4px"></span> izolowany ✗</span>
     </div>
+  </div>
+
+  <!-- ══ LINK SUGGESTIONS ══ -->
+  <div class="tab-panel" id="tab-suggestions">
+    <div class="section-label">► LINK SUGGESTIONS</div>
+    <div class="section-title">Sugestie linków <span class="star">✦</span></div>
+    <div class="section-subtitle">Co poprawić i gdzie dodać linki wewnętrzne</div>
+
+    <div id="sugClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
+
+    <div id="sugMustFix2"></div>
+    <div id="sugPerArticle2" style="margin-top:1rem"></div>
   </div>
 
   <!-- ══ SŁOWA KLUCZOWE ══ -->
@@ -1589,6 +1596,7 @@ function switchTab(name) {
   if (name === 'artykuly') renderArtykuly();
   if (name === 'linki') renderLinki();
   if (name === 'sitemap') renderSitemap();
+  if (name === 'suggestions') renderSuggestionsTab();
   if (name === 'keywords') renderKeywords();
   updateLinkiBadge();
 }
@@ -3798,15 +3806,22 @@ function toggleSitemapFilter(filter) {
 
 document.getElementById('sitemapHubFilter').addEventListener('change', () => { _sitemapActiveFilter = null; renderSitemap(); });
 
-document.getElementById('linkSuggestionsBtn').addEventListener('click', () => {
-  const panel = document.getElementById('sitemapSuggestions');
-  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
-  panel.style.display = 'block';
+let selectedSugClient = GUIDELINES_CLIENTS[0].id;
+
+function renderSuggestionsTab() {
+  document.getElementById('sugClientFilter').innerHTML = GUIDELINES_CLIENTS.map(c =>
+    clientBtn(c, selectedSugClient === c.id, "switchSugClient('" + c.id + "')")
+  ).join('');
   generateLinkSuggestions();
-});
+}
+
+function switchSugClient(clientId) {
+  selectedSugClient = clientId;
+  renderSuggestionsTab();
+}
 
 function generateLinkSuggestions() {
-  const domena = getClientDomena(selectedSitemapClient);
+  const domena = getClientDomena(selectedSugClient);
   const hubs = lsGet(KEY.hubs, []).filter(h => !domena || h.domena === domena);
   const articles = lsGet(KEY.articles, []).filter(a => !domena || a.domena === domena);
   const artUrlToId = {};
@@ -3905,16 +3920,16 @@ function generateLinkSuggestions() {
       </div>
     </div>` : `<div class="table-card" style="border-top:3px solid var(--green)"><div style="padding:0.75rem 1rem;color:var(--green);font-size:12px">✓ Brak krytycznych problemów</div></div>`;
 
-  document.getElementById('sugMustFix').innerHTML = mfHtml;
+  document.getElementById('sugMustFix2').innerHTML = mfHtml;
 
   // Render per article suggestions
   if (suggestions.length === 0) {
-    document.getElementById('sugPerArticle').innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:1rem">Brak sugestii — wszystkie artykuły są dobrze połączone</div>';
+    document.getElementById('sugPerArticle2').innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:1rem">Brak sugestii — wszystkie artykuły są dobrze połączone</div>';
     return;
   }
 
   const prioColor = p => p === 'wysoki' ? 'var(--red)' : 'var(--yellow)';
-  document.getElementById('sugPerArticle').innerHTML = `
+  document.getElementById('sugPerArticle2').innerHTML = `
     <div class="table-card">
       <div class="table-card-header"><span class="table-card-title">► SUGESTIE LINKÓW (${suggestions.reduce((s,x) => s + x.sugs.length, 0)} sugestii dla ${suggestions.length} artykułów)</span></div>
       <div class="table-overflow"><table><thead><tr>
