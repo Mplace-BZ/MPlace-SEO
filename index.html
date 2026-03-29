@@ -118,7 +118,7 @@ html, body {
 
 /* ── TOPBAR ── */
 #topbar {
-  position: sticky; top: 0; z-index: 100;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   display: flex; flex-direction: column;
@@ -220,7 +220,7 @@ html, body {
 
 /* ── MAIN CONTENT ── */
 #app { display: none; }
-.tab-panel { display: none; padding: 2rem 1.5rem; max-width: 1400px; margin: 0 auto; }
+.tab-panel { display: none; padding: 2rem 1.5rem; padding-top: 100px; max-width: 1400px; margin: 0 auto; }
 .tab-panel.active { display: block; }
 
 /* ── SECTION HEADER ── */
