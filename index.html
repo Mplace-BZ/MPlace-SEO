@@ -4314,7 +4314,7 @@ function openSitemapPanel(artId) {
       return html;
     })()}
 
-    <button class="btn btn-accent" style="margin-top:1.5rem;width:100%" onclick="articleToAgent('${a.id}');closeSitemapPanel()">GENERUJ ARTYKUŁ POWIĄZANY ►</button>
+    <button class="btn btn-accent" style="margin-top:1.5rem;width:100%" onclick="generateRelatedArticle('${a.id}');closeSitemapPanel()">GENERUJ NOWY ARTYKUŁ POWIĄZANY ►</button>
   `;
   const panel = document.getElementById('sitemapPanel');
   panel.style.display = 'block';
@@ -4328,6 +4328,79 @@ function toggleMustFix() {
   const isHidden = body.style.display === 'none';
   body.style.display = isHidden ? 'block' : 'none';
   if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+}
+
+function generateRelatedArticle(sourceArtId) {
+  const articles = lsGet(KEY.articles, []);
+  const keywords = lsGet(KEY.keywords, []);
+  const hubs = lsGet(KEY.hubs, []);
+  const sourceArt = articles.find(a => a.id === sourceArtId);
+  if (!sourceArt) return;
+
+  const hub = hubs.find(h => h.id === sourceArt.hubId);
+  const hubArts = articles.filter(a => a.hubId === sourceArt.hubId && a.url);
+  const hubKws = keywords.filter(k => k.hubId === sourceArt.hubId);
+
+  // Find uncovered keywords for this hub
+  const uncovered = hubKws.filter(k => !k.pokryta);
+
+  // Find topics from "BRAKUJĄCE LINKI" — articles that don't link to this one
+  const sourceKws = (sourceArt.keywords || []).map(k => k.toLowerCase());
+
+  // Generate NEW title suggestion based on:
+  // 1. Uncovered keyword if available
+  // 2. Topic gap — something the source article mentions but no article covers
+  let newTitle = '';
+  let newKeyword = '';
+
+  if (uncovered.length > 0) {
+    // Use first uncovered keyword as basis
+    const kw = uncovered[0];
+    newKeyword = kw.fraza;
+    newTitle = kw.fraza.charAt(0).toUpperCase() + kw.fraza.slice(1) + ' — kompletny poradnik';
+  } else {
+    // Generate from source article context
+    const existingTitles = new Set(hubArts.map(a => a.tytul.toLowerCase()));
+    const potentialTopics = [
+      sourceArt.keyword + ' dla początkujących',
+      sourceArt.keyword + ' — najczęstsze błędy',
+      sourceArt.keyword + ' — porównanie modeli',
+      'Jak wybrać ' + sourceArt.keyword + ' krok po kroku',
+      sourceArt.keyword + ' — opinie i recenzje',
+      sourceArt.keyword + ' — na co zwrócić uwagę',
+    ];
+    const unique = potentialTopics.find(t => !existingTitles.has(t.toLowerCase()));
+    newTitle = unique || sourceArt.keyword + ' — rozszerzony poradnik';
+    newKeyword = sourceArt.keyword || '';
+  }
+
+  // Fill Agent form
+  document.getElementById('agentTitle').value = newTitle;
+  document.getElementById('agentKeyword').value = newKeyword;
+  document.getElementById('agentDomena').value = sourceArt.domena || '';
+  if (sourceArt.hubId) document.getElementById('agentHub').value = sourceArt.hubId;
+
+  // LSI from hub keywords
+  const lsiKws = hubKws.filter(k => k.fraza.toLowerCase() !== newKeyword.toLowerCase()).slice(0, 6);
+  document.getElementById('agentLSI').value = lsiKws.map(k => k.fraza).join('\n');
+
+  // Links — all hub articles (source article should get a link from this new one)
+  document.getElementById('agentLinks').value = hubArts.map(a => a.tytul + ' | ' + a.url).join('\n');
+
+  // Plan H2
+  const cap = newKeyword.charAt(0).toUpperCase() + newKeyword.slice(1);
+  document.getElementById('agentPlan').value = [
+    cap + ' — co warto wiedzieć',
+    'Kluczowe parametry i na co zwrócić uwagę',
+    'Porównanie rozwiązań i technologii',
+    'Dla kogo — dopasowanie do potrzeb',
+    'Jak dbać i utrzymać w dobrej kondycji',
+    'FAQ — ' + newKeyword,
+    'Podsumowanie'
+  ].join('\n');
+
+  saveAgentForm();
+  switchTab('agent');
 }
 
 function closeSitemapPanel() {
