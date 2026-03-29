@@ -2349,10 +2349,46 @@ Linki do wplecenia w treści (użyj jako anchor texty):
 ${links || '(brak)'}
 
 ${hubId ? (function() {
-    const hubArts = lsGet(KEY.articles, []).filter(a => a.hubId === hubId && a.url);
-    if (hubArts.length === 0) return '';
-    return 'ISTNIEJĄCE ARTYKUŁY W TYM HUBIE (linkuj do nich naturalnie w treści):\n' +
-      hubArts.map(a => '- ' + a.tytul + ' | ' + a.url + (a.keyword ? ' | ' + a.keyword : '')).join('\n');
+    const allArts = lsGet(KEY.articles, []);
+    const hubArts = allArts.filter(a => a.hubId === hubId && a.url);
+    const otherHubArts = allArts.filter(a => a.hubId !== hubId && a.url && a.domena === domena);
+    const theHub = lsGet(KEY.hubs, []).find(h => h.id === hubId);
+
+    let section = '';
+
+    // Pillar page — OBOWIĄZKOWY link
+    if (theHub && theHub.urlPillar) {
+      section += '=== LINK DO PILLAR PAGE (OBOWIĄZKOWY) ===\n';
+      section += 'Dodaj link do pillar page huba: ' + theHub.nazwa + ' → ' + theHub.urlPillar + '\n';
+      section += 'Użyj jako anchor np. "kompleksowy przewodnik" lub "poradnik wyboru"\n\n';
+    }
+
+    // Hub articles — OBOWIĄZKOWE linkowanie
+    if (hubArts.length > 0) {
+      section += '=== ARTYKUŁY W HUBIE "' + (theHub ? theHub.nazwa : '') + '" — LINKUJ MIN. 3-5 Z NICH ===\n';
+      section += 'WAŻNE: Użyj DOKŁADNIE tych URL-i (nie wymyślaj własnych). Każdy link jako <a> z anchor textem.\n';
+      section += hubArts.map(a => '• ' + a.tytul + '\n  URL: ' + a.url + (a.keyword ? '\n  Keyword: ' + a.keyword : '')).join('\n');
+      section += '\n\n';
+    }
+
+    // Cross-hub — opcjonalne
+    if (otherHubArts.length > 0) {
+      section += '=== ARTYKUŁY Z INNYCH HUBÓW (dodaj 1-2 jeśli pasują kontekstowo) ===\n';
+      section += otherHubArts.slice(0, 6).map(a => '• ' + a.tytul + ' → ' + a.url).join('\n');
+      section += '\n\n';
+    }
+
+    // Weak articles
+    const blMap = {};
+    allArts.forEach(a => (a.linksWewnetrzne || []).forEach(l => { blMap[l.url] = (blMap[l.url] || 0) + 1; }));
+    const weak = hubArts.filter(a => (blMap[a.url] || 0) <= 2);
+    if (weak.length > 0) {
+      section += '=== ARTYKUŁY DO WZMOCNIENIA (mało backlinków — linkuj priorytetowo) ===\n';
+      section += weak.map(a => '• ' + a.tytul + ' → ' + a.url + ' (tylko ' + (blMap[a.url]||0) + ' backlinków)').join('\n');
+      section += '\n';
+    }
+
+    return section;
   })() : ''}
 
 WYMAGANIA OBOWIĄZKOWE:
@@ -2363,7 +2399,8 @@ WYMAGANIA OBOWIĄZKOWE:
 5. Dodaj cytat eksperta marki w odpowiednim miejscu
 6. FAQ: dokładnie 6 pytań, każda odpowiedź min 3 zdania
 7. Na końcu: box CTA + Materiały do pogłębienia (4 linki) + tabela anchorów
-8. Łącznie minimum 2500 słów — licz słowa i nie kończ przed osiągnięciem minimum${extraContext}`;
+8. Łącznie minimum 2500 słów
+9. KRYTYCZNE: Użyj WYŁĄCZNIE URL-i podanych powyżej w sekcjach "ARTYKUŁY W HUBIE" i "LINK DO PILLAR PAGE". NIE wymyślaj URL-i. Każdy link musi być <a href="URL"> z naturalnym anchor textem. Min. 3-5 linków do artykułów z huba + 1 link do pillar page.${extraContext}`;
 
   try {
     outputEl.textContent = '';
@@ -2516,7 +2553,49 @@ document.getElementById('saveArticleHistoryBtn').addEventListener('click', () =>
   const btn = document.getElementById('saveArticleHistoryBtn');
   btn.textContent = 'ZAPISANO ✓';
   setTimeout(() => btn.textContent = 'ZAPISZ DO HISTORII', 2000);
+
+  // DŁUG LINKOWY — pokaż które istniejące artykuły powinny linkować do nowego
+  showLinkDebt(title, keyword);
 });
+
+function showLinkDebt(newTitle, newKeyword) {
+  const hubId = document.getElementById('agentHub').value;
+  if (!hubId) return;
+  const articles = lsGet(KEY.articles, []);
+  const hubs = lsGet(KEY.hubs, []);
+  const hub = hubs.find(h => h.id === hubId);
+  const hubArts = articles.filter(a => a.hubId === hubId);
+
+  // Find articles that should link to the new one (same hub, topically related)
+  const suggestions = hubArts.map(a => {
+    const kws = (a.keywords || []).map(k => k.toLowerCase());
+    const match = newKeyword && kws.some(k => k.includes(newKeyword.toLowerCase().split(' ')[0]));
+    return { art: a, match };
+  }).filter(s => s.match || true).slice(0, 8); // Show all hub articles
+
+  // Also pillar page
+  let debtHtml = `<div style="font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:8px">⚠ DŁUG LINKOWY</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Te artykuły powinny linkować do nowego artykułu "<strong>${esc(newTitle)}</strong>". Zaktualizuj je na Shopify.</div>`;
+
+  if (hub && hub.urlPillar) {
+    debtHtml += `<div style="padding:5px 0;font-size:12px;border-bottom:1px solid var(--border)"><span style="color:var(--red);font-family:var(--font-mono);font-size:9px;margin-right:6px">PILLAR</span>${esc(hub.nazwa)} — dodaj link do nowego artykułu</div>`;
+  }
+
+  debtHtml += suggestions.map(s =>
+    `<div style="padding:4px 0;font-size:12px;border-bottom:1px solid var(--border)">
+      <span style="color:#00bcd4;font-family:var(--font-mono);font-size:9px;margin-right:6px">KLASTER</span>
+      ${esc(s.art.tytul.substring(0, 50))}
+      ${s.art.url ? ` <a href="${esc(s.art.url)}" target="_blank" style="color:var(--accent);font-size:10px;text-decoration:none">→ otwórz</a>` : ''}
+    </div>`
+  ).join('');
+
+  debtHtml += `<div style="margin-top:12px;font-size:11px;color:var(--text-muted)">Dodaj w każdym z tych artykułów link:<br><code style="color:var(--accent);font-size:10px">&lt;a href="[URL nowego artykułu]"&gt;${esc(newTitle.substring(0, 40))}&lt;/a&gt;</code></div>`;
+
+  // Show in side panel
+  document.getElementById('sitemapPanelContent').innerHTML = debtHtml;
+  document.getElementById('sitemapPanel').style.display = 'block';
+  document.getElementById('sitemapPanel').scrollTop = 0;
+}
 
 // ═══════════════════════════════════════════════════════
 // 8. HISTORIA (blog + aukcje)
