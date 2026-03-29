@@ -2205,6 +2205,7 @@ function saveAgentForm() {
 }
 
 function restoreAgentForm() {
+  if (window._skipRestore) return;
   const data = lsGet(AGENT_FORM_KEY);
   if (!data) return;
   AGENT_FORM_FIELDS.forEach(f => {
@@ -4342,11 +4343,11 @@ async function generateRelatedArticle(sourceArtId) {
   const hubKws = keywords.filter(k => k.hubId === sourceArt.hubId);
   const uncovered = hubKws.filter(k => !k.pokryta);
 
-  // Switch to Agent tab first, then populate
+  // Block autorestore, switch tab, wait for DOM
+  window._skipRestore = true;
   switchTab('agent');
-
-  // Wait for DOM to update
   await new Promise(r => setTimeout(r, 200));
+  window._skipRestore = false;
 
   // Set hub and domena
   populateAgentHubSelect();
