@@ -614,6 +614,14 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
 
     <div id="dashClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
 
+    <!-- Plan działań -->
+    <div style="margin-bottom:1.5rem">
+      <div class="section-label">► PLAN DZIAŁAŃ</div>
+      <div style="font-size:18px;font-weight:500;color:var(--text-primary);margin-bottom:4px">Co robić teraz <span class="star">✦</span></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:1rem">Priorytety SEO na podstawie analizy bazy artykułów</div>
+      <div id="dashPlanGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem"></div>
+    </div>
+
     <!-- Metryki główne -->
     <div class="stats-grid" id="dashStats" style="grid-template-columns:repeat(5,1fr)"></div>
 
@@ -1857,6 +1865,133 @@ function renderDashboard() {
       }
     }
   });
+
+  // PLAN DZIAŁAŃ
+  renderDashPlan(domena, articles, hubs, keywords);
+}
+
+function renderDashPlan(domena, articles, hubs, keywords) {
+  const allArticles = lsGet(KEY.articles, []);
+
+  // Backlinks map
+  const blMap = {};
+  allArticles.forEach(a => (a.linksWewnetrzne || []).forEach(l => {
+    if (!blMap[l.url]) blMap[l.url] = 0;
+    blMap[l.url]++;
+  }));
+
+  // ═══ KOLUMNA 1: CONTENT GAP ═══
+  const uncovered = keywords.filter(k => !k.pokryta);
+  const typColor = t => t === 'LSI' ? '#00bcd4' : t === 'długi ogon' ? '#fbbf24' : 'var(--green)';
+  let col1 = `<div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">► NAPISZ TERAZ</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Content gap — tematy bez pokrycia</div>`;
+
+  if (uncovered.length > 0) {
+    col1 += uncovered.slice(0, 5).map(k => {
+      const hub = hubs.find(h => h.id === k.hubId);
+      const canLink = articles.filter(a => a.hubId === k.hubId).length;
+      return `<div style="border-left:3px solid var(--accent);background:var(--bg-card);padding:10px 12px;margin-bottom:6px;border-radius:0 4px 4px 0">
+        <span style="font-family:var(--font-mono);font-size:9px;padding:1px 6px;border-radius:3px;background:${typColor(k.typ)}18;color:${typColor(k.typ)};border:1px solid ${typColor(k.typ)}44">${k.typ || 'główna'}</span>
+        <div style="font-size:12px;color:var(--text-primary);margin:4px 0">${esc(k.fraza)}</div>
+        <div style="font-size:10px;color:var(--text-muted)">${hub ? hub.nazwa : '—'} · ${canLink} art. może linkować</div>
+        <button class="btn" style="font-size:8px;padding:2px 8px;margin-top:4px;color:var(--accent);border-color:var(--accent)44" onclick="agentUsePhrase('${esc(k.fraza).replace(/'/g,"\\'")}');switchTab('agent')">GENERUJ ►</button>
+      </div>`;
+    }).join('');
+  } else {
+    col1 += '<div style="color:var(--green);font-size:12px;padding:12px">✦ Wszystkie frazy mają pokrycie</div>';
+  }
+
+  // ═══ KOLUMNA 2: DO AKTUALIZACJI ═══
+  const historia = lsGet(KEY.blogHistoria, []);
+  const recent = historia.filter(h => {
+    const d = new Date(h.createdAt);
+    return (Date.now() - d.getTime()) < 30 * 24 * 60 * 60 * 1000;
+  });
+
+  let col2 = `<div style="font-family:var(--font-mono);font-size:10px;color:var(--yellow);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">► ZAKTUALIZUJ</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Artykuły do aktualizacji na Shopify</div>`;
+
+  const updateSuggestions = [];
+  recent.forEach(h => {
+    const hubArts = articles.filter(a => a.keyword && h.keyword);
+    hubArts.forEach(a => {
+      const links = a.linksWewnetrzne || [];
+      const alreadyLinks = links.some(l => l.anchor && l.anchor.toLowerCase().includes((h.keyword || '').toLowerCase().split(' ')[0]));
+      if (!alreadyLinks && a.url) {
+        updateSuggestions.push({ art: a, newTitle: h.tytul, newKw: h.keyword });
+      }
+    });
+  });
+
+  if (updateSuggestions.length > 0) {
+    const unique = [];
+    const seen = new Set();
+    updateSuggestions.forEach(s => { if (!seen.has(s.art.id)) { seen.add(s.art.id); unique.push(s); } });
+    col2 += unique.slice(0, 5).map(s => `<div style="border-left:3px solid var(--yellow);background:var(--bg-card);padding:10px 12px;margin-bottom:6px;border-radius:0 4px 4px 0">
+      <div style="font-size:12px;color:var(--text-primary)">${esc(s.art.tytul.substring(0, 45))}</div>
+      <div style="font-size:10px;color:var(--text-muted);margin:3px 0">Dodaj link do: "${esc(s.newTitle.substring(0, 35))}"</div>
+      ${s.art.url ? `<a href="${esc(s.art.url)}" target="_blank" class="btn" style="font-size:8px;padding:2px 8px;margin-top:4px;color:var(--yellow);border-color:var(--yellow)44;text-decoration:none">OTWÓRZ ↗</a>` : ''}
+    </div>`).join('');
+  } else {
+    col2 += '<div style="color:var(--green);font-size:12px;padding:12px">✦ Wszystkie artykuły są aktualne</div>';
+  }
+
+  // ═══ KOLUMNA 3: ALERTY ═══
+  const alerts = [];
+
+  // No backlinks
+  articles.filter(a => a.url && (blMap[a.url] || 0) === 0).forEach(a => {
+    alerts.push({ icon: '❌', color: 'var(--red)', title: a.tytul, desc: '0 backlinków', artId: a.id });
+  });
+
+  // No pillar link
+  articles.forEach(a => {
+    const hub = hubs.find(h => h.id === a.hubId);
+    if (hub && hub.urlPillar) {
+      const links = a.linksWewnetrzne || [];
+      const hubArtUrls = new Set(articles.filter(x => x.hubId === a.hubId && x.url).map(x => x.url));
+      hubArtUrls.add(hub.urlPillar);
+      if (!links.some(l => hubArtUrls.has(l.url))) {
+        alerts.push({ icon: '❌', color: 'var(--red)', title: a.tytul, desc: 'izolowany w klastrze', artId: a.id });
+      }
+    }
+  });
+
+  // Empty hubs
+  hubs.forEach(h => {
+    if (articles.filter(a => a.hubId === h.id).length === 0) {
+      alerts.push({ icon: '⚠', color: 'var(--yellow)', title: 'Hub: ' + h.nazwa, desc: 'brak artykułów' });
+    }
+  });
+
+  // No hub
+  articles.filter(a => !a.hubId).forEach(a => {
+    alerts.push({ icon: '⚠', color: 'var(--yellow)', title: a.tytul, desc: 'bez huba', artId: a.id });
+  });
+
+  // No FAQ/CTA
+  articles.filter(a => !a.maFAQ || !a.maCTA).forEach(a => {
+    const missing = [!a.maFAQ ? 'FAQ' : '', !a.maCTA ? 'CTA' : ''].filter(Boolean).join('/');
+    if (missing) alerts.push({ icon: '⚠', color: 'var(--yellow)', title: a.tytul, desc: 'brak ' + missing, artId: a.id });
+  });
+
+  let col3 = `<div style="font-family:var(--font-mono);font-size:10px;color:var(--red);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">► ALERTY</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">${alerts.length} problemów do rozwiązania</div>`;
+
+  if (alerts.length > 0) {
+    col3 += `<div style="max-height:280px;overflow-y:auto">` + alerts.slice(0, 10).map(a => `<div style="display:flex;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
+      <span style="color:${a.color}">${a.icon}</span>
+      <span style="color:var(--text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.title.substring(0, 40))}</span>
+      <span style="color:var(--text-muted);font-size:10px;min-width:70px">${a.desc}</span>
+    </div>`).join('') + `</div>`;
+  } else {
+    col3 += '<div style="color:var(--green);font-size:12px;padding:12px">✦ Brak problemów</div>';
+  }
+
+  document.getElementById('dashPlanGrid').innerHTML = `
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:14px">${col1}</div>
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:14px">${col2}</div>
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:14px">${col3}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════
