@@ -1006,14 +1006,19 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
 
   <!-- ══ LINK SUGGESTIONS ══ -->
   <div class="tab-panel" id="tab-suggestions">
-    <div class="section-label">► LINK SUGGESTIONS</div>
-    <div class="section-title">Sugestie linków <span class="star">✦</span></div>
-    <div class="section-subtitle">Co poprawić i gdzie dodać linki wewnętrzne</div>
+    <div class="section-label">► SUGGESTIONS</div>
+    <div class="section-title">Plan działań <span class="star">✦</span></div>
+    <div class="section-subtitle">Content gap, sugestie artykułów i priorytety SEO</div>
 
-    <div id="sugClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <div id="sugClientFilter" style="display:flex;gap:8px"></div>
+      <button class="btn" style="margin-left:auto;font-size:9px;padding:3px 10px" onclick="renderSuggestionsTab()">↺ ODŚWIEŻ</button>
+    </div>
 
-    <div id="sugMustFix2"></div>
-    <div id="sugPerArticle2" style="margin-top:1rem"></div>
+    <div id="sugContentGap"></div>
+    <div id="sugWriteNow" style="margin-top:1.5rem"></div>
+    <div id="sugStrengthen" style="margin-top:1.5rem"></div>
+    <div id="sugHubHealth" style="margin-top:1.5rem"></div>
   </div>
 
   <!-- ══ HISTORIA AGENTA ══ -->
@@ -4643,7 +4648,7 @@ function renderSuggestionsTab() {
   document.getElementById('sugClientFilter').innerHTML = GUIDELINES_CLIENTS.map(c =>
     clientBtn(c, selectedSugClient === c.id, "switchSugClient('" + c.id + "')")
   ).join('');
-  generateLinkSuggestions();
+  renderSuggestionsEngine();
 }
 
 function switchSugClient(clientId) {
@@ -4651,140 +4656,145 @@ function switchSugClient(clientId) {
   renderSuggestionsTab();
 }
 
-function generateLinkSuggestions() {
+function renderSuggestionsEngine() {
   const domena = getClientDomena(selectedSugClient);
   const hubs = lsGet(KEY.hubs, []).filter(h => !domena || h.domena === domena);
   const articles = lsGet(KEY.articles, []).filter(a => !domena || a.domena === domena);
-  const artUrlToId = {};
-  articles.forEach(a => { if (a.url) artUrlToId[a.url] = a.id; });
+  const keywords = lsGet(KEY.keywords, []);
+  const skipped = JSON.parse(sessionStorage.getItem('mplace_seo_skipped') || '[]');
 
-  const backlinksMap = {};
+  // Backlinks map
+  const blMap = {};
   articles.forEach(a => (a.linksWewnetrzne || []).forEach(l => {
-    if (!backlinksMap[l.url]) backlinksMap[l.url] = [];
-    backlinksMap[l.url].push(a.tytul);
+    if (!blMap[l.url]) blMap[l.url] = 0;
+    blMap[l.url]++;
   }));
 
-  // Analyze
-  const mustFix = [];
-  const suggestions = [];
+  const typColor = t => t === 'LSI' ? '#00bcd4' : t === 'długi ogon' ? '#fbbf24' : 'var(--green)';
 
-  articles.forEach(a => {
-    const hub = hubs.find(h => h.id === a.hubId);
-    const links = a.linksWewnetrzne || [];
-    const linkedUrls = new Set(links.map(l => l.url));
-    const backlinks = backlinksMap[a.url] || [];
-    const hubArts = hub ? articles.filter(x => x.hubId === hub.id && x.id !== a.id) : [];
-    const artSugs = [];
+  // ═══ SEKCJA 1: CONTENT GAP PER HUB ═══
+  let cgHtml = `<div class="section-label" style="color:var(--accent)">► CONTENT GAP</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:1rem">Frazy bez pokrycia w bazie artykułów</div>`;
 
-    // 1. MUST FIX: no backlinks
-    if (backlinks.length === 0) {
-      mustFix.push({ type: 'no-backlinks', art: a, hub, msg: `Nikt nie linkuje do tego artykułu. Dodaj link z min. 2 artykułów w klastrze.` });
+  hubs.forEach(h => {
+    const hubArts = articles.filter(a => a.hubId === h.id);
+    const hubKws = keywords.filter(k => k.hubId === h.id);
+    const uncovered = hubKws.filter(k => !k.pokryta);
+    if (uncovered.length === 0 && hubArts.length === 0) return;
+
+    cgHtml += `<div class="table-card" style="margin-bottom:8px">
+      <div class="table-card-header"><span class="table-card-title">${esc(h.nazwa)}</span>
+      <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${hubArts.length} art. | ${uncovered.length} gap</span></div>`;
+
+    if (uncovered.length > 0) {
+      cgHtml += `<div style="padding:8px 12px;max-height:200px;overflow-y:auto">` +
+        uncovered.slice(0, 10).map(k => {
+          const canLink = hubArts.length;
+          return `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
+            <span style="font-family:var(--font-mono);font-size:9px;padding:1px 6px;border-radius:3px;background:${typColor(k.typ)}18;color:${typColor(k.typ)};min-width:55px;text-align:center">${k.typ || 'główna'}</span>
+            <span style="color:var(--text-primary);flex:1">${esc(k.fraza)}</span>
+            <span style="color:var(--text-muted);font-size:10px">${canLink} art.</span>
+            <button class="btn" style="font-size:8px;padding:1px 6px;color:var(--accent);border-color:var(--accent)44" onclick="agentUsePhrase('${esc(k.fraza).replace(/'/g,"\\'")}');document.getElementById('agentHub').value='${h.id}';switchTab('agent')">GENERUJ</button>
+          </div>`;
+        }).join('') + `</div>`;
+    } else {
+      cgHtml += `<div style="padding:8px 12px;color:var(--green);font-size:11px">✦ Wszystkie frazy pokryte</div>`;
     }
-
-    // 2. MUST FIX: doesn't link to any article in same hub
-    const linksInHub = hubArts.filter(x => x.url && linkedUrls.has(x.url));
-    if (hub && hubArts.length > 0 && linksInHub.length === 0) {
-      mustFix.push({ type: 'no-cluster-link', art: a, hub, msg: `Nie linkuje do żadnego artykułu w swoim hubie "${hub.nazwa}".` });
-    }
-
-    // 3. MUST FIX: doesn't link to pillar page
-    if (hub && hub.urlPillar && !linkedUrls.has(hub.urlPillar)) {
-      const pillarInLinks = links.some(l => l.url && l.url.includes(hub.urlPillar.split('/').pop()));
-      if (!pillarInLinks) {
-        mustFix.push({ type: 'no-pillar-link', art: a, hub, msg: `Brak linku do pillar page huba "${hub.nazwa}".` });
-      }
-    }
-
-    // 4. Suggestions: which hub articles to link to
-    hubArts.forEach(target => {
-      if (!target.url || linkedUrls.has(target.url)) return;
-      // Check if target links back
-      const targetLinks = (target.linksWewnetrzne || []).map(l => l.url);
-      const targetLinksToMe = a.url && targetLinks.includes(a.url);
-      artSugs.push({
-        target,
-        direction: 'w klastrze',
-        priority: targetLinksToMe ? 'wysoki' : 'normalny',
-        reason: targetLinksToMe
-          ? `"${target.tytul.substring(0,40)}" linkuje do Ciebie ale Ty nie linkujesz zwrotnie`
-          : `Brak wzajemnego linku z "${target.tytul.substring(0,40)}" w tym samym hubie`
-      });
-    });
-
-    // 5. Suggestions: cross-hub links
-    hubs.forEach(otherHub => {
-      if (!hub || otherHub.id === hub.id) return;
-      const otherArts = articles.filter(x => x.hubId === otherHub.id);
-      const linksToOther = otherArts.filter(x => x.url && linkedUrls.has(x.url));
-      if (linksToOther.length === 0 && otherArts.length > 0) {
-        // Suggest linking to 1-2 articles from other hub
-        otherArts.slice(0, 2).forEach(target => {
-          artSugs.push({
-            target,
-            direction: `do huba "${otherHub.nazwa}"`,
-            priority: 'normalny',
-            reason: `Zero linków do huba "${otherHub.nazwa}" — dodaj min. 1 link`
-          });
-        });
-      }
-    });
-
-    if (artSugs.length > 0) {
-      suggestions.push({ art: a, hub, sugs: artSugs });
-    }
+    cgHtml += `</div>`;
   });
 
-  // Render MUST FIX
-  const mfHtml = mustFix.length ? `
-    <div class="table-card" style="border-top:3px solid var(--red)">
-      <div class="table-card-header" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="toggleMustFix()">
-        <span class="table-card-title" style="color:var(--red)">⚠ MUST FIX (${mustFix.length})</span>
-        <span id="mfArrow" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">▼</span>
-      </div>
-      <div id="mustFixBody" style="display:none;padding:0.5rem 1rem;max-height:300px;overflow-y:auto">
-        ${mustFix.map(m => `<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center;cursor:pointer" onclick="openSitemapPanel('${m.art.id}')" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
-          <span style="color:var(--red);font-family:var(--font-mono);font-size:8px;min-width:100px">${m.type === 'no-backlinks' ? 'BEZ BACKLINKÓW' : m.type === 'no-cluster-link' ? 'IZOLOWANY' : 'BRAK PILLAR'}</span>
-          <span style="color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.art.tytul)}</span>
-          <span style="color:var(--text-muted);font-size:10px;min-width:80px">${esc(m.hub ? m.hub.nazwa : '—')}</span>
-          <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted)">→</span>
-        </div>`).join('')}
-      </div>
-    </div>` : `<div class="table-card" style="border-top:3px solid var(--green)"><div style="padding:0.75rem 1rem;color:var(--green);font-size:12px">✓ Brak krytycznych problemów</div></div>`;
+  document.getElementById('sugContentGap').innerHTML = cgHtml;
 
-  document.getElementById('sugMustFix2').innerHTML = mfHtml;
+  // ═══ SEKCJA 2: NAPISZ TERAZ (top 5 scored) ═══
+  const scored = [];
+  keywords.filter(k => !k.pokryta && !skipped.includes(k.id)).forEach(k => {
+    const hub = hubs.find(h => h.id === k.hubId);
+    const canLink = articles.filter(a => a.hubId === k.hubId).length;
+    const hubSmall = hub ? articles.filter(a => a.hubId === hub.id).length < 5 : false;
+    const score = (k.typ === 'główna' ? 30 : k.typ === 'LSI' ? 20 : 10) + (canLink * 5) + (hubSmall ? 10 : 0);
+    scored.push({ kw: k, hub, canLink, score });
+  });
+  scored.sort((a, b) => b.score - a.score);
 
-  // Render per article suggestions
-  if (suggestions.length === 0) {
-    document.getElementById('sugPerArticle2').innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:1rem">Brak sugestii — wszystkie artykuły są dobrze połączone</div>';
-    return;
+  let wnHtml = `<div class="section-label" style="color:var(--accent)">► NAPISZ TERAZ</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:1rem">Rekomendowane artykuły na podstawie analizy sieci</div>`;
+
+  if (scored.length > 0) {
+    wnHtml += scored.slice(0, 5).map((s, i) => {
+      const pct = Math.min(100, Math.round(s.score));
+      return `<div style="border-left:3px solid var(--accent);background:var(--bg-card);padding:12px 16px;margin-bottom:8px;border-radius:0 6px 6px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-family:var(--font-mono);font-size:13px;color:var(--accent);font-weight:500">#${i + 1}</span>
+          <div style="width:80px;height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent);border-radius:3px"></div></div>
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${pct}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-primary);font-weight:500;margin-bottom:4px">"${esc(s.kw.fraza)}"</div>
+        <div style="font-size:11px;color:var(--text-muted)">${s.hub ? s.hub.nazwa : '—'} · ${s.kw.typ} · ${s.canLink} art. może linkować</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-accent" style="font-size:9px;padding:3px 10px" onclick="agentUsePhrase('${esc(s.kw.fraza).replace(/'/g,"\\'")}');document.getElementById('agentHub').value='${s.kw.hubId}';switchTab('agent')">GENERUJ ARTYKUŁ ►</button>
+          <button class="btn" style="font-size:9px;padding:3px 10px" onclick="var s=JSON.parse(sessionStorage.getItem('mplace_seo_skipped')||'[]');s.push('${s.kw.id}');sessionStorage.setItem('mplace_seo_skipped',JSON.stringify(s));renderSuggestionsTab()">POMIŃ</button>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    wnHtml += '<div style="color:var(--green);font-size:12px;padding:12px">✦ Brak content gap — wszystkie frazy pokryte</div>';
   }
+  document.getElementById('sugWriteNow').innerHTML = wnHtml;
 
-  const prioColor = p => p === 'wysoki' ? 'var(--red)' : 'var(--yellow)';
-  document.getElementById('sugPerArticle2').innerHTML = `
-    <div class="table-card">
-      <div class="table-card-header"><span class="table-card-title">► SUGESTIE LINKÓW (${suggestions.reduce((s,x) => s + x.sugs.length, 0)} sugestii dla ${suggestions.length} artykułów)</span></div>
-      <div class="table-overflow"><table><thead><tr>
-        <th>Artykuł</th><th>Hub</th><th>Sugestii</th>
-      </tr></thead><tbody>
-        ${suggestions.map((s, si) => `<tr style="cursor:pointer" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
-          <td class="primary" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openSitemapPanel('${s.art.id}')">${esc(s.art.tytul)}</td>
-          <td style="font-size:11px" onclick="openSitemapPanel('${s.art.id}')">${s.hub ? esc(s.hub.nazwa) : '—'}</td>
-          <td style="font-family:var(--font-mono);font-size:12px;color:var(--yellow);cursor:pointer" onclick="var d=document.getElementById('sugDetail${si}');d.style.display=d.style.display==='none'?'table-row':'none'">${s.sugs.length} ▼</td>
-        </tr>
-        <tr id="sugDetail${si}" style="display:none"><td colspan="3" style="padding:0">
-          <div style="padding:8px 16px;background:var(--bg-secondary)">
-            ${s.sugs.map(sg => `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
-              <span style="color:${prioColor(sg.priority)};font-family:var(--font-mono);font-size:8px;min-width:55px;text-transform:uppercase">${sg.priority}</span>
-              <span style="color:${sg.direction.includes('klastrze') ? '#00bcd4' : '#a78bfa'};font-family:var(--font-mono);font-size:9px;min-width:80px">${sg.direction}</span>
-              <div style="flex:1">
-                <div>→ ${sg.target.url ? `<a href="${esc(sg.target.url)}" target="_blank" rel="noopener" style="color:var(--text-secondary);text-decoration:none;font-weight:500" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'">${esc(sg.target.tytul)}</a>` : `<strong style="color:var(--text-secondary)">${esc(sg.target.tytul)}</strong>`}</div>
-                <div style="color:var(--text-muted);font-size:10px">${sg.reason}</div>
-              </div>
-            </div>`).join('')}
-          </div>
-        </td></tr>`).join('')}
-      </tbody></table></div>
-    </div>`;
+  // ═══ SEKCJA 3: WZMOCNIJ LINKI ═══
+  const weak = articles.filter(a => a.url && (blMap[a.url] || 0) < 3)
+    .sort((a, b) => (blMap[a.url] || 0) - (blMap[b.url] || 0));
+
+  let slHtml = `<div class="section-label" style="color:var(--yellow)">► WZMOCNIJ LINKI</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:1rem">Artykuły z małą liczbą backlinków</div>`;
+
+  if (weak.length > 0) {
+    slHtml += weak.slice(0, 8).map(a => {
+      const bl = blMap[a.url] || 0;
+      const badge = bl === 0 ? '<span style="color:var(--red);font-family:var(--font-mono);font-size:9px">KRYTYCZNY</span>' : '<span style="color:var(--yellow);font-family:var(--font-mono);font-size:9px">SŁABO</span>';
+      const hub = hubs.find(h => h.id === a.hubId);
+      return `<div style="border-left:3px solid ${bl === 0 ? 'var(--red)' : 'var(--yellow)'};background:var(--bg-card);padding:10px 12px;margin-bottom:6px;border-radius:0 4px 4px 0;cursor:pointer" onclick="openSitemapPanel('${a.id}')">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-family:var(--font-mono);font-size:11px;color:${bl === 0 ? 'var(--red)' : 'var(--yellow)'}">← ${bl}</span>
+          ${badge}
+          <span style="color:var(--text-primary);flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.tytul)}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${hub ? hub.nazwa : '—'}</div>
+      </div>`;
+    }).join('');
+  } else {
+    slHtml += '<div style="color:var(--green);font-size:12px;padding:12px">✦ Wszystkie artykuły mają min. 3 backlinki</div>';
+  }
+  document.getElementById('sugStrengthen').innerHTML = slHtml;
+
+  // ═══ SEKCJA 4: ZDROWIE HUBÓW ═══
+  let hhHtml = `<div class="section-label" style="color:var(--text-secondary)">► ZDROWIE HUBÓW</div>
+    <div class="table-card"><div class="table-overflow"><table>
+    <thead><tr><th>Hub</th><th>Art.</th><th>Avg BL</th><th>Gap</th><th>Health</th></tr></thead><tbody>`;
+
+  hubs.forEach(h => {
+    const ha = articles.filter(a => a.hubId === h.id);
+    const hk = keywords.filter(k => k.hubId === h.id);
+    const covered = hk.filter(k => k.pokryta).length;
+    const avgBl = ha.length ? Math.round(ha.reduce((s, a) => s + (blMap[a.url] || 0), 0) / ha.length * 10) / 10 : 0;
+    const gap = hk.length - covered;
+    const healthScore = Math.round(
+      (ha.length ? ha.filter(a => (blMap[a.url] || 0) >= 3).length / ha.length * 40 : 0) +
+      (hk.length ? covered / hk.length * 40 : 20) +
+      (h.urlPillar ? 20 : 0)
+    );
+    const hc = healthScore >= 80 ? 'var(--green)' : healthScore >= 50 ? 'var(--yellow)' : 'var(--red)';
+    hhHtml += `<tr>
+      <td class="primary">${esc(h.nazwa)}</td>
+      <td class="mono">${ha.length}</td>
+      <td class="mono">${avgBl}</td>
+      <td class="mono" style="color:${gap > 0 ? 'var(--red)' : 'var(--green)'}">${gap}</td>
+      <td><span style="font-family:var(--font-mono);font-size:11px;color:${hc}">${healthScore}%</span></td>
+    </tr>`;
+  });
+
+  hhHtml += '</tbody></table></div></div>';
+  document.getElementById('sugHubHealth').innerHTML = hhHtml;
 }
 window.addEventListener('resize', () => { if (document.getElementById('tab-sitemap').style.display !== 'none' && typeof renderSitemap === 'function') setTimeout(renderSitemap, 200); });
 
