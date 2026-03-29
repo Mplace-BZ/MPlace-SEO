@@ -2037,62 +2037,8 @@ function countWords(text) {
   return text.trim().split(/\s+/).filter(w => w.length > 0).length;
 }
 
-// Agent: inteligentne sugestie
-function updateAgentSuggestions() {
-  const panel = document.getElementById('agentSuggestionsPanel');
-  const hubId = document.getElementById('agentHub').value;
-  if (!hubId) { panel.style.display = 'none'; return; }
-
-  const domena = getClientDomena(selectedAgentClient);
-  const articles = lsGet(KEY.articles, []).filter(a => !domena || a.domena === domena);
-  const keywords = lsGet(KEY.keywords, []);
-  const hubs = lsGet(KEY.hubs, []);
-  const hub = hubs.find(h => h.id === hubId);
-  if (!hub) { panel.style.display = 'none'; return; }
-
-  const hubArts = articles.filter(a => a.hubId === hubId);
-  const hubKws = keywords.filter(k => k.hubId === hubId);
-
-  // A) Content gap — frazy bez pokrycia
-  const uncovered = hubKws.filter(k => !k.pokryta);
-  const gapEl = document.getElementById('agentContentGap');
-  if (uncovered.length > 0) {
-    gapEl.innerHTML = `<div style="font-size:10px;color:var(--accent);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">► CONTENT GAP — brakujące frazy</div>` +
-      uncovered.slice(0, 5).map(k =>
-        `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:3px 8px;margin:2px;font-size:11px;color:var(--text-secondary)">${esc(k.fraza)} <button class="btn" style="font-size:8px;padding:1px 6px;color:var(--accent)" onclick="agentUsePhrase('${esc(k.fraza).replace(/'/g,"\\'")}')">UŻYJ ►</button></span>`
-      ).join('');
-  } else {
-    gapEl.innerHTML = '';
-  }
-
-  // B) Artykuły do wzmocnienia (mało backlinków)
-  const backlinksMap = {};
-  articles.forEach(a => (a.linksWewnetrzne || []).forEach(l => {
-    if (!backlinksMap[l.url]) backlinksMap[l.url] = 0;
-    backlinksMap[l.url]++;
-  }));
-  const weak = hubArts.filter(a => a.url && (backlinksMap[a.url] || 0) <= 2).slice(0, 4);
-  const weakEl = document.getElementById('agentWeakArticles');
-  if (weak.length > 0) {
-    weakEl.innerHTML = `<div style="font-size:10px;color:#f5a623;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">▲ DO WZMOCNIENIA — mało linków przychodzących</div>` +
-      weak.map(a => `<div style="font-size:11px;padding:3px 0;color:var(--text-secondary)">← ${backlinksMap[a.url]||0} · ${esc(a.tytul.substring(0,50))}</div>`).join('');
-  } else {
-    weakEl.innerHTML = '';
-  }
-
-  // C) Sugerowany następny artykuł
-  const nextEl = document.getElementById('agentSuggestedNext');
-  if (uncovered.length > 0) {
-    const phrase = uncovered[0].fraza;
-    nextEl.innerHTML = `<div style="font-size:10px;color:var(--green);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">✦ SUGEROWANY NASTĘPNY ARTYKUŁ</div>
-      <div style="font-size:12px;color:var(--text-primary);margin-bottom:6px">"<strong>${esc(phrase)}</strong>" — brakuje w hubie ${esc(hub.nazwa)}</div>
-      <button class="btn btn-accent" style="font-size:10px;padding:4px 12px" onclick="agentUseSuggestion('${esc(phrase).replace(/'/g,"\\'")}','${hubId}')">UŻYJ TEGO TYTUŁU ►</button>`;
-  } else {
-    nextEl.innerHTML = '';
-  }
-
-  panel.style.display = (uncovered.length || weak.length) ? 'block' : 'none';
-}
+// Agent: inteligentne sugestie (panel usunięty — funkcja jako no-op)
+function updateAgentSuggestions() { }
 
 function agentUsePhrase(phrase) {
   document.getElementById('agentKeyword').value = phrase;
@@ -4664,7 +4610,7 @@ function generateLinkSuggestions() {
       </tbody></table></div>
     </div>`;
 }
-window.addEventListener('resize', () => { if (document.getElementById('tab-sitemap').style.display !== 'none') setTimeout(drawSitemapLines, 200); });
+window.addEventListener('resize', () => { if (document.getElementById('tab-sitemap').style.display !== 'none' && typeof renderSitemap === 'function') setTimeout(renderSitemap, 200); });
 
 document.getElementById('exportSitemapBtn').addEventListener('click', () => {
   const domena = getClientDomena(selectedSitemapClient);
