@@ -595,6 +595,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <button class="tab-btn tab-color-orange" data-tab="artykuly">Artykuły</button>
       <button class="tab-btn tab-color-blue" data-tab="linki" id="tabBtnLinki">Linki</button>
       <button class="tab-btn tab-color-blue" data-tab="suggestions">Suggestions</button>
+      <button class="tab-btn" data-tab="gap" style="color:#a78bfa;border-color:#a78bfa44">Gap</button>
       <button class="tab-btn tab-color-yellow" data-tab="keywords">Słowa kluczowe</button>
       <span style="color:var(--border);font-size:14px;display:flex;align-items:center;margin:0 4px">│</span>
       <button class="tab-btn tab-color-green" data-tab="agent">Agent</button>
@@ -1007,12 +1008,24 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
   <!-- ══ LINK SUGGESTIONS ══ -->
   <div class="tab-panel" id="tab-suggestions">
     <div class="section-label">► SUGGESTIONS</div>
+    <div class="section-title">Sugestie linków <span class="star">✦</span></div>
+    <div class="section-subtitle">Co poprawić i gdzie dodać linki wewnętrzne</div>
+
+    <div id="sugClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
+
+    <div id="sugMustFix2"></div>
+    <div id="sugPerArticle2" style="margin-top:1rem"></div>
+  </div>
+
+  <!-- ══ GAP ══ -->
+  <div class="tab-panel" id="tab-gap">
+    <div class="section-label">► CONTENT GAP</div>
     <div class="section-title">Plan działań <span class="star">✦</span></div>
-    <div class="section-subtitle">Content gap, sugestie artykułów i priorytety SEO</div>
+    <div class="section-subtitle">Content gap, ranking artykułów i priorytety SEO</div>
 
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
-      <div id="sugClientFilter" style="display:flex;gap:8px"></div>
-      <button class="btn" style="margin-left:auto;font-size:9px;padding:3px 10px" onclick="renderSuggestionsTab()">↺ ODŚWIEŻ</button>
+      <div id="gapClientFilter" style="display:flex;gap:8px"></div>
+      <button class="btn" style="margin-left:auto;font-size:9px;padding:3px 10px" onclick="renderGapTab()">↺ ODŚWIEŻ</button>
     </div>
 
     <div id="sugContentGap"></div>
@@ -1689,6 +1702,7 @@ function switchTab(name) {
   if (name === 'linki') renderLinki();
   if (name === 'sitemap') renderSitemap();
   if (name === 'suggestions') renderSuggestionsTab();
+  if (name === 'gap') renderGapTab();
   if (name === 'agenthistoria') renderAgentHistoria();
   if (name === 'keywords') renderKeywords();
   updateLinkiBadge();
@@ -4648,7 +4662,7 @@ function renderSuggestionsTab() {
   document.getElementById('sugClientFilter').innerHTML = GUIDELINES_CLIENTS.map(c =>
     clientBtn(c, selectedSugClient === c.id, "switchSugClient('" + c.id + "')")
   ).join('');
-  renderSuggestionsEngine();
+  generateLinkSuggestions();
 }
 
 function switchSugClient(clientId) {
@@ -4656,8 +4670,94 @@ function switchSugClient(clientId) {
   renderSuggestionsTab();
 }
 
-function renderSuggestionsEngine() {
+let selectedGapClient = GUIDELINES_CLIENTS[0].id;
+
+function renderGapTab() {
+  document.getElementById('gapClientFilter').innerHTML = GUIDELINES_CLIENTS.map(c =>
+    clientBtn(c, selectedGapClient === c.id, "switchGapClient('" + c.id + "')")
+  ).join('');
+  renderSuggestionsEngine();
+}
+
+function switchGapClient(clientId) {
+  selectedGapClient = clientId;
+  renderGapTab();
+}
+
+function generateLinkSuggestions() {
   const domena = getClientDomena(selectedSugClient);
+  const hubs = lsGet(KEY.hubs, []).filter(h => !domena || h.domena === domena);
+  const articles = lsGet(KEY.articles, []).filter(a => !domena || a.domena === domena);
+  const backlinksMap = {};
+  articles.forEach(a => (a.linksWewnetrzne || []).forEach(l => {
+    if (!backlinksMap[l.url]) backlinksMap[l.url] = [];
+    backlinksMap[l.url].push(a.tytul);
+  }));
+
+  const mustFix = [];
+  const suggestions = [];
+
+  articles.forEach(a => {
+    const hub = hubs.find(h => h.id === a.hubId);
+    const links = a.linksWewnetrzne || [];
+    const linkedUrls = new Set(links.map(l => l.url));
+    const backlinks = backlinksMap[a.url] || [];
+    const hubArts = hub ? articles.filter(x => x.hubId === hub.id && x.id !== a.id) : [];
+    const artSugs = [];
+
+    if (backlinks.length === 0) mustFix.push({ type: 'no-backlinks', art: a, hub });
+    const linksInHub = hubArts.filter(x => x.url && linkedUrls.has(x.url));
+    if (hub && hubArts.length > 0 && linksInHub.length === 0) mustFix.push({ type: 'no-cluster-link', art: a, hub });
+    if (hub && hub.urlPillar && !linkedUrls.has(hub.urlPillar) && !links.some(l => l.url && l.url.includes(hub.urlPillar.split('/').pop()))) mustFix.push({ type: 'no-pillar-link', art: a, hub });
+
+    hubArts.forEach(target => {
+      if (!target.url || linkedUrls.has(target.url)) return;
+      const targetLinksToMe = a.url && (target.linksWewnetrzne || []).some(l => l.url === a.url);
+      artSugs.push({ target, direction: 'w klastrze', priority: targetLinksToMe ? 'wysoki' : 'normalny',
+        reason: targetLinksToMe ? `"${target.tytul.substring(0,40)}" linkuje do Ciebie ale Ty nie zwrotnie` : `Brak wzajemnego linku z "${target.tytul.substring(0,40)}"` });
+    });
+    hubs.forEach(oh => {
+      if (!hub || oh.id === hub.id) return;
+      const oa = articles.filter(x => x.hubId === oh.id);
+      if (oa.length > 0 && !oa.some(x => x.url && linkedUrls.has(x.url))) {
+        oa.slice(0, 2).forEach(t => artSugs.push({ target: t, direction: `do "${oh.nazwa}"`, priority: 'normalny', reason: `Zero linków do huba "${oh.nazwa}"` }));
+      }
+    });
+    if (artSugs.length > 0) suggestions.push({ art: a, hub, sugs: artSugs });
+  });
+
+  // MUST FIX
+  const mf = document.getElementById('sugMustFix2');
+  mf.innerHTML = mustFix.length ? `<div class="table-card" style="border-top:3px solid var(--red)">
+    <div class="table-card-header" style="cursor:pointer;display:flex;justify-content:space-between" onclick="toggleMustFix()">
+      <span class="table-card-title" style="color:var(--red)">⚠ MUST FIX (${mustFix.length})</span><span id="mfArrow" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">▼</span></div>
+    <div id="mustFixBody" style="display:none;padding:0.5rem 1rem;max-height:300px;overflow-y:auto">
+      ${mustFix.map(m => `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;cursor:pointer" onclick="openSitemapPanel('${m.art.id}')">
+        <span style="color:var(--red);font-family:var(--font-mono);font-size:8px;min-width:95px">${m.type === 'no-backlinks' ? 'BEZ BACKLINKÓW' : m.type === 'no-cluster-link' ? 'IZOLOWANY' : 'BRAK PILLAR'}</span>
+        <span style="color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.art.tytul)}</span></div>`).join('')}
+    </div></div>` : `<div class="table-card" style="border-top:3px solid var(--green)"><div style="padding:0.75rem 1rem;color:var(--green);font-size:12px">✓ Brak krytycznych problemów</div></div>`;
+
+  // Per article suggestions
+  const pa = document.getElementById('sugPerArticle2');
+  if (suggestions.length === 0) { pa.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:1rem">Wszystkie artykuły dobrze połączone</div>'; return; }
+  const pc = p => p === 'wysoki' ? 'var(--red)' : 'var(--yellow)';
+  pa.innerHTML = `<div class="table-card"><div class="table-card-header"><span class="table-card-title">► SUGESTIE LINKÓW (${suggestions.reduce((s,x) => s + x.sugs.length, 0)} dla ${suggestions.length} art.)</span></div>
+    <div class="table-overflow"><table><thead><tr><th>Artykuł</th><th>Hub</th><th>Sugestii</th></tr></thead><tbody>
+    ${suggestions.map((s, si) => `<tr style="cursor:pointer" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
+      <td class="primary" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openSitemapPanel('${s.art.id}')">${esc(s.art.tytul)}</td>
+      <td style="font-size:11px" onclick="openSitemapPanel('${s.art.id}')">${s.hub ? esc(s.hub.nazwa) : '—'}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--yellow);cursor:pointer" onclick="var d=document.getElementById('sugD${si}');d.style.display=d.style.display==='none'?'table-row':'none'">${s.sugs.length} ▼</td></tr>
+    <tr id="sugD${si}" style="display:none"><td colspan="3" style="padding:0"><div style="padding:8px 16px;background:var(--bg-secondary)">
+      ${s.sugs.map(sg => `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+        <span style="color:${pc(sg.priority)};font-family:var(--font-mono);font-size:8px;min-width:50px">${sg.priority}</span>
+        <span style="color:${sg.direction.includes('klastrze') ? '#00bcd4' : '#a78bfa'};font-family:var(--font-mono);font-size:9px;min-width:75px">${sg.direction}</span>
+        <div style="flex:1">→ ${sg.target.url ? `<a href="${esc(sg.target.url)}" target="_blank" style="color:var(--text-secondary);text-decoration:none" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'">${esc(sg.target.tytul)}</a>` : esc(sg.target.tytul)}<div style="color:var(--text-muted);font-size:10px">${sg.reason}</div></div>
+      </div>`).join('')}</div></td></tr>`).join('')}
+    </tbody></table></div></div>`;
+}
+
+function renderSuggestionsEngine() {
+  const domena = getClientDomena(selectedGapClient);
   const hubs = lsGet(KEY.hubs, []).filter(h => !domena || h.domena === domena);
   const articles = lsGet(KEY.articles, []).filter(a => !domena || a.domena === domena);
   const keywords = lsGet(KEY.keywords, []);
