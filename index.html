@@ -2260,21 +2260,25 @@ OBOWIĄZKOWA STRUKTURA KAŻDEGO ARTYKUŁU:
 5. Spis treści z kotwicami (numerowane punkty z linkami #id)
 6. 6-7 sekcji H2 (każda minimum 250-300 słów)
 7. Cytat eksperta w ramce (format: 'cytat' — eksperci [marka])
-8. H2 FAQ — dokładnie 6 pytań z rozbudowanymi odpowiedziami (min 3 zdania każda)
-9. BOX CTA — użyj DOKŁADNIE tego szablonu HTML:
-<div style="background: #1a1a1a; border: 2px solid #bd9a6c; border-radius: 10px; padding: 32px 24px; margin: 32px 0; text-align: center;">
-<p style="font-size: 22px; font-weight: bold; color: #bd9a6c; margin: 0 0 12px 0;">[NAGŁÓWEK CTA — max 8 słów]</p>
-<p style="color: #cccccc; margin: 0 0 24px 0; font-size: 15px; line-height: 1.6;">[1-2 ZDANIA ZACHĘTY]</p>
-<a style="display: inline-block; background: #bd9a6c; color: #ffffff; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 15px; letter-spacing: 0.05em;" href="https://luxsen.pl/collections/materace-luxsen">SPRAWDŹ OFERTĘ LUXSEN</a>
+8. H2 FAQ — format bez h3, użyj DOKŁADNIE tej struktury:
+<h2 id="faq">FAQ – najczęstsze pytania o [temat]</h2>
+<p><strong>1) [Pytanie?]</strong><br>[Odpowiedź 2-3 zdania]</p>
+<p><strong>2) [Pytanie?]</strong><br>[Odpowiedź]</p>
+(itd. dla 6 pytań — NIE używaj tagów h3, tylko strong + br)
+9. BOX CTA — użyj DOKŁADNIE tego szablonu (jasne tło):
+<div style="background-color: #f4f4f4; padding: 40px 20px; border-radius: 12px; margin-top: 34px; text-align: center; border: 1px solid #eee;">
+<h3 style="margin-top: 0; font-size: 24px; font-weight: bold;">[NAGŁÓWEK CTA]</h3>
+<p style="margin: 10px auto 26px; font-size: 16px; color: #666; max-width: 720px;">[1-2 zdania zachęty]</p>
+<a href="https://luxsen.pl/collections/materace-luxsen" style="background-color: #bd9a6c; color: white !important; padding: 18px 35px; text-decoration: none !important; font-weight: bold; border-radius: 6px; display: inline-block; font-size: 16px; text-transform: uppercase;">SPRAWDŹ OFERTĘ LUXSEN</a>
 </div>
-10. Materiały do pogłębienia — użyj DOKŁADNIE tego szablonu:
-<div style="background: #f4f4f4; border-radius: 10px; padding: 22px 24px; margin: 34px 0; border: 1px solid #eee;">
-<p style="margin: 0 0 14px 0; font-weight: bold; font-size: 17px;">📚 Materiały do pogłębienia</p>
-<ul style="margin: 0; padding-left: 18px; line-height: 2.0;">
-<li><a style="color: #bd9a6c; text-decoration: none; font-weight: bold;" href="[URL 1]">[Tytuł 1]</a> — [jedno zdanie co tam znajdzie czytelnik]</li>
-<li><a style="color: #bd9a6c; text-decoration: none; font-weight: bold;" href="[URL 2]">[Tytuł 2]</a> — [jedno zdanie co tam znajdzie czytelnik]</li>
-<li><a style="color: #bd9a6c; text-decoration: none; font-weight: bold;" href="[URL 3]">[Tytuł 3]</a> — [jedno zdanie co tam znajdzie czytelnik]</li>
-<li><a style="color: #bd9a6c; text-decoration: none; font-weight: bold;" href="[URL 4]">[Tytuł 4]</a> — [jedno zdanie co tam znajdzie czytelnik]</li>
+10. Materiały do pogłębienia — użyj DOKŁADNIE tego szablonu (bez emoji):
+<div style="background: #f4f4f4; padding: 18px; border: 1px solid #eee; border-radius: 10px; margin: 22px 0;" id="materialy">
+<p style="margin: 0 0 10px 0; font-weight: bold;">Materiały do pogłębienia</p>
+<ul style="margin: 0; padding-left: 18px; line-height: 1.75;">
+<li><a style="color: #bd9a6c; text-decoration: none;" href="[URL 1]">[Tytuł 1]</a></li>
+<li><a style="color: #bd9a6c; text-decoration: none;" href="[URL 2]">[Tytuł 2]</a></li>
+<li><a style="color: #bd9a6c; text-decoration: none;" href="[URL 3]">[Tytuł 3]</a></li>
+<li><a style="color: #bd9a6c; text-decoration: none;" href="[URL 4]">[Tytuł 4]</a></li>
 </ul>
 </div>
 11. Na końcu: tabela użytych anchorów z URL
@@ -2382,6 +2386,11 @@ Jeśli zbliżasz się do końca — zakończ bieżący akapit i dodaj:
     loadingEl.classList.remove('visible');
     wordCountEl.style.display = 'block';
     wordCountEl.textContent = '► 0 słów';
+
+    // Debug: weryfikacja wzorca
+    console.log('[AGENT] Wzorzec HTML length:', document.getElementById('agentHtmlTemplate')?.value?.length || 0);
+    console.log('[AGENT] templateHtml w prompcie:', templateHtml ? templateHtml.substring(0, 100) + '...' : 'BRAK');
+    console.log('[AGENT] extraContext length:', extraContext.length);
 
     const result = await callAgent(userPrompt, systemPrompt, (chunk, full) => {
       outputEl.textContent = full;
