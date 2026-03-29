@@ -596,6 +596,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
       <span style="color:var(--border);font-size:14px;display:flex;align-items:center;margin:0 4px">│</span>
       <button class="tab-btn tab-color-green" data-tab="agent">Agent</button>
       <button class="tab-btn tab-color-cyan" data-tab="htmlgen">Html Generator</button>
+      <button class="tab-btn tab-color-purple" data-tab="agenthistoria">Historia</button>
       <span style="color:var(--border);font-size:14px;display:flex;align-items:center;margin:0 4px">│</span>
       <button class="tab-btn tab-color-red" data-tab="wytyczne">Wytyczne</button>
       <button class="tab-btn tab-color-pink" data-tab="huby">Huby</button>
@@ -1003,6 +1004,43 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
 
     <div id="sugMustFix2"></div>
     <div id="sugPerArticle2" style="margin-top:1rem"></div>
+  </div>
+
+  <!-- ══ HISTORIA AGENTA ══ -->
+  <div class="tab-panel" id="tab-agenthistoria">
+    <div class="section-label">► HISTORIA AGENTA</div>
+    <div class="section-title">Wygenerowane artykuły <span class="star">✦</span></div>
+    <div class="section-subtitle">Archiwum artykułów wygenerowanych przez Agenta — edytuj i zapisz</div>
+
+    <div id="ahClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
+
+    <div class="table-card">
+      <div class="table-overflow">
+        <table>
+          <thead><tr><th>Tytuł</th><th>Hub</th><th>Słów</th><th>Data</th><th>Akcje</th></tr></thead>
+          <tbody id="ahBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="ahPagination" style="display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:8px;font-family:var(--font-mono);font-size:11px"></div>
+
+    <!-- Edytor artykułu -->
+    <div id="ahEditor" style="display:none;margin-top:1.5rem">
+      <div style="border-left:3px solid var(--accent);background:var(--bg-card);border-radius:0 6px 6px 0;padding:1.25rem 1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--accent);text-transform:uppercase">► EDYCJA ARTYKUŁU</div>
+          <button class="btn" style="font-size:9px;padding:3px 8px" onclick="document.getElementById('ahEditor').style.display='none'">ZAMKNIJ ✕</button>
+        </div>
+        <div class="form-group"><label class="form-label">Tytuł</label><input class="form-input" id="ahEditTitle"></div>
+        <div class="form-group"><label class="form-label">Treść artykułu</label><textarea class="form-textarea" id="ahEditContent" style="min-height:400px;font-family:var(--font-mono);font-size:12px;line-height:1.5"></textarea></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-accent" id="ahSaveBtn">ZAPISZ ZMIANY ►</button>
+          <button class="btn" id="ahCopyTextBtn">KOPIUJ TEKST</button>
+          <button class="btn" id="ahCopyHtmlBtn">KOPIUJ HTML</button>
+          <span id="ahEditWordCount" style="font-family:var(--font-mono);font-size:12px;color:var(--accent);margin-left:auto;display:flex;align-items:center"></span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ══ SŁOWA KLUCZOWE ══ -->
@@ -1618,6 +1656,7 @@ function switchTab(name) {
   if (name === 'linki') renderLinki();
   if (name === 'sitemap') renderSitemap();
   if (name === 'suggestions') renderSuggestionsTab();
+  if (name === 'agenthistoria') renderAgentHistoria();
   if (name === 'keywords') renderKeywords();
   updateLinkiBadge();
 }
@@ -4578,6 +4617,122 @@ document.getElementById('kwArticle').addEventListener('change', function() {
   const art = articles.find(a => a.id === this.value);
   if (art && art.hubId) document.getElementById('kwHub').value = art.hubId;
 });
+
+// ═══════════════════════════════════════════════════════
+// 13b. HISTORIA AGENTA
+// ═══════════════════════════════════════════════════════
+let selectedAhClient = 'luxsen';
+let _ahPage = 1;
+let _ahEditId = null;
+
+function renderAhClientFilter() {
+  document.getElementById('ahClientFilter').innerHTML = GUIDELINES_CLIENTS.map(c =>
+    clientBtn(c, selectedAhClient === c.id, "switchAhClient('" + c.id + "')")
+  ).join('');
+}
+
+function switchAhClient(clientId) {
+  selectedAhClient = clientId;
+  _ahPage = 1;
+  renderAgentHistoria();
+}
+
+function renderAgentHistoria() {
+  renderAhClientFilter();
+  const domena = getClientDomena(selectedAhClient);
+  let historia = lsGet(KEY.blogHistoria, []);
+  if (domena) historia = historia.filter(h => h.domena === domena || h.clientId === selectedAhClient);
+  historia = [...historia].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const PER_PAGE = 10;
+  const totalPages = Math.max(1, Math.ceil(historia.length / PER_PAGE));
+  if (_ahPage > totalPages) _ahPage = 1;
+  const paged = historia.slice((_ahPage - 1) * PER_PAGE, _ahPage * PER_PAGE);
+
+  const tbody = document.getElementById('ahBody');
+  if (historia.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Brak wygenerowanych artykułów — użyj Agenta</td></tr>';
+    document.getElementById('ahPagination').innerHTML = '';
+    return;
+  }
+
+  const hubs = lsGet(KEY.hubs, []);
+  tbody.innerHTML = paged.map(h => {
+    const d = new Date(h.createdAt);
+    return `<tr style="cursor:pointer" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
+      <td class="primary" style="max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openAhEditor('${h.id}')">${esc(h.tytul)}</td>
+      <td style="font-size:11px">${esc(h.keyword || '—')}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">${h.liczbaSlow || '—'}</td>
+      <td class="mono" style="font-size:11px">${d.toLocaleDateString('pl')} ${d.toLocaleTimeString('pl',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td><div class="gap-row">
+        <button class="btn" style="font-size:8px;padding:2px 6px" onclick="openAhEditor('${h.id}')">EDYTUJ</button>
+        <button class="btn" style="font-size:8px;padding:2px 6px" onclick="navigator.clipboard.writeText(lsGet(KEY.blogHistoria,[]).find(x=>x.id==='${h.id}')?.tresc||'')">KOPIUJ</button>
+        <button class="btn btn-red" style="font-size:8px;padding:2px 6px" onclick="deleteAh('${h.id}')">USUŃ</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  let pagHtml = `<span style="color:var(--text-muted);margin-right:8px">${historia.length} artykułów</span>`;
+  if (totalPages > 1) {
+    pagHtml += `<button class="btn" style="font-size:9px;padding:2px 8px" onclick="_ahPage=Math.max(1,_ahPage-1);renderAgentHistoria()">‹</button>`;
+    for (let p = 1; p <= totalPages; p++) {
+      if (p === _ahPage) pagHtml += `<span style="background:var(--accent);color:#fff;padding:2px 8px;border-radius:3px;font-size:10px">${p}</span>`;
+      else if (p <= 3 || p >= totalPages - 1 || Math.abs(p - _ahPage) <= 1) pagHtml += `<button class="btn" style="font-size:9px;padding:2px 8px" onclick="_ahPage=${p};renderAgentHistoria()">${p}</button>`;
+      else if (p === 4 && _ahPage > 5) pagHtml += `<span style="color:var(--text-muted)">…</span>`;
+    }
+    pagHtml += `<button class="btn" style="font-size:9px;padding:2px 8px" onclick="_ahPage=Math.min(${totalPages},_ahPage+1);renderAgentHistoria()">›</button>`;
+  }
+  document.getElementById('ahPagination').innerHTML = pagHtml;
+}
+
+function openAhEditor(id) {
+  const historia = lsGet(KEY.blogHistoria, []);
+  const h = historia.find(x => x.id === id);
+  if (!h) return;
+  _ahEditId = id;
+  document.getElementById('ahEditTitle').value = h.tytul || '';
+  document.getElementById('ahEditContent').value = h.tresc || '';
+  document.getElementById('ahEditWordCount').textContent = '► ' + countWords(h.tresc || '') + ' słów';
+  document.getElementById('ahEditor').style.display = 'block';
+  document.getElementById('ahEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.getElementById('ahEditContent').addEventListener('input', function() {
+  document.getElementById('ahEditWordCount').textContent = '► ' + countWords(this.value) + ' słów';
+});
+
+document.getElementById('ahSaveBtn').addEventListener('click', () => {
+  if (!_ahEditId) return;
+  const historia = lsGet(KEY.blogHistoria, []);
+  const h = historia.find(x => x.id === _ahEditId);
+  if (!h) return;
+  h.tytul = document.getElementById('ahEditTitle').value.trim();
+  h.tresc = document.getElementById('ahEditContent').value;
+  h.liczbaSlow = countWords(h.tresc);
+  lsSet(KEY.blogHistoria, historia); saveAllWithSync();
+  renderAgentHistoria();
+  const btn = document.getElementById('ahSaveBtn');
+  btn.textContent = 'ZAPISANO ✓';
+  setTimeout(() => btn.textContent = 'ZAPISZ ZMIANY ►', 2000);
+});
+
+document.getElementById('ahCopyTextBtn').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('ahEditContent').value);
+});
+
+document.getElementById('ahCopyHtmlBtn').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('ahEditContent').value);
+});
+
+function deleteAh(id) {
+  if (!confirm('Usunąć ten artykuł z historii?')) return;
+  let historia = lsGet(KEY.blogHistoria, []);
+  historia = historia.filter(x => x.id !== id);
+  lsSet(KEY.blogHistoria, historia); saveAllWithSync();
+  if (_ahEditId === id) { _ahEditId = null; document.getElementById('ahEditor').style.display = 'none'; }
+  renderAgentHistoria();
+}
 
 // ═══════════════════════════════════════════════════════
 // 14. DASHBOARD — hub health extension
