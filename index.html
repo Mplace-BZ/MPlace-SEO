@@ -582,6 +582,9 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
           <span id="userEmail"></span>
           <button class="btn-auth" id="logoutBtn">Wyloguj</button>
         </div>
+        <button onclick="exportData()" style="padding:4px 10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;cursor:pointer;border-radius:3px;transition:0.2s" onmouseenter="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">↓ BACKUP</button>
+        <button onclick="document.getElementById('importFileInput').click()" style="padding:4px 10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;cursor:pointer;border-radius:3px;transition:0.2s" onmouseenter="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">↑ IMPORTUJ</button>
+        <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importData(this)">
         <button class="btn-auth" id="loginBtn">Zaloguj</button>
       </div>
     </div>
@@ -1312,6 +1315,17 @@ https://luxsen.pl/collections/materace-luxsen anchor: kolekcja materacy"></texta
         <button class="btn btn-accent" id="importSaveBtn">ZAPISZ ARTYKUŁ DO BAZY ►</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Modal: Import danych -->
+<div class="modal-overlay" id="modalImportData" style="display:none">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title">IMPORTUJ DANE</span>
+      <button class="modal-close" onclick="closeModal('modalImportData')">&#x2715;</button>
+    </div>
+    <div id="importDataContent"></div>
   </div>
 </div>
 
@@ -5501,6 +5515,134 @@ seedTestData();
 
 document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 updateLinkiBadge();
+
+// ═══════════════════════════════════════════════════════
+// BACKUP / RESTORE
+// ═══════════════════════════════════════════════════════
+function showToast(message, type) {
+  const colors = { success: 'var(--accent)', error: 'var(--red)', warning: 'var(--yellow)' };
+  const c = colors[type] || colors.success;
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `position:fixed;bottom:24px;right:24px;background:var(--bg-card);border:1px solid ${c};color:${c};padding:12px 20px;border-radius:6px;font-family:var(--font-mono);font-size:12px;z-index:99999;transform:translateX(120%);transition:transform 0.3s`;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.style.transform = 'translateX(0)');
+  setTimeout(() => { toast.style.transform = 'translateX(120%)'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+function exportData(autoBackup) {
+  const data = {};
+  let count = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith('mplace_seo_')) {
+      data[key] = localStorage.getItem(key);
+      count++;
+    }
+  }
+  const arts = lsGet(KEY.articles, []);
+  const hubs = lsGet(KEY.hubs, []);
+  const kws = lsGet(KEY.keywords, []);
+  const hist = lsGet(KEY.blogHistoria, []);
+
+  const backup = {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    appVersion: '1.0',
+    totalRecords: { articles: arts.length, hubs: hubs.length, keywords: kws.length, history: hist.length },
+    data
+  };
+
+  const date = new Date().toISOString().split('T')[0];
+  const filename = autoBackup
+    ? `mplace-seo-AUTO-BACKUP-before-import-${date}.json`
+    : `mplace-seo-backup-${date}.json`;
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  if (!autoBackup) showToast('↓ Backup zapisany: ' + filename, 'success');
+  return filename;
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    let backup;
+    try { backup = JSON.parse(e.target.result); }
+    catch(err) { showToast('Nieprawidłowy plik JSON', 'error'); return; }
+
+    if (!backup.schemaVersion) { showToast('Nieznany format — to nie jest backup MPlace SEO', 'error'); return; }
+    if (!backup.data) { showToast('Brak danych w pliku', 'error'); return; }
+
+    const tr = backup.totalRecords || {};
+    const exportDate = backup.exportedAt ? new Date(backup.exportedAt).toLocaleDateString('pl', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+
+    document.getElementById('importDataContent').innerHTML = `
+      <div style="padding:1rem">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Data eksportu: <strong style="color:var(--text-primary)">${exportDate}</strong></div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+          ► Artykuły: <strong>${tr.articles || '?'}</strong> · Huby: <strong>${tr.hubs || '?'}</strong> · Słowa kluczowe: <strong>${tr.keywords || '?'}</strong> · Historia: <strong>${tr.history || '?'}</strong>
+        </div>
+        <div style="background:var(--yellow-dim);border:1px solid var(--yellow);border-radius:6px;padding:12px;font-size:12px;color:var(--yellow);margin-bottom:16px">
+          ⚠ Import nadpisze wszystkie obecne dane MPlace SEO.<br>Obecne dane zostaną automatycznie zabezpieczone jako backup.
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="closeModal('modalImportData')">ANULUJ</button>
+          <button class="btn" style="color:var(--red);border-color:var(--red)" onclick="executeImport()">IMPORTUJ ►</button>
+        </div>
+      </div>`;
+
+    window._pendingImport = backup;
+    openModal('modalImportData');
+  };
+  reader.readAsText(file);
+}
+
+function executeImport() {
+  const backup = window._pendingImport;
+  if (!backup || !backup.data) return;
+
+  // Auto-backup before import
+  exportData(true);
+
+  // Import
+  Object.keys(backup.data).forEach(key => {
+    localStorage.setItem(key, backup.data[key]);
+  });
+
+  const tr = backup.totalRecords || {};
+  document.getElementById('importDataContent').innerHTML = `
+    <div style="padding:1rem">
+      <div style="font-size:14px;font-weight:500;color:var(--green);margin-bottom:12px">✓ IMPORT ZAKOŃCZONY</div>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.8">
+        ✓ Artykuły: ${tr.articles || '?'} wczytanych<br>
+        ✓ Huby: ${tr.hubs || '?'} wczytanych<br>
+        ✓ Słowa kluczowe: ${tr.keywords || '?'} wczytanych<br>
+        ✓ Historia: ${tr.history || '?'} wczytanych<br>
+        ✓ Auto-backup zapisany przed importem
+      </div>
+      <div style="margin-top:16px;display:flex;justify-content:flex-end">
+        <button class="btn btn-accent" onclick="window.location.reload()">ODŚWIEŻ APLIKACJĘ ►</button>
+      </div>
+    </div>`;
+
+  window._pendingImport = null;
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'E') { e.preventDefault(); exportData(); }
+  if (e.ctrlKey && e.shiftKey && e.key === 'I') { e.preventDefault(); document.getElementById('importFileInput').click(); }
+});
 
 </script>
 
