@@ -3699,7 +3699,7 @@ function openSitemapPanel(artId) {
     ${a.url ? `<a href="${esc(a.url)}" target="_blank" style="font-family:var(--font-mono);font-size:10px;color:var(--accent);text-decoration:none;word-break:break-all">${esc(a.url)}</a>` : ''}
     <div style="font-size:11px;color:var(--text-muted);margin:8px 0">${hub ? 'Hub: ' + esc(hub.nazwa) : '<span style="color:var(--red)">Bez huba</span>'}</div>
     <div style="margin:8px 0;font-family:var(--font-mono);font-size:11px">${flags}</div>
-    ${a.keywords && a.keywords.length ? `<div style="margin:8px 0;font-size:11px;color:var(--text-muted)">Keywords: ${a.keywords.map(k => '<span style="color:var(--text-secondary)">' + esc(k) + '</span>').join(', ')}</div>` : ''}
+    ${a.keywords && a.keywords.length ? `<div style="margin:8px 0;font-size:11px;color:var(--text-muted);line-height:1.6">Keywords: ${(Array.isArray(a.keywords) ? a.keywords : a.keywords.split(/[,;]+/)).map(k => '<span style="color:var(--text-secondary);background:var(--bg-secondary);padding:1px 6px;border-radius:3px;margin:1px 2px;display:inline-block;font-size:10px">' + esc(k.trim()) + '</span>').join(' ')}</div>` : ''}
 
     <div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);text-transform:uppercase;margin:16px 0 6px">→ LINKUJE DO (${links.length})</div>
     ${links.map(l => `<div style="display:flex;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid var(--border)">
