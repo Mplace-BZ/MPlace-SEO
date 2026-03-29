@@ -3939,15 +3939,14 @@ function generateLinkSuggestions() {
     <div class="table-card">
       <div class="table-card-header"><span class="table-card-title">► SUGESTIE LINKÓW (${suggestions.reduce((s,x) => s + x.sugs.length, 0)} sugestii dla ${suggestions.length} artykułów)</span></div>
       <div class="table-overflow"><table><thead><tr>
-        <th>Artykuł</th><th>Hub</th><th>Sugestii</th><th></th>
+        <th>Artykuł</th><th>Hub</th><th>Sugestii</th>
       </tr></thead><tbody>
         ${suggestions.map((s, si) => `<tr style="cursor:pointer" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
           <td class="primary" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openSitemapPanel('${s.art.id}')">${esc(s.art.tytul)}</td>
           <td style="font-size:11px" onclick="openSitemapPanel('${s.art.id}')">${s.hub ? esc(s.hub.nazwa) : '—'}</td>
-          <td style="font-family:var(--font-mono);font-size:12px;color:var(--yellow)" onclick="openSitemapPanel('${s.art.id}')">${s.sugs.length}</td>
-          <td style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);cursor:pointer" onclick="var d=document.getElementById('sugDetail${si}');d.style.display=d.style.display==='none'?'table-row':'none'">▼</td>
+          <td style="font-family:var(--font-mono);font-size:12px;color:var(--yellow);cursor:pointer" onclick="var d=document.getElementById('sugDetail${si}');d.style.display=d.style.display==='none'?'table-row':'none'">${s.sugs.length} ▼</td>
         </tr>
-        <tr id="sugDetail${si}" style="display:none"><td colspan="4" style="padding:0">
+        <tr id="sugDetail${si}" style="display:none"><td colspan="3" style="padding:0">
           <div style="padding:8px 16px;background:var(--bg-secondary)">
             ${s.sugs.map(sg => `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
               <span style="color:${prioColor(sg.priority)};font-family:var(--font-mono);font-size:8px;min-width:55px;text-transform:uppercase">${sg.priority}</span>
