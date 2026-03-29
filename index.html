@@ -4504,7 +4504,7 @@ async function generateBriefWithRetry(prompt, systemPrompt, maxRetries) {
       const fullPrompt = attempt > 1
         ? prompt + '\n\nUWAGA: Poprzednia próba zwróciła błąd: ' + lastError.message + '\nZwróć WYŁĄCZNIE poprawny JSON.'
         : prompt;
-      const raw = await callAgentSimple(fullPrompt, systemPrompt);
+      const raw = await callAgent(fullPrompt, systemPrompt, null);
       console.log('[BRIEF] Próba ' + attempt + ':', raw.substring(0, 200));
       const parsed = extractJSON(raw);
       const { valid, errors } = validateBrief(parsed);
