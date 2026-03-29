@@ -4756,6 +4756,12 @@ function generateLinkSuggestions() {
     </tbody></table></div></div>`;
 }
 
+function slugToName(url) {
+  let s = url.split('/').pop().replace(/-/g, ' ').replace(/\bluxsen\b/gi, '').trim();
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s.length > 80 ? s.substring(0, 77) + '...' : s;
+}
+
 function renderSuggestionsEngine() {
   const domena = getClientDomena(selectedGapClient);
   const hubs = lsGet(KEY.hubs, []).filter(h => !domena || h.domena === domena);
@@ -4799,7 +4805,7 @@ function renderSuggestionsEngine() {
       <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${hubArts.length} art. | ${hubMissing.length} brakujących</span></div>
       <div style="padding:8px 12px;max-height:250px;overflow-y:auto">` +
       hubMissing.slice(0, 10).map(m => {
-        const slug = m.url.split('/').pop().replace(/-/g, ' ');
+        const slug = slugToName(m.url);
         return `<div style="border-left:3px solid var(--accent);padding:8px 12px;margin-bottom:6px;background:var(--bg-secondary);border-radius:0 4px 4px 0">
           <div style="font-size:12px;color:var(--text-primary);margin-bottom:2px">${esc(m.anchor || slug)}</div>
           <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-bottom:4px;word-break:break-all">${esc(m.url)}</div>
@@ -4864,11 +4870,11 @@ function renderSuggestionsEngine() {
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
           <span style="font-family:var(--font-mono);font-size:11px;color:${bl === 0 ? 'var(--red)' : 'var(--yellow)'}">← ${bl}</span>
           ${badge}
-          <span style="color:var(--text-primary);flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(target.tytul)}</span>
+          <span style="color:var(--text-primary);flex:1;font-size:12px">${esc(target.tytul)}</span>
         </div>
         ${potentialLinkers.length > 0 ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">DODAJ LINKI Z TYCH ARTYKUŁÓW:</div>` +
           potentialLinkers.map(src => `<div style="display:flex;gap:6px;padding:3px 0;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
-            <span style="color:var(--text-secondary);flex:1">${esc(src.tytul.substring(0, 45))}</span>
+            <span style="color:var(--text-secondary);flex:1">${esc(src.tytul)}</span>
             <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted)">anchor: "${esc(sugAnchor.substring(0, 25))}"</span>
             ${src.url ? `<a href="${esc(src.url)}" target="_blank" style="font-size:8px;padding:1px 6px;color:var(--yellow);border:1px solid var(--yellow)44;border-radius:3px;text-decoration:none">SHOPIFY ↗</a>` : ''}
           </div>`).join('') : '<div style="font-size:10px;color:var(--text-muted)">Brak kandydatów do linkowania</div>'}
@@ -4886,13 +4892,17 @@ function renderSuggestionsEngine() {
 
   hubs.forEach(h => {
     const ha = articles.filter(a => a.hubId === h.id);
-    const hk = keywords.filter(k => k.hubId === h.id);
-    const covered = hk.filter(k => k.pokryta).length;
     const avgBl = ha.length ? Math.round(ha.reduce((s, a) => s + (blMap[a.url] || 0), 0) / ha.length * 10) / 10 : 0;
-    const gap = hk.length - covered;
+    // GAP: unique /blogs/news/ URLs linked from hub articles but NOT in base
+    const hubMissingUrls = new Set();
+    ha.forEach(a => (a.linksWewnetrzne || []).forEach(l => {
+      if (l.url && l.url.includes('/blogs/news/') && !existingUrls.has(l.url)) hubMissingUrls.add(l.url);
+    }));
+    const gap = hubMissingUrls.size;
+    const totalLinked = ha.length + gap;
     const healthScore = Math.round(
       (ha.length ? ha.filter(a => (blMap[a.url] || 0) >= 3).length / ha.length * 40 : 0) +
-      (hk.length ? covered / hk.length * 40 : 20) +
+      (totalLinked > 0 ? ha.length / totalLinked * 40 : 20) +
       (h.urlPillar ? 20 : 0)
     );
     const hc = healthScore >= 80 ? 'var(--green)' : healthScore >= 50 ? 'var(--yellow)' : 'var(--red)';
