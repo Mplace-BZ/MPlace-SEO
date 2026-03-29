@@ -5012,12 +5012,12 @@ function renderAgentHistoria() {
   const articles = lsGet(KEY.articles, []);
   tbody.innerHTML = paged.map(h => {
     const d = new Date(h.createdAt);
-    // Calculate link debt — how many hub articles should link to this
-    const hubArts = articles.filter(a => a.keyword && h.keyword && a.hubId);
-    const debtCount = hubArts.filter(a => {
-      const links = a.linksWewnetrzne || [];
-      return !links.some(l => l.anchor && l.anchor.toLowerCase().includes(h.keyword.toLowerCase().split(' ')[0]));
-    }).length;
+    // Calculate link debt — how many articles in the same hub should link to this
+    // Find hub for this history article by matching keyword to imported articles
+    const matchArt = articles.find(a => a.keyword && h.keyword && a.keyword.toLowerCase() === h.keyword.toLowerCase());
+    const artHubId = matchArt ? matchArt.hubId : '';
+    const sameHubArts = artHubId ? articles.filter(a => a.hubId === artHubId) : [];
+    const debtCount = sameHubArts.length;
     const debtColor = debtCount > 5 ? 'var(--red)' : debtCount > 0 ? 'var(--yellow)' : 'var(--green)';
     return `<tr style="cursor:pointer" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
       <td class="primary" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openAhEditor('${h.id}')">${esc(h.tytul)}</td>
