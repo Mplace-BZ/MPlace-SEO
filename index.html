@@ -680,7 +680,17 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div class="section-title">Generator treści <span class="star">✦</span></div>
     <div class="section-subtitle">AI pisze artykuły blogowe pod SEO zgodnie z wytycznymi marki</div>
 
-    <div id="agentClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem"></div>
+    <div id="agentClientFilter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
+
+    <!-- Inteligentne sugestie -->
+    <div id="agentSuggestionsPanel" style="display:none;margin-bottom:1rem">
+      <div style="border-left:3px solid var(--accent);background:var(--bg-card);border-radius:0 6px 6px 0;padding:12px 16px">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px">► INTELIGENTNE SUGESTIE</div>
+        <div id="agentContentGap" style="margin-bottom:12px"></div>
+        <div id="agentWeakArticles" style="margin-bottom:12px"></div>
+        <div id="agentSuggestedNext"></div>
+      </div>
+    </div>
 
     <div class="agent-layout">
       <!-- LEWA: INPUT -->
@@ -713,6 +723,11 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
         <div class="form-group">
           <label class="form-label">Linki do wplecenia</label>
           <textarea class="form-textarea" id="agentLinks" style="min-height:70px" placeholder="np. HUB #1: https://luxsen.pl/blogs/news/jaki-materac...&#10;Produkt: https://luxsen.pl/products/materac-mint"></textarea>
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label class="form-label">Wzorzec artykułu HTML <span style="color:var(--text-muted);font-weight:400">(opcjonalnie — Agent naśladuje styl)</span></label>
+          <textarea class="form-textarea" id="agentHtmlTemplate" style="min-height:80px;font-family:var(--font-mono);font-size:10px" placeholder="Wklej HTML wzorcowego artykułu — Agent skopiuje styl boxów, CTA, kolorów"></textarea>
+          <div id="htmlTemplateInfo" style="display:none;font-size:10px;color:var(--accent);margin-top:4px"></div>
         </div>
         <div class="form-group">
           <label class="form-checkbox">
@@ -1590,7 +1605,7 @@ function switchTab(name) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'audyt') renderAudyt();
   if (name === 'historia') { renderHistoriaClientFilter(); renderBlogHistoria(); renderHistoria(); }
-  if (name === 'agent') { renderAgentClientFilter(); populateAgentHubSelect(); restoreAgentForm(); }
+  if (name === 'agent') { renderAgentClientFilter(); populateAgentHubSelect(); restoreAgentForm(); loadAgentHtmlTemplate(); updateAgentSuggestions(); }
   if (name === 'htmlgen') { loadHtmlgenTab(); }
   if (name === 'wytyczne') renderWytyczne();
   if (name === 'huby') renderHuby();
@@ -1955,10 +1970,15 @@ function renderAgentClientFilter() {
 }
 
 function switchAgentClient(clientId) {
+  // Save current template before switching
+  const curTemplate = document.getElementById('agentHtmlTemplate').value;
+  if (curTemplate) lsSet(PFX + 'agent_html_template_' + selectedAgentClient, curTemplate);
   selectedAgentClient = clientId;
   renderAgentClientFilter();
   populateAgentHubSelect();
   document.getElementById('agentDomena').value = getClientDomena(clientId);
+  loadAgentHtmlTemplate();
+  updateAgentSuggestions();
 }
 
 function populateAgentHubSelect() {
@@ -1972,6 +1992,127 @@ function populateAgentHubSelect() {
 
 function countWords(text) {
   return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
+// Agent: inteligentne sugestie
+function updateAgentSuggestions() {
+  const panel = document.getElementById('agentSuggestionsPanel');
+  const hubId = document.getElementById('agentHub').value;
+  if (!hubId) { panel.style.display = 'none'; return; }
+
+  const domena = getClientDomena(selectedAgentClient);
+  const articles = lsGet(KEY.articles, []).filter(a => !domena || a.domena === domena);
+  const keywords = lsGet(KEY.keywords, []);
+  const hubs = lsGet(KEY.hubs, []);
+  const hub = hubs.find(h => h.id === hubId);
+  if (!hub) { panel.style.display = 'none'; return; }
+
+  const hubArts = articles.filter(a => a.hubId === hubId);
+  const hubKws = keywords.filter(k => k.hubId === hubId);
+
+  // A) Content gap — frazy bez pokrycia
+  const uncovered = hubKws.filter(k => !k.pokryta);
+  const gapEl = document.getElementById('agentContentGap');
+  if (uncovered.length > 0) {
+    gapEl.innerHTML = `<div style="font-size:10px;color:var(--accent);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">► CONTENT GAP — brakujące frazy</div>` +
+      uncovered.slice(0, 5).map(k =>
+        `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:3px 8px;margin:2px;font-size:11px;color:var(--text-secondary)">${esc(k.fraza)} <button class="btn" style="font-size:8px;padding:1px 6px;color:var(--accent)" onclick="agentUsePhrase('${esc(k.fraza).replace(/'/g,"\\'")}')">UŻYJ ►</button></span>`
+      ).join('');
+  } else {
+    gapEl.innerHTML = '';
+  }
+
+  // B) Artykuły do wzmocnienia (mało backlinków)
+  const backlinksMap = {};
+  articles.forEach(a => (a.linksWewnetrzne || []).forEach(l => {
+    if (!backlinksMap[l.url]) backlinksMap[l.url] = 0;
+    backlinksMap[l.url]++;
+  }));
+  const weak = hubArts.filter(a => a.url && (backlinksMap[a.url] || 0) <= 2).slice(0, 4);
+  const weakEl = document.getElementById('agentWeakArticles');
+  if (weak.length > 0) {
+    weakEl.innerHTML = `<div style="font-size:10px;color:#f5a623;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">▲ DO WZMOCNIENIA — mało linków przychodzących</div>` +
+      weak.map(a => `<div style="font-size:11px;padding:3px 0;color:var(--text-secondary)">← ${backlinksMap[a.url]||0} · ${esc(a.tytul.substring(0,50))}</div>`).join('');
+  } else {
+    weakEl.innerHTML = '';
+  }
+
+  // C) Sugerowany następny artykuł
+  const nextEl = document.getElementById('agentSuggestedNext');
+  if (uncovered.length > 0) {
+    const phrase = uncovered[0].fraza;
+    nextEl.innerHTML = `<div style="font-size:10px;color:var(--green);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">✦ SUGEROWANY NASTĘPNY ARTYKUŁ</div>
+      <div style="font-size:12px;color:var(--text-primary);margin-bottom:6px">"<strong>${esc(phrase)}</strong>" — brakuje w hubie ${esc(hub.nazwa)}</div>
+      <button class="btn btn-accent" style="font-size:10px;padding:4px 12px" onclick="agentUseSuggestion('${esc(phrase).replace(/'/g,"\\'")}','${hubId}')">UŻYJ TEGO TYTUŁU ►</button>`;
+  } else {
+    nextEl.innerHTML = '';
+  }
+
+  panel.style.display = (uncovered.length || weak.length) ? 'block' : 'none';
+}
+
+function agentUsePhrase(phrase) {
+  document.getElementById('agentKeyword').value = phrase;
+  document.getElementById('agentTitle').value = phrase.charAt(0).toUpperCase() + phrase.slice(1);
+  document.getElementById('agentTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function agentUseSuggestion(phrase, hubId) {
+  const articles = lsGet(KEY.articles, []);
+  const keywords = lsGet(KEY.keywords, []);
+  const hubs = lsGet(KEY.hubs, []);
+  const hub = hubs.find(h => h.id === hubId);
+  const hubArts = articles.filter(a => a.hubId === hubId && a.url);
+
+  // Title
+  document.getElementById('agentTitle').value = phrase.charAt(0).toUpperCase() + phrase.slice(1);
+  document.getElementById('agentKeyword').value = phrase;
+
+  // LSI — related keywords from same hub
+  const hubKws = keywords.filter(k => k.hubId === hubId && k.fraza.toLowerCase() !== phrase.toLowerCase());
+  document.getElementById('agentLSI').value = hubKws.slice(0, 6).map(k => k.fraza).join('\n');
+
+  // Links — all articles in hub
+  document.getElementById('agentLinks').value = hubArts.map(a => a.tytul + ' | ' + a.url).join('\n');
+
+  // Plan H2
+  const titleCap = phrase.charAt(0).toUpperCase() + phrase.slice(1);
+  document.getElementById('agentPlan').value = [
+    titleCap + ' — kluczowe informacje',
+    'Jak wybrać ' + phrase + ' do swoich potrzeb',
+    'Na co zwrócić uwagę przy zakupie',
+    'Najczęstsze błędy i jak ich uniknąć',
+    'FAQ — ' + phrase,
+    'Podsumowanie'
+  ].join('\n');
+
+  document.getElementById('agentTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  saveAgentForm();
+}
+
+// Agent HTML template autosave
+document.getElementById('agentHtmlTemplate').addEventListener('input', function() {
+  const val = this.value;
+  const info = document.getElementById('htmlTemplateInfo');
+  if (val.length > 100) {
+    info.textContent = '✦ Wzorzec załadowany — ' + val.length + ' znaków · Agent skopiuje styl HTML';
+    info.style.display = 'block';
+  } else {
+    info.style.display = 'none';
+  }
+  lsSet(PFX + 'agent_html_template_' + selectedAgentClient, val);
+});
+
+function loadAgentHtmlTemplate() {
+  const val = lsGet(PFX + 'agent_html_template_' + selectedAgentClient) || '';
+  document.getElementById('agentHtmlTemplate').value = val;
+  const info = document.getElementById('htmlTemplateInfo');
+  if (val.length > 100) {
+    info.textContent = '✦ Wzorzec załadowany — ' + val.length + ' znaków · Agent skopiuje styl HTML';
+    info.style.display = 'block';
+  } else {
+    info.style.display = 'none';
+  }
 }
 
 // Autosave formularza AGENT
@@ -2012,6 +2153,9 @@ AGENT_FORM_FIELDS.forEach(f => {
   if (el) el.addEventListener(f.type === 'checkbox' ? 'change' : 'input', saveAgentForm);
 });
 
+// Update suggestions when hub changes
+document.getElementById('agentHub').addEventListener('change', updateAgentSuggestions);
+
 document.getElementById('agentRunBtn').addEventListener('click', async () => {
   const title = document.getElementById('agentTitle').value.trim();
   if (!title) { alert('Podaj tytuł artykułu.'); return; }
@@ -2027,6 +2171,41 @@ document.getElementById('agentRunBtn').addEventListener('click', async () => {
   const links = document.getElementById('agentLinks').value.trim();
   const useGuidelines = document.getElementById('agentUseGuidelines').checked;
   const guidelines = useGuidelines ? getActiveGuidelinesText(selectedAgentClient) : '';
+  const htmlTemplate = document.getElementById('agentHtmlTemplate').value.trim();
+
+  // Build extra context
+  let extraContext = '';
+  if (hubId) {
+    const allArts = lsGet(KEY.articles, []);
+    const hubArtsAll = allArts.filter(a => a.hubId === hubId && a.url);
+    const allKws = lsGet(KEY.keywords, []);
+    const hubKws = allKws.filter(k => k.hubId === hubId);
+
+    // Content gap
+    const uncoveredKws = hubKws.filter(k => !k.pokryta);
+    if (uncoveredKws.length > 0) {
+      extraContext += '\n\n=== CONTENT GAP — FRAZY DO WPLECENIA ===\n' +
+        uncoveredKws.map(k => '- ' + k.fraza).join('\n') +
+        '\nUżyj tych fraz naturalnie w treści — to luki do wypełnienia w klastrze.\n';
+    }
+
+    // Weak articles
+    const blMap = {};
+    allArts.forEach(a => (a.linksWewnetrzne || []).forEach(l => { blMap[l.url] = (blMap[l.url] || 0) + 1; }));
+    const weakArts = hubArtsAll.filter(a => (blMap[a.url] || 0) <= 2);
+    if (weakArts.length > 0) {
+      extraContext += '\n=== ARTYKUŁY DO WZMOCNIENIA — LINKUJ PRIORYTETOWO ===\n' +
+        weakArts.map(a => '- ' + a.tytul + ' → ' + a.url).join('\n') +
+        '\nTe artykuły mają mało linków — jeśli temat pasuje, dodaj do nich link.\n';
+    }
+  }
+
+  // HTML template
+  if (htmlTemplate.length > 100) {
+    extraContext += '\n=== WZORZEC HTML — NAŚLADUJ DOKŁADNIE TEN STYL ===\n' +
+      'Skopiuj strukturę boxów, CTA, kolorów i formatowania ze wzorca.\n' +
+      'WZORZEC (pierwsze 3000 znaków):\n' + htmlTemplate.substring(0, 3000) + '\n';
+  }
 
   // UI: loading
   const outputEl = document.getElementById('agentOutput');
@@ -2096,7 +2275,7 @@ WYMAGANIA OBOWIĄZKOWE:
 5. Dodaj cytat eksperta marki w odpowiednim miejscu
 6. FAQ: dokładnie 6 pytań, każda odpowiedź min 3 zdania
 7. Na końcu: box CTA + Materiały do pogłębienia (4 linki) + tabela anchorów
-8. Łącznie minimum 2500 słów — licz słowa i nie kończ przed osiągnięciem minimum`;
+8. Łącznie minimum 2500 słów — licz słowa i nie kończ przed osiągnięciem minimum${extraContext}`;
 
   try {
     outputEl.textContent = '';
