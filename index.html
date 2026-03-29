@@ -1033,6 +1033,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
         <div class="form-group"><label class="form-label">Tytuł</label><input class="form-input" id="ahEditTitle"></div>
         <div class="form-group"><label class="form-label">Treść artykułu</label><textarea class="form-textarea" id="ahEditContent" style="min-height:400px;font-family:var(--font-mono);font-size:12px;line-height:1.5"></textarea></div>
         <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" id="ahFixBtn" onclick="fixEditArticle()" style="color:#f5a623;border-color:#f5a62344">▲ SPRAWDŹ I POPRAW HTML</button>
           <button class="btn btn-accent" id="ahSaveBtn">ZAPISZ ZMIANY ►</button>
           <button class="btn" id="ahCopyTextBtn">KOPIUJ TEKST</button>
           <button class="btn" id="ahCopyHtmlBtn">KOPIUJ HTML</button>
@@ -5072,6 +5073,54 @@ function deleteAh(id) {
   lsSet(KEY.blogHistoria, historia); saveAllWithSync();
   if (_ahEditId === id) { _ahEditId = null; document.getElementById('ahEditor').style.display = 'none'; }
   renderAgentHistoria();
+}
+
+async function fixEditArticle() {
+  const btn = document.getElementById('ahFixBtn');
+  const contentEl = document.getElementById('ahEditContent');
+  if (!contentEl || !contentEl.value.trim()) { alert('Brak treści do sprawdzenia.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'SPRAWDZAM...';
+  btn.style.color = 'var(--accent)';
+
+  const fixPrompt = `Jesteś korektorem artykułu HTML. Znajdź i napraw TYLKO te problemy:
+
+1. URWANE ZDANIA — dokończ urwane zdanie naturalnie (NIE przepisuj całych akapitów)
+2. BRAKUJĄCE TAGI ZAMYKAJĄCE — dodaj brakujące </p>, </ul>, </li>, </div>, </h2>, </h3>
+3. DUPLIKATY — jeśli ten sam akapit/sekcja pojawia się 2 razy, usuń duplikat
+4. NIE ZMIENIAJ: linków, URL-i, kolorów, stylów inline, nie dodawaj nowych sekcji
+
+ZWRÓĆ: kompletny poprawiony HTML. Bez komentarzy, bez markdown — tylko HTML.
+
+ARTYKUŁ:
+${contentEl.value.substring(0, 15000)}`;
+
+  try {
+    contentEl.value = '';
+    const result = await callAgent(fixPrompt, 'Jesteś korektorem HTML. Zwracasz poprawiony kod. Bez komentarzy.', (chunk, full) => {
+      contentEl.value = full;
+      contentEl.scrollTop = contentEl.scrollHeight;
+      document.getElementById('ahEditWordCount').textContent = '► ' + countWords(full) + ' słów';
+    });
+    contentEl.value = result;
+    document.getElementById('ahEditWordCount').textContent = '► ' + countWords(result) + ' słów';
+
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+    btn.textContent = '✦ POPRAWIONO — SPRAWDŹ I ZAPISZ';
+    setTimeout(() => {
+      btn.style.color = '#f5a623';
+      btn.style.borderColor = '#f5a62344';
+      btn.textContent = '▲ SPRAWDŹ I POPRAW HTML';
+    }, 5000);
+  } catch(e) {
+    console.error('fixEditArticle:', e);
+    alert('Błąd: ' + e.message);
+    btn.textContent = '▲ SPRAWDŹ I POPRAW HTML';
+    btn.style.color = '#f5a623';
+  }
+  btn.disabled = false;
 }
 
 // ═══════════════════════════════════════════════════════
