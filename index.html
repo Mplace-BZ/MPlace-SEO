@@ -1022,7 +1022,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div class="table-card">
       <div class="table-overflow">
         <table>
-          <thead><tr><th>Tytuł</th><th>Hub</th><th>Słów</th><th>Data</th><th>Akcje</th></tr></thead>
+          <thead><tr><th>Tytuł</th><th>Hub</th><th>Słów</th><th>Dług</th><th>Data</th><th>Akcje</th></tr></thead>
           <tbody id="ahBody"></tbody>
         </table>
       </div>
@@ -4819,18 +4819,27 @@ function renderAgentHistoria() {
 
   const tbody = document.getElementById('ahBody');
   if (historia.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Brak wygenerowanych artykułów — użyj Agenta</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Brak wygenerowanych artykułów — użyj Agenta</td></tr>';
     document.getElementById('ahPagination').innerHTML = '';
     return;
   }
 
   const hubs = lsGet(KEY.hubs, []);
+  const articles = lsGet(KEY.articles, []);
   tbody.innerHTML = paged.map(h => {
     const d = new Date(h.createdAt);
+    // Calculate link debt — how many hub articles should link to this
+    const hubArts = articles.filter(a => a.keyword && h.keyword && a.hubId);
+    const debtCount = hubArts.filter(a => {
+      const links = a.linksWewnetrzne || [];
+      return !links.some(l => l.anchor && l.anchor.toLowerCase().includes(h.keyword.toLowerCase().split(' ')[0]));
+    }).length;
+    const debtColor = debtCount > 5 ? 'var(--red)' : debtCount > 0 ? 'var(--yellow)' : 'var(--green)';
     return `<tr style="cursor:pointer" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
-      <td class="primary" style="max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openAhEditor('${h.id}')">${esc(h.tytul)}</td>
+      <td class="primary" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openAhEditor('${h.id}')">${esc(h.tytul)}</td>
       <td style="font-size:11px">${esc(h.keyword || '—')}</td>
       <td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">${h.liczbaSlow || '—'}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:${debtColor};cursor:pointer" onclick="showLinkDebt('${esc(h.tytul).replace(/'/g,"\\'")}','${esc(h.keyword || '').replace(/'/g,"\\'")}')">${debtCount > 0 ? debtCount + ' art.' : '✓'}</td>
       <td class="mono" style="font-size:11px">${d.toLocaleDateString('pl')} ${d.toLocaleTimeString('pl',{hour:'2-digit',minute:'2-digit'})}</td>
       <td><div class="gap-row">
         <button class="btn" style="font-size:8px;padding:2px 6px" onclick="openAhEditor('${h.id}')">EDYTUJ</button>
