@@ -4448,6 +4448,58 @@ function toggleMustFix() {
   if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
 }
 
+// Helpers for brief generation
+function extractJSON(text) {
+  if (!text) throw new Error('Pusta odpowiedź od AI');
+  let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Brak JSON w odpowiedzi AI');
+  return JSON.parse(match[0]);
+}
+
+function validateBrief(data) {
+  const errors = [];
+  ['title', 'keyword', 'lsi', 'h2plan'].forEach(f => {
+    if (!data[f]) errors.push('Brak: ' + f);
+    else if ((f === 'lsi' || f === 'h2plan') && !Array.isArray(data[f])) errors.push(f + ' musi być tablicą');
+  });
+  return { valid: errors.length === 0, errors };
+}
+
+async function callAgentSimple(prompt, systemPrompt) {
+  const response = await fetch('https://red-haze-5f37mplace-agent.contactmplace.workers.dev', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, system: systemPrompt, messages: [{ role: 'user', content: prompt }], stream: false })
+  });
+  if (!response.ok) throw new Error('Worker error: ' + response.status);
+  const data = await response.json();
+  if (!data.content || !data.content[0]) throw new Error('Brak treści');
+  return data.content[0].text;
+}
+
+async function generateBriefWithRetry(prompt, systemPrompt, maxRetries) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const fullPrompt = attempt > 1
+        ? prompt + '\n\nUWAGA: Poprzednia próba zwróciła błąd: ' + lastError.message + '\nZwróć WYŁĄCZNIE poprawny JSON.'
+        : prompt;
+      const raw = await callAgentSimple(fullPrompt, systemPrompt);
+      console.log('[BRIEF] Próba ' + attempt + ':', raw.substring(0, 200));
+      const parsed = extractJSON(raw);
+      const { valid, errors } = validateBrief(parsed);
+      if (valid) return parsed;
+      lastError = new Error('Walidacja: ' + errors.join(', '));
+    } catch(e) {
+      lastError = e;
+      console.warn('[BRIEF] Próba ' + attempt + ' failed:', e.message);
+    }
+    if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000 * attempt));
+  }
+  throw lastError;
+}
+
 async function generateRelatedArticle(sourceArtId) {
   const articles = lsGet(KEY.articles, []);
   const keywords = lsGet(KEY.keywords, []);
@@ -4483,84 +4535,37 @@ async function generateRelatedArticle(sourceArtId) {
   const existingKws = hubKws.map(k => k.fraza + ' (' + k.typ + ')').join(', ');
   const uncoveredStr = uncovered.map(k => k.fraza).join(', ');
 
-  const briefPrompt = `Jesteś strategiem SEO. Zaproponuj brief dla NOWEGO artykułu blogowego w hubie "${hub ? hub.nazwa : ''}".
+  const briefPrompt = `Na podstawie artykułu "${sourceArt.tytul}" (hub: ${hub ? hub.nazwa : '?'}, keywords: ${(sourceArt.keywords || []).slice(0, 5).join(', ')})
+zaproponuj brief NOWEGO powiązanego artykułu.
 
-ISTNIEJĄCE ARTYKUŁY (NIE powtarzaj tych tematów):
-${existingTitles}
+ISTNIEJĄCE ARTYKUŁY (NIE powtarzaj): ${existingTitles}
+CONTENT GAP: ${uncoveredStr || 'brak'}
 
-SŁOWA KLUCZOWE W HUBIE: ${existingKws}
+Zwróć WYŁĄCZNIE poprawny JSON (bez markdown, bez komentarzy):
+{"title":"Tytuł SEO 60-75 znaków","keyword":"główna fraza 2-4 słowa","lsi":["fraza 1","fraza 2","fraza 3","fraza 4","fraza 5","fraza 6"],"h2plan":["H2 sekcja 1","H2 sekcja 2","H2 sekcja 3","H2 sekcja 4","H2 sekcja 5","H2 FAQ","H2 Podsumowanie"]}`;
 
-FRAZY BEZ POKRYCIA (content gap): ${uncoveredStr || 'brak'}
-
-ARTYKUŁ ŹRÓDŁOWY: "${sourceArt.tytul}" — keyword: "${sourceArt.keyword || ''}"
-
-Zaproponuj brief NOWEGO artykułu:
-- NIE powtarzaj istniejących tematów
-- H2 muszą ściśle wspierać H1 (tytuł)
-- LSI dopasowane do NOWEGO tematu
-- Wypełnij content gap jeśli możliwe
-
-ODPOWIEDZ DOKŁADNIE w tym formacie:
-TYTUŁ: [tytuł SEO 60-75 znaków]
-KEYWORD: [główna fraza 2-4 słowa]
-LSI:
-[fraza 1]
-[fraza 2]
-[fraza 3]
-[fraza 4]
-[fraza 5]
-[fraza 6]
-PLAN H2:
-[H2 1 — ściśle powiązana z tytułem]
-[H2 2]
-[H2 3]
-[H2 4]
-[H2 5]
-[H2 6 — FAQ]
-[H2 7 — Podsumowanie]`;
+  const systemPrompt = 'Jesteś strategiem SEO. Zwracasz WYŁĄCZNIE JSON. Bez markdown, bez komentarzy, bez ```json.';
 
   try {
-    console.log('[BRIEF] Wysyłam request do AI...');
-    const result = await callAgent(briefPrompt, 'Jesteś strategiem SEO. Odpowiadaj krótko w podanym formacie. Bez komentarzy.', null);
-    console.log('[BRIEF] Odpowiedź AI:', result.substring(0, 300));
+    const brief = await generateBriefWithRetry(briefPrompt, systemPrompt, 3);
 
-    if (!result || result.length < 20) throw new Error('Pusta odpowiedź od AI');
-
-    // Parse response
-    const titleMatch = result.match(/TYTUŁ:\s*(.+)/i);
-    const kwMatch = result.match(/KEYWORD:\s*(.+)/i);
-    const lsiMatch = result.match(/LSI:\s*\n([\s\S]*?)(?=PLAN H2:|$)/i);
-    const planMatch = result.match(/PLAN H2:\s*\n([\s\S]*?)$/i);
-
-    console.log('[BRIEF] Parsed:', { title: titleMatch?.[1], kw: kwMatch?.[1] });
-
-    document.getElementById('agentTitle').value = titleMatch ? titleMatch[1].trim() : result.split('\n')[0];
-    document.getElementById('agentKeyword').value = kwMatch ? kwMatch[1].trim() : '';
-    document.getElementById('agentLSI').value = lsiMatch ? lsiMatch[1].trim() : '';
-    document.getElementById('agentPlan').value = planMatch ? planMatch[1].trim() : '';
+    document.getElementById('agentTitle').value = brief.title;
+    document.getElementById('agentKeyword').value = brief.keyword;
+    document.getElementById('agentLSI').value = Array.isArray(brief.lsi) ? brief.lsi.join('\n') : brief.lsi;
+    document.getElementById('agentPlan').value = Array.isArray(brief.h2plan) ? brief.h2plan.join('\n') : brief.h2plan;
 
     saveAgentForm();
     updateAgentSuggestions();
     updateAgentTemplateInfo();
-
-    const toast = document.createElement('div');
-    toast.textContent = '✦ Brief wygenerowany — sprawdź i edytuj przed GENERUJ ARTYKUŁ';
-    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 24px;border-radius:8px;font-family:var(--font-mono);font-size:12px;z-index:99999';
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
+    showToast('✦ Brief wygenerowany — sprawdź i edytuj', 'success');
 
   } catch(e) {
-    console.error('[BRIEF] Failed:', e);
+    console.error('[BRIEF] Failed after retries:', e);
     document.getElementById('agentTitle').value = uncovered.length > 0
       ? uncovered[0].fraza.charAt(0).toUpperCase() + uncovered[0].fraza.slice(1) + ' — poradnik'
       : 'Nowy artykuł powiązany';
     document.getElementById('agentKeyword').value = uncovered.length > 0 ? uncovered[0].fraza : '';
-
-    const toast = document.createElement('div');
-    toast.textContent = '⚠ AI brief nie zadziałał — wypełnij ręcznie. Błąd: ' + e.message;
-    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--red);color:#fff;padding:12px 24px;border-radius:8px;font-family:var(--font-mono);font-size:12px;z-index:99999';
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 6000);
+    showToast('Brief: ' + e.message, 'error');
   }
   saveAgentForm();
 }
