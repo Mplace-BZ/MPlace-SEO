@@ -3422,6 +3422,9 @@ function renderLinki() {
 }
 
 function showLinkDetail(artId, focus) {
+  openSitemapPanel(artId);
+  return;
+  // Legacy code below kept for reference
   const articles = lsGet(KEY.articles, []);
   const hubs = lsGet(KEY.hubs, []);
   const a = articles.find(x => x.id === artId);
