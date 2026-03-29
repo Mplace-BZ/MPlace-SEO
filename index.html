@@ -585,6 +585,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
         <button onclick="exportData()" style="padding:4px 10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;cursor:pointer;border-radius:3px;transition:0.2s" onmouseenter="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">↓ BACKUP</button>
         <button onclick="document.getElementById('importFileInput').click()" style="padding:4px 10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;cursor:pointer;border-radius:3px;transition:0.2s" onmouseenter="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">↑ IMPORTUJ</button>
         <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importData(this)">
+        <button id="migrateFsBtn" onclick="migrateToFirestore()" style="display:none;padding:4px 10px;background:var(--bg-card);border:1px solid var(--accent);color:var(--accent);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;cursor:pointer;border-radius:3px;transition:0.2s">☁ MIGRUJ</button>
         <button class="btn-auth" id="loginBtn">Zaloguj</button>
       </div>
     </div>
@@ -1564,13 +1565,98 @@ function lsSet(key, val) {
 }
 
 let _fsLoaded = false;
-// TODO: Dodaj Firebase config (firebaseConfig object)
-// const firebaseConfig = { apiKey: "", authDomain: "", projectId: "", ... };
-// firebase.initializeApp(firebaseConfig);
+let _fsUser = null;
+let _db = null;
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAguzC5nL7sz9tQgfPovNxcvb01fetHwpQ",
+  authDomain: "mplace-seo.firebaseapp.com",
+  projectId: "mplace-seo",
+  storageBucket: "mplace-seo.firebasestorage.app",
+  messagingSenderId: "802279832207",
+  appId: "1:802279832207:web:3e6227da7cd5d4d78c4efa"
+};
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  _db = firebase.firestore();
+} catch(e) { console.warn('Firebase init failed:', e); }
+
+const FS_MAP = {
+  [PFX + 'articles']: 'articles',
+  [PFX + 'hubs']: 'hubs',
+  [PFX + 'keywords']: 'keywords',
+  [PFX + 'articles_history']: 'history',
+  [PFX + 'guidelines']: 'guidelines',
+  [PFX + 'html_templates']: 'templates',
+};
+
+async function fsWrite(collection, data) {
+  if (!_db || !_fsUser) return;
+  try {
+    await _db.collection(collection).doc('data').set({ value: data, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  } catch(e) { console.warn('fsWrite error:', collection, e.message); }
+}
+
+async function fsRead(collection) {
+  if (!_db || !_fsUser) return null;
+  try {
+    const doc = await _db.collection(collection).doc('data').get();
+    return doc.exists ? doc.data().value : null;
+  } catch(e) { console.warn('fsRead error:', collection, e.message); return null; }
+}
 
 function saveAllWithSync() {
-  // Saves to localStorage — Firebase sync would be added here when config is provided
-  // TODO: If Firebase is configured and user is logged in, sync to Firestore
+  // Dual write: Firestore sync for mapped collections
+  if (_db && _fsUser) {
+    Object.entries(FS_MAP).forEach(([lsKey, fsCol]) => {
+      const val = localStorage.getItem(lsKey);
+      if (val) fsWrite(fsCol, JSON.parse(val));
+    });
+  }
+}
+
+async function loadFromFirestore() {
+  if (!_db || !_fsUser || _fsLoaded) return;
+  console.log('[FS] Loading from Firestore...');
+  let loaded = 0;
+  for (const [lsKey, fsCol] of Object.entries(FS_MAP)) {
+    const data = await fsRead(fsCol);
+    if (data !== null) {
+      localStorage.setItem(lsKey, JSON.stringify(data));
+      loaded++;
+    }
+  }
+  _fsLoaded = true;
+  console.log('[FS] Loaded', loaded, 'collections from Firestore');
+  if (loaded > 0) {
+    switchTab('dashboard');
+    showToast('☁ Dane zsynchronizowane z Firebase', 'success');
+  }
+}
+
+async function migrateToFirestore() {
+  if (!_db || !_fsUser) { alert('Zaloguj się aby migrować.'); return; }
+  const btn = document.getElementById('migrateFsBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'MIGRUJĘ...'; }
+
+  let count = 0;
+  for (const [lsKey, fsCol] of Object.entries(FS_MAP)) {
+    const raw = localStorage.getItem(lsKey);
+    if (raw) {
+      await fsWrite(fsCol, JSON.parse(raw));
+      count++;
+    }
+  }
+
+  // Count records for report
+  const arts = lsGet(KEY.articles, []);
+  const hubs = lsGet(KEY.hubs, []);
+  const kws = lsGet(KEY.keywords, []);
+  const hist = lsGet(KEY.blogHistoria, []);
+
+  if (btn) { btn.textContent = '✦ ZSYNCHRONIZOWANO'; btn.style.color = 'var(--green)'; }
+  showToast('☁ Migracja: ' + arts.length + ' art., ' + hubs.length + ' hubów, ' + kws.length + ' kw., ' + hist.length + ' hist.', 'success');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -5749,40 +5835,36 @@ ${originalHtml.substring(0, 12000)}`;
 // renderDashHubs — now integrated into renderDashboard
 
 // ═══════════════════════════════════════════════════════
-// 15. FIREBASE AUTH (placeholder)
+// 15. FIREBASE AUTH + SYNC
 // ═══════════════════════════════════════════════════════
-// TODO: Dodaj Firebase config (firebaseConfig object) i odkomentuj poniższy kod
-
-/*
-firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
 
-auth.onAuthStateChanged(user => {
-  if (!_fsLoaded) { _fsLoaded = true; }
+auth.onAuthStateChanged(async (user) => {
+  _fsUser = user;
   if (user) {
     document.getElementById('loginBtn').style.display = 'none';
     document.getElementById('userInfo').style.display = 'flex';
     document.getElementById('userEmail').textContent = user.email;
     const av = document.getElementById('userAvatar');
-    if (user.photoURL) { av.innerHTML = `<img src="${user.photoURL}" alt="">`; }
+    if (user.photoURL) { av.innerHTML = `<img src="${user.photoURL}" alt="" style="width:24px;height:24px;border-radius:50%">`; }
     else { av.textContent = user.email[0].toUpperCase(); }
-    // TODO: sync from Firestore
+    // Show migrate button
+    const mb = document.getElementById('migrateFsBtn');
+    if (mb) mb.style.display = 'inline-block';
+    // Load from Firestore
+    await loadFromFirestore();
   } else {
     document.getElementById('loginBtn').style.display = '';
     document.getElementById('userInfo').style.display = 'none';
+    const mb = document.getElementById('migrateFsBtn');
+    if (mb) mb.style.display = 'none';
+    _fsLoaded = false;
   }
 });
 
 document.getElementById('loginBtn').addEventListener('click', () => auth.signInWithPopup(provider));
 document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
-*/
-
-// Fallback buttons (no Firebase config)
-document.getElementById('loginBtn').addEventListener('click', () => {
-  alert('Firebase nie jest skonfigurowane.\nTODO: Dodaj Firebase config w pliku index.html');
-});
-document.getElementById('logoutBtn').addEventListener('click', () => {});
 
 // ═══════════════════════════════════════════════════════
 // 11. MODAL HELPERS
@@ -6020,7 +6102,7 @@ document.addEventListener('keydown', e => {
 <!-- MPlace SEO v1.0 — Content Intelligence Platform -->
 <!-- Worker: https://red-haze-5f37mplace-agent.contactmplace.workers.dev -->
 <!-- GitHub Pages: https://mplace-bz.github.io/Mplace-SEO/ -->
-<!-- TODO: Dodaj Firebase config (firebaseConfig object) -->
+<!-- Firebase: mplace-seo configured -->
 <!-- TODO: Dodaj Google OAuth client ID -->
 </body>
 </html>
