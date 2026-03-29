@@ -5081,39 +5081,86 @@ async function fixEditArticle() {
   if (!contentEl || !contentEl.value.trim()) { alert('Brak treści do sprawdzenia.'); return; }
 
   btn.disabled = true;
-  btn.textContent = 'SPRAWDZAM...';
+  btn.textContent = 'SKANUJĘ...';
   btn.style.color = 'var(--accent)';
 
-  const fixPrompt = `Jesteś korektorem artykułu HTML. Znajdź i napraw TYLKO te problemy:
+  const originalHtml = contentEl.value;
 
-1. URWANE ZDANIA — dokończ urwane zdanie naturalnie (NIE przepisuj całych akapitów)
-2. BRAKUJĄCE TAGI ZAMYKAJĄCE — dodaj brakujące </p>, </ul>, </li>, </div>, </h2>, </h3>
-3. DUPLIKATY — jeśli ten sam akapit/sekcja pojawia się 2 razy, usuń duplikat
-4. NIE ZMIENIAJ: linków, URL-i, kolorów, stylów inline, nie dodawaj nowych sekcji
+  const fixPrompt = `Jesteś korektorem HTML. Przeskanuj artykuł i wypisz TYLKO poprawki.
 
-ZWRÓĆ: kompletny poprawiony HTML. Bez komentarzy, bez markdown — tylko HTML.
+NIE PRZEPISUJ CAŁEGO ARTYKUŁU. Zwróć WYŁĄCZNIE listę poprawek w formacie:
+
+POPRAWKA 1:
+SZUKAJ: [dokładny fragment do zamiany — 20-80 znaków z oryginalnego tekstu]
+ZAMIEŃ: [poprawiony fragment]
+POWÓD: [krótki opis co było źle]
+
+POPRAWKA 2:
+SZUKAJ: [...]
+ZAMIEŃ: [...]
+POWÓD: [...]
+
+Sprawdź:
+1. Urwane zdania (brak kropki, zdanie kończy się w połowie)
+2. Brakujące tagi zamykające (</p>, </div>, </ul>)
+3. Duplikaty akapitów/sekcji
+4. Błędy w tagach HTML
+
+Jeśli artykuł jest poprawny — odpowiedz: BRAK BŁĘDÓW
 
 ARTYKUŁ:
-${contentEl.value.substring(0, 15000)}`;
+${originalHtml.substring(0, 15000)}`;
 
   try {
-    contentEl.value = '';
-    const result = await callAgent(fixPrompt, 'Jesteś korektorem HTML. Zwracasz poprawiony kod. Bez komentarzy.', (chunk, full) => {
-      contentEl.value = full;
-      contentEl.scrollTop = contentEl.scrollHeight;
-      document.getElementById('ahEditWordCount').textContent = '► ' + countWords(full) + ' słów';
-    });
-    contentEl.value = result;
-    document.getElementById('ahEditWordCount').textContent = '► ' + countWords(result) + ' słów';
+    const result = await callAgent(fixPrompt, 'Jesteś korektorem HTML. Zwracaj tylko listę poprawek, nie cały artykuł.', null);
 
-    btn.style.color = 'var(--green)';
-    btn.style.borderColor = 'var(--green)';
-    btn.textContent = '✦ POPRAWIONO — SPRAWDŹ I ZAPISZ';
-    setTimeout(() => {
-      btn.style.color = '#f5a623';
-      btn.style.borderColor = '#f5a62344';
-      btn.textContent = '▲ SPRAWDŹ I POPRAW HTML';
-    }, 5000);
+    if (result.includes('BRAK BŁĘDÓW') || result.includes('brak błędów')) {
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+      btn.textContent = '✓ ARTYKUŁ POPRAWNY';
+      setTimeout(() => { btn.style.color = '#f5a623'; btn.style.borderColor = '#f5a62344'; btn.textContent = '▲ SPRAWDŹ I POPRAW HTML'; }, 4000);
+      btn.disabled = false;
+      return;
+    }
+
+    // Parse and apply fixes
+    let fixedHtml = originalHtml;
+    const fixes = [];
+    const fixBlocks = result.split(/POPRAWKA \d+:/i).filter(b => b.trim());
+
+    fixBlocks.forEach(block => {
+      const searchMatch = block.match(/SZUKAJ:\s*(.+?)(?=\nZAMIEŃ:)/is);
+      const replaceMatch = block.match(/ZAMIEŃ:\s*(.+?)(?=\nPOWÓD:|$)/is);
+      const reasonMatch = block.match(/POWÓD:\s*(.+)/i);
+      if (searchMatch && replaceMatch) {
+        const search = searchMatch[1].trim();
+        const replace = replaceMatch[1].trim();
+        const reason = reasonMatch ? reasonMatch[1].trim() : '';
+        if (fixedHtml.includes(search)) {
+          fixedHtml = fixedHtml.replace(search, replace);
+          fixes.push(reason || 'poprawka');
+        }
+      }
+    });
+
+    if (fixes.length > 0) {
+      contentEl.value = fixedHtml;
+      document.getElementById('ahEditWordCount').textContent = '► ' + countWords(fixedHtml) + ' słów';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+      btn.textContent = `✦ ${fixes.length} POPRAWEK — SPRAWDŹ I ZAPISZ`;
+
+      const toast = document.createElement('div');
+      toast.innerHTML = `<strong>${fixes.length} poprawek:</strong><br>` + fixes.map(f => '• ' + f).join('<br>');
+      toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--bg-card);border:1px solid var(--green);color:var(--text-primary);padding:16px 20px;border-radius:8px;font-size:12px;z-index:99999;max-width:400px;line-height:1.5';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 8000);
+    } else {
+      btn.style.color = 'var(--yellow)';
+      btn.textContent = '⚠ NIE UDAŁO SIĘ DOPASOWAĆ POPRAWEK';
+    }
+
+    setTimeout(() => { btn.style.color = '#f5a623'; btn.style.borderColor = '#f5a62344'; btn.textContent = '▲ SPRAWDŹ I POPRAW HTML'; }, 6000);
   } catch(e) {
     console.error('fixEditArticle:', e);
     alert('Błąd: ' + e.message);
