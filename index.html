@@ -1520,7 +1520,31 @@ ZASADY JAKOŚCI:
 - Linki wewnętrzne BEZ target="_blank" (zewnętrzne mogą mieć)
 - Tabele: overflow-x: auto, min-width: 980px
 - Spis treści: kotwice id na nagłówkach H2
-- Na końcu artykułu: lista użytych anchorów + URL` }
+- Na końcu artykułu: lista użytych anchorów + URL` },
+  sekcja5: { aktywna: true, tresc: `CHECKLIST OBOWIĄZKOWY — weryfikuj każdy artykuł przed zakończeniem generowania.
+
+ZAKAZY BEZWZGLĘDNE:
+► Nigdy nie używaj bloków \`\`\`html ani \`\`\` w treści artykułu — artykuł jest czystym HTML
+► Nigdy nie zostawiaj pustych <div></div> na końcu artykułu
+► Nigdy nie pisz "sprawdź w karcie produktu" jako jedynej odpowiedzi
+► Nigdy nie zmieniaj URL-i z bazy — przepisuj dokładnie znak po znaku
+
+WYMOGI STRUKTURY:
+► Każdy punkt w spisu treści z href="#id" MUSI mieć odpowiadający element z id= w artykule
+► Artykuł MUSI kończyć się: box CTA → box Materiały do pogłębienia → koniec
+► Każdy <ul> i <ol> MUSI być domknięty przed następnym <h2>
+
+WYMOGI LINKÓW:
+► Każdy URL wewnętrzny musi być przepisany dokładnie z listy
+► Nie wolno wymyślać slugów URL
+► Anchor text musi być naturalny — nie "kliknij tutaj"
+
+AUTOKONTROLA PRZED ZAKOŃCZENIEM:
+1. Czy spis treści ma wszystkie odpowiadające id= w treści?
+2. Czy nie ma otwartych bloków \`\`\`?
+3. Czy wszystkie <ul>/<ol> są domknięte?
+4. Czy artykuł kończy się poprawnie (CTA box)?
+5. Czy żaden URL nie został zmodyfikowany?` }
 };
 
 const GUIDELINES_SECTION_META = [
@@ -1528,6 +1552,7 @@ const GUIDELINES_SECTION_META = [
   { key: 'sekcja2', num: '02', title: 'MODELE LUXSEN', subtitle: 'Fakty pewne per model + kanon twardości H2/H3/H4' },
   { key: 'sekcja3', num: '03', title: 'STRUKTURA HUBÓW I LINKOWANIE', subtitle: 'Mapa HUB #1 / #2 / #3 z zasadami linkowania wewnętrznego' },
   { key: 'sekcja4', num: '04', title: 'SZABLON HTML (SHOPIFY)', subtitle: 'Struktura artykułu + boxy + CTA + Materiały do pogłębienia' },
+  { key: 'sekcja5', num: '05', title: 'KONTROLA JAKOŚCI HTML', subtitle: 'Checklist weryfikacji artykułu przed zakończeniem generowania' },
 ];
 
 function lsGet(key, fallback = null) {
@@ -2098,7 +2123,8 @@ const GUIDELINES_CLIENTS = [
     sekcja1: { aktywna: true, tresc: '' },
     sekcja2: { aktywna: true, tresc: '' },
     sekcja3: { aktywna: true, tresc: '' },
-    sekcja4: { aktywna: false, tresc: '' }
+    sekcja4: { aktywna: false, tresc: '' },
+    sekcja5: { aktywna: true, tresc: '' }
   }},
 ];
 
@@ -3093,13 +3119,20 @@ function getActiveGuidelinesText(clientId) {
   const cid = clientId || selectedGuidelinesClient;
   const sections = getClientGuidelines(cid);
   const parts = [];
+  let qaSection = '';
   GUIDELINES_SECTION_META.forEach(meta => {
     const s = sections[meta.key];
     if (s && s.aktywna && s.tresc.trim()) {
-      parts.push(s.tresc.trim());
+      if (meta.key === 'sekcja5') {
+        qaSection = '\n\n=== KONTROLA JAKOŚCI — OBOWIĄZKOWA WERYFIKACJA PRZED ZAKOŃCZENIEM ===\n' + s.tresc.trim();
+      } else {
+        parts.push(s.tresc.trim());
+      }
     }
   });
-  return parts.length ? '\n\n=== WYTYCZNE MARKI ===\n' + parts.join('\n\n---\n\n') + '\n=== KONIEC WYTYCZNYCH ===' : '';
+  let result = parts.length ? '\n\n=== WYTYCZNE MARKI ===\n' + parts.join('\n\n---\n\n') + '\n=== KONIEC WYTYCZNYCH ===' : '';
+  result += qaSection;
+  return result;
 }
 
 document.getElementById('saveAllGuidelinesBtn').addEventListener('click', () => {
