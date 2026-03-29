@@ -4315,7 +4315,7 @@ function openSitemapPanel(artId) {
       return html;
     })()}
 
-    <button class="btn btn-accent" style="margin-top:1.5rem;width:100%" onclick="generateRelatedArticle('${a.id}');closeSitemapPanel()">GENERUJ NOWY ARTYKUŁ POWIĄZANY ►</button>
+    <button class="btn btn-accent" style="margin-top:1.5rem;width:100%" onclick="closeSitemapPanel();setTimeout(()=>generateRelatedArticle('${a.id}'),300)">GENERUJ NOWY ARTYKUŁ POWIĄZANY ►</button>
   `;
   const panel = document.getElementById('sitemapPanel');
   panel.style.display = 'block';
@@ -4336,30 +4336,30 @@ async function generateRelatedArticle(sourceArtId) {
   const keywords = lsGet(KEY.keywords, []);
   const hubs = lsGet(KEY.hubs, []);
   const sourceArt = articles.find(a => a.id === sourceArtId);
-  if (!sourceArt) return;
+  if (!sourceArt) { alert('Artykuł nie znaleziony'); return; }
 
   const hub = hubs.find(h => h.id === sourceArt.hubId);
   const hubArts = articles.filter(a => a.hubId === sourceArt.hubId && a.url);
   const hubKws = keywords.filter(k => k.hubId === sourceArt.hubId);
   const uncovered = hubKws.filter(k => !k.pokryta);
 
-  // Block autorestore, switch tab, wait for DOM
+  // 1. Switch to Agent tab (block restore)
   window._skipRestore = true;
   switchTab('agent');
-  await new Promise(r => setTimeout(r, 200));
-  window._skipRestore = false;
 
-  // Set hub and domena
+  // 2. Wait for tab to render
+  await new Promise(r => setTimeout(r, 300));
+
+  // 3. Set form fields manually (not via restore)
   populateAgentHubSelect();
   document.getElementById('agentDomena').value = sourceArt.domena || '';
-  if (sourceArt.hubId) document.getElementById('agentHub').value = sourceArt.hubId;
-
-  // Show loading state
-  document.getElementById('agentTitle').value = '⏳ AI generuje brief — proszę czekać...';
+  document.getElementById('agentHub').value = sourceArt.hubId || '';
+  document.getElementById('agentTitle').value = '⏳ AI generuje brief...';
   document.getElementById('agentKeyword').value = '';
   document.getElementById('agentLSI').value = '';
   document.getElementById('agentPlan').value = '';
   document.getElementById('agentLinks').value = hubArts.map(a => a.tytul + ' | ' + a.url).join('\n');
+  window._skipRestore = false;
 
   // Build AI brief request
   const existingTitles = hubArts.map(a => '- ' + a.tytul).join('\n');
