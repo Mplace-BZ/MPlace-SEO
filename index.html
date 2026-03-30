@@ -2043,11 +2043,20 @@ function renderDashPlan(domena, articles, hubs, keywords) {
 
   const updateSuggestions = [];
   recent.forEach(h => {
-    const hubArts = articles.filter(a => a.keyword && h.keyword);
-    hubArts.forEach(a => {
+    if (!h.keyword) return;
+    const kwWords = h.keyword.toLowerCase().split(' ').filter(w => w.length > 3);
+    if (kwWords.length === 0) return;
+    // Find articles in same hub that could link to this new article
+    const sameHubArts = articles.filter(a => {
+      if (!a.url || !a.hubId) return false;
+      // Check keyword overlap
+      const artKws = (a.keywords || []).map(k => (typeof k === 'string' ? k : k.fraza || '').toLowerCase());
+      return artKws.some(kw => kwWords.some(w => kw.includes(w)));
+    });
+    sameHubArts.forEach(a => {
       const links = a.linksWewnetrzne || [];
-      const alreadyLinks = links.some(l => l.anchor && l.anchor.toLowerCase().includes((h.keyword || '').toLowerCase().split(' ')[0]));
-      if (!alreadyLinks && a.url) {
+      const alreadyLinks = links.some(l => l.anchor && kwWords.some(w => l.anchor.toLowerCase().includes(w)));
+      if (!alreadyLinks) {
         updateSuggestions.push({ art: a, newTitle: h.tytul, newKw: h.keyword });
       }
     });
@@ -2058,8 +2067,8 @@ function renderDashPlan(domena, articles, hubs, keywords) {
     const seen = new Set();
     updateSuggestions.forEach(s => { if (!seen.has(s.art.id)) { seen.add(s.art.id); unique.push(s); } });
     col2 += unique.slice(0, 5).map(s => `<div style="border-left:3px solid var(--yellow);background:var(--bg-card);padding:10px 12px;margin-bottom:6px;border-radius:0 4px 4px 0">
-      <div style="font-size:12px;color:var(--text-primary)">${esc(s.art.tytul.substring(0, 45))}</div>
-      <div style="font-size:10px;color:var(--text-muted);margin:3px 0">Dodaj link do: "${esc(s.newTitle.substring(0, 35))}"</div>
+      <div style="font-size:12px;color:var(--text-primary)">${esc(s.art.tytul)}</div>
+      <div style="font-size:10px;color:var(--text-muted);margin:3px 0">Dodaj link do: "${esc(s.newTitle)}"</div>
       ${s.art.url ? `<a href="${esc(s.art.url)}" target="_blank" class="btn" style="font-size:8px;padding:2px 8px;margin-top:4px;color:var(--yellow);border-color:var(--yellow)44;text-decoration:none">OTWÓRZ ↗</a>` : ''}
     </div>`).join('');
   } else {
