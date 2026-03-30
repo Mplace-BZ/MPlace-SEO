@@ -1046,7 +1046,7 @@ tbody td.primary { color: var(--text-primary); font-weight: 500; font-size: 13px
     <div class="table-card">
       <div class="table-overflow">
         <table>
-          <thead><tr><th>Tytuł</th><th>Hub</th><th>Słów</th><th>Dług</th><th>Data</th><th>Akcje</th></tr></thead>
+          <thead><tr><th>Tytuł</th><th>Hub</th><th>Słów</th><th>QA</th><th>Dług</th><th>Data</th><th>Akcje</th></tr></thead>
           <tbody id="ahBody"></tbody>
         </table>
       </div>
@@ -2792,8 +2792,13 @@ WAŻNE: Zacznij od <h2 id="faq"> — bez wstępu. Min 600 słów.`;
     dot.classList.add('inactive');
     document.getElementById('agentPart2Bar').style.display = 'none';
     processAgentResult();
-    // Auto-save to history
+    // Auto-save to history then auto-QA
     document.getElementById('saveArticleHistoryBtn').click();
+    // Run QA on last saved article
+    setTimeout(() => {
+      const hist = lsGet(KEY.blogHistoria, []);
+      if (hist.length > 0) runQAWithRetry(hist[0].id, 2);
+    }, 1000);
   } catch(e) {
     outputEl.textContent += '\n\nBłąd generowania Części 2: ' + e.message;
     dot.classList.add('inactive');
@@ -5474,7 +5479,7 @@ function renderAgentHistoria() {
 
   const tbody = document.getElementById('ahBody');
   if (historia.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Brak wygenerowanych artykułów — użyj Agenta</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Brak wygenerowanych artykułów — użyj Agenta</td></tr>';
     document.getElementById('ahPagination').innerHTML = '';
     return;
   }
@@ -5494,9 +5499,11 @@ function renderAgentHistoria() {
       <td class="primary" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openAhEditor('${h.id}')">${esc(h.tytul)}</td>
       <td style="font-size:11px">${esc(h.keyword || '—')}</td>
       <td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">${h.liczbaSlow || '—'}</td>
+      <td style="text-align:center">${getQABadge(h)}</td>
       <td style="font-family:var(--font-mono);font-size:12px;color:${debtColor};cursor:pointer" onclick="showLinkDebt('${esc(h.tytul).replace(/'/g,"\\'")}','${esc(h.keyword || '').replace(/'/g,"\\'")}')">${debtCount > 0 ? debtCount + ' art.' : '✓'}</td>
       <td class="mono" style="font-size:11px">${d.toLocaleDateString('pl')} ${d.toLocaleTimeString('pl',{hour:'2-digit',minute:'2-digit'})}</td>
       <td><div class="gap-row">
+        <button class="btn" style="font-size:8px;padding:2px 6px;color:#a78bfa;border-color:#a78bfa44" onclick="runQAWithRetry('${h.id}')">QA</button>
         <button class="btn" style="font-size:8px;padding:2px 6px;color:var(--green);border-color:var(--green)44" onclick="showAhAnchors('${h.id}')">ANCHORS</button>
         <button class="btn" style="font-size:8px;padding:2px 6px" onclick="openAhEditor('${h.id}')">EDYTUJ</button>
         <button class="btn" style="font-size:8px;padding:2px 6px" onclick="navigator.clipboard.writeText(lsGet(KEY.blogHistoria,[]).find(x=>x.id==='${h.id}')?.tresc||'')">KOPIUJ</button>
@@ -5636,6 +5643,172 @@ function toggleAhEdit() {
     btn.style.color = 'var(--accent)';
     btn.style.borderColor = 'var(--accent)44';
   }
+}
+
+// ═══════════════════════════════════════════════════════
+// QA PIPELINE
+// ═══════════════════════════════════════════════════════
+function runQACheck(html, clientId) {
+  if (!html) return { passed: false, score: 0, errors: ['Brak HTML'], warnings: [] };
+  const errors = [];
+  const warnings = [];
+  const cl = clientId || 'luxsen';
+  const domain = cl === 'domglamour' ? 'domglamour.pl' : 'luxsen.pl';
+
+  // 1. H1
+  if (!/<h1[\s>]/i.test(html)) errors.push('Brak tagu H1');
+
+  // 2. Spis treści (w pierwszych 3000 znaków)
+  const top = html.substring(0, 3000).toLowerCase();
+  if (!/spis treści/i.test(top) && !/<ol[^>]*>[\s\S]*?<a[^>]*href="#/i.test(html.substring(0, 3000)))
+    errors.push('Brak spisu treści');
+
+  // 3. Min 3 H2
+  const h2Count = (html.match(/<h2[\s>]/gi) || []).length;
+  if (h2Count < 3) errors.push('Za mało sekcji H2: ' + h2Count + ' (min. 3)');
+
+  // 4. FAQ
+  if (!/faq/i.test(html) && !/<strong>\d+\)/i.test(html)) errors.push('Brak sekcji FAQ');
+
+  // 5. Cytat eksperta
+  if (!/border-left:\s*5px\s*solid/i.test(html)) errors.push('Brak cytatu eksperta (border-left)');
+
+  // 6. Materiały do pogłębienia
+  if (!/materia[lł]y do pog[lł][eę]bienia/i.test(html)) errors.push('Brak sekcji Materiały do pogłębienia');
+
+  // 7. CTA box
+  if (!/background[:\s-]*#f4f4f4/i.test(html) && !/background-color[:\s]*#f4f4f4/i.test(html))
+    errors.push('Brak CTA box (background #f4f4f4)');
+
+  // 8. Linki wewnętrzne
+  const linkPattern = new RegExp('href="[^"]*' + domain.replace('.', '\\.') + '[^"]*"', 'gi');
+  const internalLinks = (html.match(linkPattern) || []).length;
+  if (internalLinks < 4) errors.push('Za mało linków wewnętrznych: ' + internalLinks + ' (min. 4)');
+
+  // 9. Compliance
+  const forbidden = ['leczy', 'uzdrawia', 'gwarantuje', 'kuruje', 'wyleczy'];
+  const plainText = html.replace(/<[^>]+>/g, ' ').toLowerCase();
+  forbidden.forEach(word => {
+    if (plainText.includes(word)) errors.push('Zakazane słowo: "' + word + '"');
+  });
+
+  // 10. Długość
+  const wordCount = plainText.trim().split(/\s+/).filter(w => w.length > 0).length;
+  if (wordCount < 2000) errors.push('Za krótki artykuł: ' + wordCount + ' słów (min. 2000)');
+  else if (wordCount < 2500) warnings.push('Artykuł krótszy niż zalecane: ' + wordCount + ' (zalecane 2500+)');
+
+  // Warnings
+  if (h2Count < 6) warnings.push('Mało sekcji H2: ' + h2Count + ' (zalecane 6+)');
+  if (internalLinks < 8) warnings.push('Mało linków wewnętrznych: ' + internalLinks + ' (zalecane 8+)');
+
+  const score = Math.max(0, 100 - errors.length * 10);
+  return { passed: errors.length === 0, score, errors, warnings, wordCount };
+}
+
+async function callAgentQAFix(article, qaResult) {
+  const fixPrompt = `Napraw poniższy artykuł HTML. Oto błędy QA które MUSISZ naprawić:
+
+${qaResult.errors.map((e, i) => (i + 1) + '. ' + e).join('\n')}
+
+ZASADY NAPRAWY:
+- Napraw TYLKO wymienione błędy
+- NIE zmieniaj istniejących linków URL
+- NIE zmieniaj stylów inline
+- NIE usuwaj istniejących sekcji
+- Jeśli brakuje FAQ → dodaj sekcję FAQ z 6 pytaniami
+- Jeśli brakuje CTA → dodaj box CTA z background #f4f4f4
+- Jeśli brakuje Materiałów → dodaj sekcję z 4 linkami
+- Jeśli za krótki → rozbuduj istniejące sekcje H2
+
+Zwróć KOMPLETNY poprawiony HTML artykułu.
+
+ARTYKUŁ:
+${article.tresc.substring(0, 14000)}`;
+
+  return await callAgent(fixPrompt, 'Jesteś korektorem HTML. Napraw tylko wymienione błędy QA. Zwróć kompletny HTML.', null);
+}
+
+async function runQAWithRetry(historyId, maxRetries) {
+  if (maxRetries === undefined) maxRetries = 2;
+  const historia = lsGet(KEY.blogHistoria, []);
+  const article = historia.find(h => h.id === historyId);
+  if (!article || !article.tresc) { showToast('Brak artykułu do QA', 'error'); return null; }
+
+  const clientId = article.clientId || 'luxsen';
+  let currentHtml = article.tresc;
+  let retryCount = 0;
+  let qaResult = runQACheck(currentHtml, clientId);
+
+  // Show initial result
+  showQAReport(qaResult, article.tytul);
+
+  if (qaResult.passed) {
+    article.qaStatus = 'PASS';
+    article.qaReport = qaResult;
+    article.qaRetries = 0;
+    article.updatedAt = new Date().toISOString();
+    lsSet(KEY.blogHistoria, historia);
+    saveAllWithSync();
+    return qaResult;
+  }
+
+  // Retry loop
+  while (!qaResult.passed && retryCount < maxRetries) {
+    retryCount++;
+    showToast('► QA poprawka ' + retryCount + '/' + maxRetries + '...', 'warning');
+
+    try {
+      const fixedHtml = await callAgentQAFix(article, qaResult);
+      if (fixedHtml && fixedHtml.length > 500) {
+        currentHtml = fixedHtml;
+        article.tresc = fixedHtml;
+        qaResult = runQACheck(fixedHtml, clientId);
+        showQAReport(qaResult, article.tytul);
+      }
+    } catch(e) {
+      console.error('[QA] Fix attempt failed:', e);
+    }
+  }
+
+  article.qaStatus = qaResult.passed ? 'PASS' : 'QA_FAILED';
+  article.qaReport = qaResult;
+  article.qaRetries = retryCount;
+  article.updatedAt = new Date().toISOString();
+  lsSet(KEY.blogHistoria, historia);
+  saveAllWithSync();
+  return qaResult;
+}
+
+function showQAReport(qaResult, title) {
+  const scoreColor = qaResult.score >= 80 ? 'var(--green)' : qaResult.score >= 50 ? 'var(--yellow)' : 'var(--red)';
+  let html = `<div style="font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:8px">QA Report: ${esc(title || '')}</div>`;
+  html += `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+    <div style="font-family:var(--font-mono);font-size:24px;color:${scoreColor}">${qaResult.score}</div>
+    <div style="flex:1;height:8px;background:var(--bg-secondary);border-radius:4px;overflow:hidden"><div style="width:${qaResult.score}%;height:100%;background:${scoreColor};border-radius:4px"></div></div>
+    <span style="font-family:var(--font-mono);font-size:12px;color:${qaResult.passed ? 'var(--green)' : 'var(--red)'}">${qaResult.passed ? 'PASS ✓' : 'FAILED ✗'}</span>
+  </div>`;
+
+  if (qaResult.errors.length > 0) {
+    html += `<div style="font-family:var(--font-mono);font-size:10px;color:var(--red);margin-bottom:6px">ERRORS (${qaResult.errors.length}):</div>`;
+    qaResult.errors.forEach(e => { html += `<div style="font-size:12px;padding:3px 0;color:var(--text-secondary)">❌ ${esc(e)}</div>`; });
+  }
+  if (qaResult.warnings.length > 0) {
+    html += `<div style="font-family:var(--font-mono);font-size:10px;color:var(--yellow);margin:8px 0 6px">WARNINGS (${qaResult.warnings.length}):</div>`;
+    qaResult.warnings.forEach(w => { html += `<div style="font-size:12px;padding:3px 0;color:var(--text-muted)">⚠ ${esc(w)}</div>`; });
+  }
+  if (qaResult.wordCount) html += `<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-top:8px">Słów: ${qaResult.wordCount}</div>`;
+
+  document.getElementById('sitemapPanelContent').innerHTML = html;
+  document.getElementById('sitemapPanel').style.display = 'block';
+  document.getElementById('sitemapPanel').scrollTop = 0;
+}
+
+// Add QA button to History table
+function getQABadge(article) {
+  if (!article.qaStatus) return '<span style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted)">—</span>';
+  if (article.qaStatus === 'PASS') return '<span style="font-family:var(--font-mono);font-size:9px;color:var(--green)">PASS ✓</span>';
+  if (article.qaStatus === 'QA_FAILED') return '<span style="font-family:var(--font-mono);font-size:9px;color:var(--red)">FAIL ✗</span>';
+  return '<span style="font-family:var(--font-mono);font-size:9px;color:var(--yellow)">PENDING</span>';
 }
 
 // Pre-scan: find broken HTML with JavaScript (no AI needed)
