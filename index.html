@@ -5709,21 +5709,19 @@ function runQACheck(html, clientId) {
 }
 
 async function callAgentQAFix(article, qaResult) {
-  const fixPrompt = `Napraw poniższy artykuł HTML. Oto błędy QA które MUSISZ naprawić:
+  const fixPrompt = `Jesteś ekspertem HTML. Artykuł nie przeszedł QA. DODAJ brakujące sekcje — NIE zmieniaj istniejącej treści, NIE skracaj, NIE przepisuj.
 
-${qaResult.errors.map((e, i) => (i + 1) + '. ' + e).join('\n')}
+BRAKUJĄCE ELEMENTY DO DODANIA:
+${qaResult.errors.map((e, i) => '- ' + e).join('\n')}
 
-ZASADY NAPRAWY:
-- Napraw TYLKO wymienione błędy
-- NIE zmieniaj istniejących linków URL
-- NIE zmieniaj stylów inline
-- NIE usuwaj istniejących sekcji
-- Jeśli brakuje FAQ → dodaj sekcję FAQ z 6 pytaniami
-- Jeśli brakuje CTA → dodaj box CTA z background #f4f4f4
-- Jeśli brakuje Materiałów → dodaj sekcję z 4 linkami
-- Jeśli za krótki → rozbuduj istniejące sekcje H2
-
-Zwróć KOMPLETNY poprawiony HTML artykułu.
+ZASADY:
+- Jeśli brak cytatu eksperta: dodaj <div style="background: #f4f4f4; border: 1px solid #eee; border-left: 5px solid #bd9a6c; border-radius: 10px; padding: 16px; margin: 18px 0; font-style: italic;">„[cytat pasujący do tematu]" — <strong>eksperci Luxsen</strong></div>
+- Jeśli brak "Materiały do pogłębienia": dodaj przed końcem artykułu: <div style="background: #f4f4f4; padding: 18px; border: 1px solid #eee; border-radius: 10px; margin: 22px 0;"><p style="margin: 0 0 10px 0; font-weight: bold;">Materiały do pogłębienia</p><ul style="margin: 0; padding-left: 18px; line-height: 1.75;"><li><a style="color: #bd9a6c; text-decoration: none;" href="[URL]">[Tytuł]</a></li></ul></div> — użyj linków z artykułu
+- Jeśli za mało słów: rozwiń istniejące sekcje H2 o 1-2 akapity KAŻDA (nie dodawaj nowych sekcji)
+- Jeśli brak CTA: dodaj <div style="background-color: #f4f4f4; padding: 40px 20px; border-radius: 12px; margin-top: 34px; text-align: center; border: 1px solid #eee;">..przycisk #bd9a6c..</div>
+- NIE usuwaj ŻADNEJ istniejącej treści
+- NIE zmieniaj kolejności sekcji
+- Zwróć KOMPLETNY artykuł z DODANYMI elementami
 
 ARTYKUŁ:
 ${article.tresc.substring(0, 14000)}`;
@@ -5773,12 +5771,18 @@ async function runQAWithRetry(historyId, maxRetries) {
     }
   }
 
-  article.qaStatus = qaResult.passed ? 'PASS' : 'QA_FAILED';
-  article.qaReport = qaResult;
-  article.qaRetries = retryCount;
-  article.updatedAt = new Date().toISOString();
+  // Update existing record by index (no duplicates)
+  const idx = historia.findIndex(x => x.id === historyId);
+  if (idx !== -1) {
+    historia[idx].tresc = currentHtml;
+    historia[idx].qaStatus = qaResult.passed ? 'PASS' : 'QA_FAILED';
+    historia[idx].qaReport = qaResult;
+    historia[idx].qaRetries = retryCount;
+    historia[idx].updatedAt = new Date().toISOString();
+  }
   lsSet(KEY.blogHistoria, historia);
   saveAllWithSync();
+  renderAgentHistoria();
   return qaResult;
 }
 
@@ -6140,6 +6144,24 @@ seedTestData();
   lsSet(KEY.keywords, []);
   lsSet(PFX + 'cleaned_v6', true);
   console.log('[MIGRACJA v6] Wyczyszczono keywords — reimportuj artykuły z typami główna/LSI/długi ogon');
+})();
+
+// Deduplicate history (one-time cleanup)
+(function() {
+  const hist = lsGet(KEY.blogHistoria, []);
+  if (hist.length < 2) return;
+  const seen = new Map();
+  hist.forEach(h => {
+    const key = h.tytul;
+    if (!seen.has(key) || (h.liczbaSlow || 0) > (seen.get(key).liczbaSlow || 0)) {
+      seen.set(key, h);
+    }
+  });
+  const deduped = [...seen.values()];
+  if (deduped.length < hist.length) {
+    lsSet(KEY.blogHistoria, deduped);
+    console.log('[DEDUP] Usunięto ' + (hist.length - deduped.length) + ' duplikatów z historii');
+  }
 })();
 
 document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
