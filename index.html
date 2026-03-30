@@ -5655,8 +5655,7 @@ function runQACheck(html, clientId) {
   const cl = clientId || 'luxsen';
   const domain = cl === 'domglamour' ? 'domglamour.pl' : 'luxsen.pl';
 
-  // 1. H1
-  if (!/<h1[\s>]/i.test(html)) errors.push('Brak tagu H1');
+  // 1. H1 — skip (tytuł = H1 w Shopify, poza rawHtml)
 
   // 2. Spis treści (w pierwszych 3000 znaków)
   const top = html.substring(0, 3000).toLowerCase();
